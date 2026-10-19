@@ -49,7 +49,7 @@ public class SecurityConfig {
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class)
                 .securityContext(c -> c.securityContextRepository(securityContextRepository()))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/calendar",
+                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/**", "/api/calendar",
                                 "/actuator/health").permitAll()
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/releases/**", "/api/admin/works/**").hasRole("EDITOR")
