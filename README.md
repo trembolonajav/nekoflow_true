@@ -7,7 +7,7 @@ Plataforma de animes e leituras construída a partir do protótipo do Claude Des
 | Frontend | React 18 + Vite + React Router                     | `frontend/` |
 | Backend  | Java 17 + Spring Boot 3 (Web, Security, JDBC, Flyway) | `backend/` |
 | Banco    | PostgreSQL 16                                      | (Docker)    |
-| Infra    | Docker Compose (Postgres, API, nginx)              | raiz        |
+| Infra    | Docker Compose (Postgres, API, nginx e Mailpit local) | raiz        |
 | Design   | Arquivos originais exportados do Claude Design     | `design/`   |
 
 ## Subir tudo com Docker
@@ -19,6 +19,7 @@ docker compose up -d --build
 - App: http://localhost:3000
 - API: http://localhost:8080
 - Postgres: localhost:5432 (usuário/senha `nekoflow`, veja `.env.example`)
+- E-mails locais: http://localhost:8025 (Mailpit; não envia mensagens para a internet)
 
 Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
 padrão `nekoflow2026`):
@@ -93,6 +94,9 @@ Uma única fonte para cada informação (detalhes em `docs/matriz-integracao.md`
   preferências de notificação da conta.
 - **Permissões** (validadas no servidor): moderador = solicitações; editor = + publicações e
   catálogo; administrador = + usuários e auditoria (`admin_audit`).
+- **Autenticação**: Spring Security + Spring Session JDBC, cookie `HttpOnly`, CSRF, Argon2id,
+  confirmação de e-mail e recuperação com tokens temporários de uso único. O React nunca guarda
+  JWT ou senha no `localStorage`.
 
 ## Mobile
 
@@ -119,11 +123,13 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
 - `docs/api-conventions.md` — cliente HTTP e contrato de erros;
 - `docs/navigation-audit.md` — auditoria anterior às correções do Protocolo 02;
 - `docs/protocol-02-integration.md` — rotas, limites e integração da navegação real;
+- `docs/protocol-03-auth-audit.md` — linha de base anterior à autenticação completa;
+- `docs/protocol-03-authentication.md` — contrato, segurança, configuração e resultados;
 - `docs/visual-baseline.md` — rotas e viewports usados na verificação visual.
 
 ## O que ainda não existe
 
-- Envio de e-mail (confirmação de conta, recuperação de senha) e login com Google: as telas
-  existem, mas não há serviço de e-mail/OAuth configurado.
+- Login com Google/OIDC, alteração de e-mail e MFA ainda não estão configurados; a interface os
+  apresenta como indisponíveis, sem simular sucesso.
 - Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
 - Acessibilidade (WCAG) ficou fora deste escopo.
