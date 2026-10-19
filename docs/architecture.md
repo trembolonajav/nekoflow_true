@@ -15,6 +15,8 @@ possuem limites explícitos.
 - `frontend/src/pages`: telas de produção. A indicação `Origem: design/...` registra a referência
   visual, não significa que o arquivo possa ser sobrescrito.
 - `frontend/src/services/api`: único ponto para comunicação HTTP, timeout, cancelamento e erros.
+- `frontend/src/features`: serviços por fluxo de produto. `library`, `progress` e `history` são o
+  único caminho para dados pessoais; `progress/progressSync` é o contrato do player e do leitor.
 - `frontend/src/lib`: estado de sessão, progresso e adaptadores mantidos por compatibilidade.
 - `frontend/src/ui`: moldura e tokens usados nas telas que não existiam no design original.
 - `frontend/src/styles`: estilos globais e ajustes responsivos.
@@ -25,8 +27,10 @@ por fluxo de produto nos próximos protocolos, sem uma movimentação em massa q
 
 ### Backend
 
-- Pacotes de domínio (`auth`, `catalog`, `library`, `notification`, `request`, `admin`) contêm os
-  casos de uso já implementados.
+- Pacotes de domínio (`auth`, `catalog`, `library`, `progress`, `notification`, `request`, `admin`)
+  contêm os casos de uso já implementados. `library` (biblioteca, favoritos, acompanhamento) e
+  `progress` (progresso, continuidade, histórico) são a fonte oficial dos dados pessoais — ver
+  `docs/protocol-05-library-progress.md`.
 - `content` preserva os documentos JSON usados pelas telas legadas.
 - `api` define o contrato transversal de erros e o identificador de requisição.
 - Flyway é a única forma permitida de alterar o esquema PostgreSQL.
