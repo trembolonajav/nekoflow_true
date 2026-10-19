@@ -31,7 +31,8 @@ public class RoleRefreshFilter extends OncePerRequestFilter {
         NekoPrincipal p = CurrentUser.orNull();
         if (p != null) {
             var current = users.findById(p.id());
-            if (current.isEmpty()) {
+            if (current.isEmpty() || current.get().status() != AccountStatus.ACTIVE
+                    || (current.get().lockedUntil() != null && current.get().lockedUntil().isAfter(java.time.OffsetDateTime.now()))) {
                 SecurityContextHolder.clearContext();
                 var s = req.getSession(false);
                 if (s != null) {

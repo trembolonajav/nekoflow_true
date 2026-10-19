@@ -12,6 +12,11 @@ server:
 
 nekoflow:
   public-url: ${NEKOFLOW_PUBLIC_URL:http://localhost:3000}
+  bootstrap-admin:
+    enabled: ${NEKOFLOW_BOOTSTRAP_ADMIN:false}
+    username: ${NEKOFLOW_BOOTSTRAP_ADMIN_USERNAME:}
+    email: ${NEKOFLOW_BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${NEKOFLOW_BOOTSTRAP_ADMIN_PASSWORD:}
   demo:
     enabled: ${NEKOFLOW_DEMO:true}
     password: ${NEKOFLOW_DEMO_PASSWORD:nekoflow2026}

@@ -99,6 +99,10 @@ public class AuthController {
                                      HttpServletResponse res) {
         Authentication auth;
         var candidate = users.findByLogin(body.login());
+        if (candidate.isPresent() && candidate.get().lockedUntil() != null
+                && candidate.get().lockedUntil().isAfter(OffsetDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Tente novamente em alguns minutos");
+        }
         try {
             auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(body.login(), body.password()));
         } catch (AuthenticationException e) {

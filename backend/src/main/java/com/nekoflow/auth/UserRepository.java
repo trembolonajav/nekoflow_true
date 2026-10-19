@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class UserRepository {
@@ -43,8 +44,9 @@ public class UserRepository {
         return create(username, email, displayName, passwordHash, role, AccountStatus.ACTIVE);
     }
 
+    @Transactional
     public long create(String username, String email, String displayName, String passwordHash, Role role, AccountStatus status) {
-        return jdbc.sql("""
+        long id = jdbc.sql("""
                 INSERT INTO app_user (username, email, display_name, password_hash, role, status, email_verified_at)
                 VALUES (:u, lower(:e), :d, :p, :r, :s, CASE WHEN :s = 'ACTIVE' THEN now() ELSE NULL END) RETURNING id""")
                 .param("u", username.toLowerCase())
@@ -54,6 +56,9 @@ public class UserRepository {
                 .param("r", role.name())
                 .param("s", status.name())
                 .query(Long.class).single();
+        jdbc.sql("INSERT INTO user_profile(user_id) VALUES (?) ON CONFLICT DO NOTHING").param(id).update();
+        jdbc.sql("INSERT INTO user_role(user_id, role) VALUES (?, ?) ON CONFLICT DO NOTHING").params(id, role.name()).update();
+        return id;
     }
 
     public void activate(long id) {

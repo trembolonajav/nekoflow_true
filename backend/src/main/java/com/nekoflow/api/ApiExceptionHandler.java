@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<Map<String, Object>> responseStatus(ResponseStatusException exception,
@@ -35,6 +36,8 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<Map<String, Object>> unexpected(Exception exception, HttpServletRequest request) {
+        LOG.error("Unexpected API failure for {} {} (requestId={})", request.getMethod(), request.getRequestURI(),
+                request.getAttribute("requestId"), exception);
         return ResponseEntity.internalServerError().body(ApiErrors.body(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "INTERNAL_ERROR",
