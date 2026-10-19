@@ -1,14 +1,22 @@
 // Origem: design/claude-design/Player.dc.html (Claude Design).
 /* eslint-disable */
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
-import { session } from "../lib/session";
+import { session, goLogin } from "../lib/session";
 import { progressApi } from "../features/progress/progressApi";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { canonicalWorks } from "../features/catalog/workNavigation";
+import { mediaApi, ISSUE_CATEGORIES } from "../features/media/mediaApi";
+import {
+  browserSupport,
+  rankSources,
+  pickSource,
+  createWatchMeter,
+  languageName,
+} from "../features/media/playbackRules";
 
 const WORK_ID = 151807;
 
@@ -721,6 +729,22 @@ class PlayerLogic extends DCLogic {
     const loggedIn = session.loggedIn;
     return {
       loggedIn,
+      // Valores do player demonstrativo; o player real (RealPlayerLogic) substitui todos.
+      demoBanner: true,
+      workTitle: "Solo Leveling",
+      workHref: canonicalWorks.soloLevelingAnime,
+      origHref: `${canonicalWorks.soloLevelingReading}?aba=adapt`,
+      origCta: "Ver o manhwa →",
+      hasOrig: true,
+      realVideo: false,
+      commentsOn: true,
+      errorTitle: "Não foi possível carregar o vídeo",
+      errorSaved: true,
+      tryOtherLabel: "Tentar outra fonte",
+      retryLabel: "Tentar novamente",
+      durText: "24:00",
+      synText:
+        "A sinopse do episódio, cadastrada pela equipe, aparece aqui. Ela fica recolhida por padrão para quem ainda não assistiu.",
       meInitial: session.user.initial || "?",
       guest: !loggedIn,
       ...this.commentVals(loggedIn),
@@ -947,7 +971,7 @@ class PlayerLogic extends DCLogic {
           ? "Sem legenda"
           : `Legenda ${s.subs === "en" ? "EN" : s.subs === "forced" ? "forçada" : "PT-BR"}`,
         s.quality === "auto" ? "Qualidade automática" : `${s.quality}p`,
-        `Fonte ${srcNames[s.src].toLowerCase()}`,
+        `Fonte ${(srcNames[s.src] || "").toLowerCase()}`,
       ],
       fallbackNote: s.audio === "pt" && !dubOk,
       synOpen: s.synOpen,
@@ -1032,6 +1056,7 @@ function render(v) {
           solid={true}
           __hostStyle={{ position: "absolute", top: "0", left: "0", right: "0", height: "0", zIndex: "50" }}
         />
+        {v.demoBanner ? (
         <div
           role="status"
           style={{
@@ -1052,6 +1077,7 @@ function render(v) {
         >
           Demonstração de interface · nenhuma fonte oficial de vídeo integrada
         </div>
+        ) : null}
         <div
           style={{
             padding: "132px clamp(16px,3.3vw,48px) 0",
@@ -1074,7 +1100,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1d5grei"
-              href={canonicalWorks.soloLevelingAnime}
+              href={v.workHref}
               style={{ display: "flex", alignItems: "center", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
             >
               <svg
@@ -1098,7 +1124,7 @@ function render(v) {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  Solo Leveling
+                  {txt(v.workTitle)}
                 </span>
                 <span style={{ fontSize: "12px", color: "#B7B1A4" }}>{txt(v.crumb)}</span>
               </span>
@@ -1134,6 +1160,22 @@ function render(v) {
                 transition: "filter .3s",
               }}
             />{" "}
+            {v.realVideo ? (
+              <video
+                ref={v.videoRef}
+                playsInline
+                preload="metadata"
+                poster={v.videoPoster || undefined}
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  background: "transparent",
+                }}
+              />
+            ) : null}{" "}
             <span onClick={v.stageClick} onDoubleClick={v.toggleFs} style={{ position: "absolute", inset: "0" }} />{" "}
             {v.showSub ? (
               <>
@@ -1257,13 +1299,17 @@ function render(v) {
                       style={{ width: "84px", height: "84px", objectFit: "contain" }}
                     />
                     <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "28px", fontWeight: "500" }}>
-                      Não foi possível carregar o vídeo
+                      {txt(v.errorTitle)}
                     </span>
                     <span style={{ fontSize: "14px", color: "#B7B1A4" }}>
                       {txt(v.errorText)}
-                      {" Sua posição em "}
-                      {txt(v.timeText)}
-                      {" está salva."}
+                      {v.errorSaved ? (
+                        <>
+                          {" Sua posição em "}
+                          {txt(v.timeText)}
+                          {" está salva."}
+                        </>
+                      ) : null}
                     </span>
                     <div
                       style={{
@@ -1290,7 +1336,7 @@ function render(v) {
                           fontWeight: "600",
                         }}
                       >
-                        Tentar outra fonte
+                        {txt(v.tryOtherLabel)}
                       </button>
                       <button
                         onClick={v.retry}
@@ -1306,10 +1352,10 @@ function render(v) {
                           fontSize: "14px",
                         }}
                       >
-                        Tentar novamente
+                        {txt(v.retryLabel)}
                       </button>
                       <a
-                        href={canonicalWorks.soloLevelingAnime}
+                        href={v.workHref}
                         style={{
                           height: "42px",
                           display: "flex",
@@ -1468,7 +1514,7 @@ function render(v) {
                     pointerEvents: "none",
                   }}
                 >
-                  <span style={{ fontSize: "14px", fontWeight: "600" }}>Solo Leveling</span>
+                  <span style={{ fontSize: "14px", fontWeight: "600" }}>{txt(v.workTitle)}</span>
                   <span style={{ fontSize: "13px", color: "#D9D5CC" }}>{txt(v.crumb)}</span>
                 </div>{" "}
               </>
@@ -1918,7 +1964,7 @@ function render(v) {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {txt(v.timeText)} <span style={{ color: "#B7B1A4" }}>/ 24:00</span>
+                      {txt(v.timeText)} <span style={{ color: "#B7B1A4" }}>/ {txt(v.durText)}</span>
                     </span>
                     <span style={{ flex: "1" }} />
                     {v.hasNextEp ? (
@@ -2714,8 +2760,7 @@ function render(v) {
                 {v.synOpen ? (
                   <>
                     <p style={{ margin: "0", fontSize: "15px", lineHeight: "1.7", color: "#D9D5CC" }}>
-                      A sinopse do episódio, cadastrada pela equipe, aparece aqui. Ela fica recolhida por padrão para
-                      quem ainda não assistiu.
+                      {txt(v.synText)}
                     </p>
                   </>
                 ) : null}
@@ -2835,7 +2880,7 @@ function render(v) {
               >
                 {txt(v.seasonLabel)}
               </h2>
-              <a href={canonicalWorks.soloLevelingAnime} style={{ fontSize: "14px" }}>
+              <a href={v.workHref} style={{ fontSize: "14px" }}>
                 Ver todas as temporadas →
               </a>
             </div>
@@ -2988,6 +3033,7 @@ function render(v) {
               ))}
             </div>
           </section>
+          {v.commentsOn ? (
           <section style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
             <div
               style={{
@@ -3776,11 +3822,12 @@ function render(v) {
               </>
             ) : null}
           </section>
+          ) : null}
           <a
             className="nk-hover-1ifysxm"
-            href={`${canonicalWorks.soloLevelingReading}?aba=adapt`}
+            href={v.origHref}
             style={{
-              display: "flex",
+              display: v.hasOrig ? "flex" : "none",
               flexWrap: "wrap",
               alignItems: "center",
               justifyContent: "space-between",
@@ -3806,7 +3853,7 @@ function render(v) {
               </span>
               <span style={{ fontSize: "15px" }}>{txt(v.origText)}</span>
             </span>
-            <span style={{ fontSize: "14px", fontWeight: "600", color: "#DBAF57" }}>Ver o manhwa →</span>
+            <span style={{ fontSize: "14px", fontWeight: "600", color: "#DBAF57" }}>{txt(v.origCta)}</span>
           </a>
         </main>
         {v.reportOpen ? (
@@ -3979,61 +4026,880 @@ export const defaults = { loggedIn: true, simularErro: false };
 
 const LegacyPlayer = defineDC("Player", PlayerLogic, render, { helmet });
 
-function ExternalEpisodePlayer({ episodeId, loggedIn }) {
-  const [state, setState] = useState({ loading: true, source: null, episode: null, error: null });
-  const [mine, setMine] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [note, setNote] = useState(null);
-  useEffect(() => {
-    if (!loggedIn) return undefined;
-    const load = () => progressApi.episode(episodeId).then(setMine).catch(() => {});
-    load();
-    window.addEventListener("nk:personal", load);
-    return () => window.removeEventListener("nk:personal", load);
-  }, [episodeId, loggedIn]);
-  const toggleWatched = async () => {
-    setSaving(true);
-    setNote(null);
+/**
+ * Player real (Protocolo 06): mesma interface do design, mecanismo trocado.
+ * - a mídia vem do Java (fontes autorizadas, acesso validado) e toca no <video>;
+ * - o tempo, a duração, o buffer e o fim vêm dos eventos reais do elemento de vídeo;
+ * - qualidade, áudio e legenda listam só as faixas que a mídia realmente tem;
+ * - o progresso usa o serviço do Protocolo 05 (sessão, sequência, versão);
+ * - fonte que só abre no provedor não gera tempo assistido: conclusão é manual.
+ */
+const REPORT_EVERY_MS = 20_000;
+
+class RealPlayerLogic extends PlayerLogic {
+  videoRef = React.createRef();
+  meter = createWatchMeter();
+  state = {
+    ...this.state,
+    w: { seasons: [{ eps: [] }, { eps: [] }] },
+    ep: 1,
+    pb: null,
+    ranked: [],
+    src: null,
+    levels: [],
+    level: -1,
+    curHeight: null,
+    audioTracks: [],
+    audioIdx: 0,
+    subTracks: [],
+    subIdx: -1,
+    bufEnd: 0,
+    ended: false,
+    unitProg: {},
+    syncStatus: null,
+    external: false,
+    fatal: null,
+    loading: true,
+    loadingText: "Preparando o episódio…",
+  };
+
+  get episodeId() {
+    return this.props.episodeId;
+  }
+
+  componentDidMount() {
+    const pp = this.load("nk-player", {});
+    this.setState({ speed: pp.speed || 1, vol: pp.vol ?? 80, muted: !!pp.muted });
+    document.addEventListener("keydown", this.onKey);
+    document.addEventListener("mousedown", this.onDown);
+    document.addEventListener("fullscreenchange", this.onFs);
+    window.addEventListener("resize", this.onResize);
+    window.addEventListener("pagehide", this.onLeave);
+    document.addEventListener("visibilitychange", this.onVisibility);
+    this.onResize();
+    this.uiTimer = setInterval(this.uiStep, 500);
+    this.wireVideo();
+    this.boot();
+  }
+
+  componentWillUnmount() {
+    this.report({ force: true });
+    clearInterval(this.uiTimer);
+    this.detach();
+    document.removeEventListener("keydown", this.onKey);
+    document.removeEventListener("mousedown", this.onDown);
+    document.removeEventListener("fullscreenchange", this.onFs);
+    window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("pagehide", this.onLeave);
+    document.removeEventListener("visibilitychange", this.onVisibility);
+  }
+
+  get video() {
+    return this.videoRef.current;
+  }
+
+  // ---- carga -------------------------------------------------------------------------
+
+  async boot() {
+    let pb;
     try {
-      const next = await progressApi.setEpisodeCompleted(episodeId, !mine?.completed);
-      setMine(next);
-      setNote(next.completed ? "Marcado como assistido na sua conta." : "Marcação removida.");
+      pb = await mediaApi.playback(this.episodeId);
     } catch (error) {
-      setNote(error?.body?.message || "Não foi possível salvar. Tente novamente.");
-    } finally {
-      setSaving(false);
+      this.setState({
+        loading: false,
+        error: true,
+        fatal: error?.status === 404 ? "missing" : "network",
+        errorText:
+          error?.status === 404
+            ? "Este episódio não existe ou não está publicado."
+            : "Não foi possível falar com o NekoFlow agora.",
+      });
+      return;
+    }
+    await session.load();
+    const index = pb.units.findIndex((u) => u.id === pb.episodeId);
+    this.DUR = pb.episode.durationSeconds || 0;
+    this.applyMarkers(pb.markers);
+    const Hls = await loadHls();
+    this.Hls = Hls;
+    const ranked = rankSources(pb.sources, browserSupport(this.video, Hls));
+    this.setState({ pb, ranked, ep: index + 1 });
+    document.title = `${pb.work.title} · Episódio ${pb.episode.number} — NekoFlow`;
+
+    if (session.loggedIn) {
+      api.get("/api/me/preferences")
+        .then((cfg) => {
+          this.cfg = cfg || {};
+          this.setState({ autoNext: this.cfg.autoplay ?? true, autoSkip: this.cfg.skip ?? false });
+        })
+        .catch(() => {});
+      this.loadUnits();
+    }
+
+    let startT = 0;
+    if (session.loggedIn) {
+      this.sync = progressApi.sync("episode", this.episodeId, null, (st) =>
+        this.setState({ syncStatus: st.status, savedAt: st.status === "saved" ? Date.now() : this.state.savedAt }),
+      );
+      try {
+        const server = await this.sync.load();
+        await this.sync.flush();
+        const t = (server?.positionMs || 0) / 1000;
+        if (!server?.completed && t > 30 && (!this.DUR || t < this.DUR - 60)) startT = t;
+        this.serverWatchedMs = server?.watchedMs || 0;
+      } catch {
+        /* sem progresso salvo: começa do início */
+      }
+    }
+
+    const src = pickSource(ranked);
+    if (!src) {
+      const ext = ranked.find((s) => s.externalUrl);
+      this.setState({ loading: false, external: true, error: true, playing: false, src: ext ? ext.id : null });
+      return;
+    }
+    this.attach(src, startT, { ask: startT > 0 });
+  }
+
+  loadUnits() {
+    const pb = this.state.pb;
+    if (!pb || !session.loggedIn) return;
+    progressApi
+      .workUnits(pb.work.id)
+      .then((p) => {
+        const unitProg = {};
+        for (const u of p.episodes || []) unitProg[u.episodeId] = u;
+        this.setState({ unitProg });
+      })
+      .catch(() => {});
+  }
+
+  applyMarkers(markers) {
+    const intro = (markers || []).find((m) => m.kind === "INTRO");
+    const outro = (markers || []).find((m) => m.kind === "OUTRO");
+    this.OP = intro ? [intro.startMs / 1000, intro.endMs / 1000] : [-1, -1];
+    this.hasOutro = !!outro;
+    this.ED = outro ? [outro.startMs / 1000, outro.endMs / 1000] : [Math.max(0, (this.DUR || 0) - 25), this.DUR || 0];
+  }
+
+  async attach(src, startT, { ask = false, autoplay = false } = {}) {
+    this.detach();
+    this.attempts = 0;
+    this.meter.reset(startT);
+    this.setState({
+      src: src.id,
+      loading: true,
+      error: false,
+      fatal: null,
+      external: false,
+      loadingText: `Carregando ${src.label}…`,
+      playing: false,
+      levels: [],
+      level: -1,
+      audioTracks: [],
+      subTracks: [],
+      subIdx: -1,
+      t: startT,
+      resume: ask,
+      ended: false,
+    });
+    let access;
+    try {
+      access = await mediaApi.access(this.episodeId, src.id);
+    } catch (error) {
+      this.fail(error?.status === 404 ? "A fonte deixou de estar disponível." : "A fonte não respondeu.");
+      return;
+    }
+    const video = this.video;
+    if (!video) return;
+    this.startT = startT;
+    this.wantPlay = autoplay && !ask;
+    for (const el of [...video.querySelectorAll("track")]) el.remove();
+    if ((access.subtitles || []).length) video.crossOrigin = "anonymous";
+    for (const tr of access.subtitles || []) {
+      const el = document.createElement("track");
+      el.kind = tr.kind === "CAPTIONS" ? "captions" : "subtitles";
+      el.srclang = tr.language;
+      el.label = tr.label;
+      el.src = tr.url;
+      video.appendChild(el);
+    }
+    const Hls = this.Hls;
+    const nativeHls = video.canPlayType("application/vnd.apple.mpegurl");
+    if (src.type === "HLS" && !nativeHls && Hls) {
+      const hls = new Hls({ startPosition: startT, capLevelToPlayerSize: true, maxBufferLength: 30 });
+      this.hls = hls;
+      hls.on(Hls.Events.MANIFEST_PARSED, (_e, d) =>
+        this.setState({
+          levels: (d.levels || []).map((l, i) => ({ index: i, height: l.height, bitrate: l.bitrate })),
+        }),
+      );
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, d) => {
+        const l = hls.levels[d.level];
+        this.setState({ curHeight: l ? l.height : null });
+      });
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, d) =>
+        this.setState({
+          audioTracks: (d.audioTracks || []).map((a, i) => ({ index: i, lang: a.lang, name: a.name })),
+          audioIdx: hls.audioTrack,
+        }),
+      );
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_e, d) =>
+        this.setState({
+          subTracks: (d.subtitleTracks || []).map((t, i) => ({ index: i, lang: t.lang, name: t.name, hls: true })),
+        }),
+      );
+      hls.on(Hls.Events.ERROR, (_e, d) => {
+        if (!d.fatal) return;
+        this.attempts += 1;
+        if (this.attempts <= 2 && d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+        else if (this.attempts <= 2 && d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        else this.fail(d.type === Hls.ErrorTypes.NETWORK_ERROR ? "A conexão com a fonte caiu." : "O vídeo não pôde ser decodificado.");
+      });
+      hls.loadSource(access.url);
+      hls.attachMedia(video);
+    } else if (src.type === "HLS" && !nativeHls) {
+      this.fail("Este navegador não reproduz HLS.", true);
+      return;
+    } else {
+      video.src = access.url;
+      video.load();
+    }
+    // URL temporária: renova o acesso antes de expirar mantendo a posição.
+    const ttl = Date.parse(access.expiresAt) - Date.now();
+    clearTimeout(this.renewTimer);
+    if (ttl > 60_000 && src.type !== "HLS") {
+      this.renewTimer = setTimeout(() => {
+        const t = this.video ? this.video.currentTime : this.state.t;
+        this.attach(src, t, { autoplay: this.state.playing });
+      }, ttl - 30_000);
+    }
+  }
+
+  detach() {
+    clearTimeout(this.renewTimer);
+    if (this.hls) {
+      try {
+        this.hls.destroy();
+      } catch {
+        /* já destruído */
+      }
+      this.hls = null;
+    }
+    const video = this.video;
+    if (video && video.getAttribute("src")) {
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch {
+        /* sem mídia */
+      }
+    }
+  }
+
+  fail(text, incompatible) {
+    this.report();
+    this.setState({ loading: false, error: true, playing: false, errorText: text, incompatible: !!incompatible });
+  }
+
+  // ---- eventos reais do <video> -------------------------------------------------------
+
+  wireVideo() {
+    const v = this.video;
+    if (!v) return;
+    v.volume = (this.state.vol ?? 80) / 100;
+    v.muted = !!this.state.muted;
+    const on = (name, fn) => v.addEventListener(name, fn);
+    on("loadedmetadata", () => {
+      if (isFinite(v.duration) && v.duration > 0) {
+        this.DUR = v.duration;
+        this.applyMarkers(this.state.pb?.markers);
+      }
+      if (this.startT && !this.hls && Math.abs(v.currentTime - this.startT) > 1) v.currentTime = this.startT;
+      v.playbackRate = this.state.speed || 1;
+      this.setState({ loading: false });
+      if (this.wantPlay) this.playNow();
+    });
+    on("durationchange", () => {
+      if (isFinite(v.duration) && v.duration > 0) this.DUR = v.duration;
+    });
+    on("canplay", () => {
+      if (this.state.loading) this.setState({ loading: false });
+      if (this.wantPlay && !this.state.resume) this.playNow();
+    });
+    on("playing", () => {
+      this.engaged = true; // só a partir da primeira reprodução real há algo a salvar
+      this.setState({ playing: true, loading: false, error: false, ended: false });
+    });
+    on("pause", () => {
+      this.setState({ playing: false });
+      if (!v.ended) this.report({ force: true });
+    });
+    on("waiting", () => this.setState({ loading: true, loadingText: "Carregando…" }));
+    on("seeking", () => this.meter.reset(v.currentTime));
+    on("seeked", () => {
+      this.meter.reset(v.currentTime);
+      this.setState({ t: v.currentTime });
+      // Só buscas do usuário salvam; ajustes internos do hls.js (pulos de buffer) não.
+      if (this.userSeek) {
+        this.userSeek = false;
+        this.report({ force: true });
+      }
+    });
+    on("timeupdate", () => {
+      const s = this.state;
+      const t = v.currentTime;
+      this.meter.tick(t, { playing: !v.paused, seeking: v.seeking, rate: v.playbackRate });
+      if (!s.dragging) this.setState({ t });
+      if (s.autoSkip && this.OP[0] >= 0 && t >= this.OP[0] && t < this.OP[0] + 1) {
+        v.currentTime = this.OP[1];
+        this.showOsd("Abertura pulada");
+      }
+      if (!v.paused && Date.now() - (this.lastReportAt || 0) >= REPORT_EVERY_MS) this.report();
+    });
+    on("progress", () => {
+      try {
+        const b = v.buffered;
+        if (b.length) this.setState({ bufEnd: b.end(b.length - 1) });
+      } catch {
+        /* sem buffer ainda */
+      }
+    });
+    on("ended", () => {
+      this.setState({ playing: false, ended: true, countdown: 10, nextDismissed: false });
+      this.report({ ended: true });
+    });
+    on("ratechange", () => this.setState({ speed: v.playbackRate }));
+    on("error", () => {
+      const code = v.error && v.error.code;
+      if (this.hls) return; // o hls.js trata os próprios erros
+      this.fail(code === 4 ? "Este navegador não suporta o formato desta fonte." : "O vídeo não pôde ser carregado.", code === 4);
+    });
+  }
+
+  playNow() {
+    const v = this.video;
+    if (!v) return;
+    if (v.readyState < 2) {
+      // Pedido antes de haver dados: toca assim que o vídeo puder (evento canplay).
+      this.wantPlay = true;
+      this.setState({ loading: true, loadingText: "Carregando…" });
+      return;
+    }
+    this.wantPlay = false;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => this.setState({ playing: false })); // autoplay bloqueado: botão de play
+  }
+
+  /**
+   * Envia a posição real ao Protocolo 05. Só declara conclusão quando posição e tempo
+   * assistido passam das regras do servidor; arrastar até o fim não conclui.
+   */
+  report({ ended = false, force = false } = {}) {
+    const v = this.video;
+    if (!this.sync || !v || !this.engaged || !this.state.src || this.state.external) return;
+    // Intervalo mínimo entre envios automáticos; pausa, fim, saída e buscas do usuário passam.
+    if (!ended && !force && !v.paused && Date.now() - (this.lastReportAt || 0) < REPORT_EVERY_MS) return;
+    const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : this.DUR;
+    if (!dur) return;
+    const positionMs = Math.round(Math.min(v.currentTime, dur) * 1000);
+    if (positionMs === this.lastPositionMs && this.meter.pendingMs === 0 && !ended) return;
+    const watchedDeltaMs = this.meter.take();
+    this.serverWatchedMs = (this.serverWatchedMs || 0) + watchedDeltaMs;
+    const completed = positionMs >= dur * 900 && this.serverWatchedMs >= dur * 500;
+    this.lastReportAt = Date.now();
+    this.lastPositionMs = positionMs;
+    const values = { positionMs, durationMs: Math.round(dur * 1000), watchedDeltaMs, completed };
+    this.sync
+      .report(values, { live: true })
+      .then((server) => {
+        if (server && typeof server.watchedMs === "number") this.serverWatchedMs = server.watchedMs;
+        if (server && server.completed && completed) {
+          this.flash(`Episódio ${this.state.pb.episode.number} assistido`);
+          window.dispatchEvent(new Event("nk:personal"));
+          this.loadUnits();
+        }
+      })
+      .catch((error) => {
+        // Conclusão não comprovada: guarda só a posição, sem afirmar que foi assistido.
+        if (completed && error?.body?.code === "PLAYBACK_COMPLETION_UNVERIFIED")
+          this.sync.report({ ...values, watchedDeltaMs: 0, completed: false }, { live: true }).catch(() => {});
+      });
+  }
+
+  onLeave = () => this.report({ force: true });
+  onVisibility = () => {
+    if (document.visibilityState === "hidden") this.report({ force: true });
+  };
+
+  uiStep = () => {
+    const s = this.state;
+    if (s.active && s.playing && !s.menu && !s.eps && !s.dragging && Date.now() - (this.lastMove || 0) > 2600)
+      this.setState({ active: false });
+    // Contagem do próximo episódio: só depois do fim real (ou na marcação de encerramento).
+    const next = s.pb && s.pb.next;
+    const inEnd = s.ended || (this.hasOutro && s.t >= this.ED[0]);
+    if (next && inEnd && s.autoNext && !s.nextDismissed && (s.playing || s.ended)) {
+      const c = s.countdown - 0.5;
+      if (c <= 0) this.goUnit(next.id);
+      else this.setState({ countdown: c });
     }
   };
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      api.get(`/api/v1/episodes/${episodeId}/source`),
-      api.get(`/api/v1/episodes/${episodeId}`),
-    ]).then(([source, episode]) => active && setState({ loading: false, source, episode, error: null }))
-      .catch((error) => active && setState({ loading: false, source: null, episode: null, error }));
-    return () => { active = false; };
-  }, [episodeId]);
-  return <div style={{ minHeight: "100vh", background: "#171411", color: "#F0EEE9", fontFamily: "Inter,system-ui,sans-serif" }}>
-    <Header active="animes" loggedIn={loggedIn} solid />
-    <main style={{ padding: "104px clamp(16px,4vw,56px) 56px", minHeight: "76vh" }}>
-      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-        <p style={{ color: "#DBAF57", textTransform: "uppercase", letterSpacing: ".18em", fontSize: "11px" }}>Player externo autorizado</p>
-        <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 500 }}>{state.episode?.work_title || "Episódio"} · {state.episode?.title || state.episode?.display_number || ""}</h1>
-        {state.loading && <div style={{ aspectRatio: "16/9", display: "grid", placeItems: "center", background: "#0D0C0B", borderRadius: "12px" }}>Carregando fonte verificada…</div>}
-        {state.error && <div style={{ padding: "40px", background: "#221F1B", borderRadius: "12px" }}>Esta fonte está indisponível no momento.</div>}
-        {state.source?.source_type === "EMBED" && state.source?.embed_allowed && <iframe title="Reprodução do episódio" src={state.source.source_url} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="origin" style={{ width: "100%", aspectRatio: "16/9", border: 0, borderRadius: "12px", background: "#000" }} />}
-        <p style={{ color: "#B7B1A4", lineHeight: 1.6 }}>Fonte: {state.source?.provider || "—"}. O vídeo permanece hospedado no provedor autorizado. Como este embed não fornece telemetria confiável, o NekoFlow não fabrica posição, duração assistida ou conclusão automática.</p>
-        {state.source?.source_type === "EXTERNAL_LINK" && <a href={state.source.source_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", padding: "12px 18px", borderRadius: "999px", background: "#DBAF57", color: "#1A1714", fontWeight: 600, marginRight: "10px" }}>Assistir no provedor ↗</a>}
-        {loggedIn && mine && <button disabled={saving} onClick={toggleWatched} style={{ padding: "12px 18px", borderRadius: "999px", border: "1px solid rgba(219,175,87,.5)", background: mine.completed ? "rgba(219,175,87,.14)" : "transparent", color: "#DBAF57", cursor: "pointer" }}>{saving ? "Salvando…" : mine.completed ? "Assistido · desfazer" : "Marcar como assistido"}</button>}
-        {note && <p style={{ color: "#DBAF57", fontSize: "13px" }}>{note}</p>}
-        {state.episode?.slug && <p><a href={`/animes/${state.episode.slug}`}>← Voltar para a obra</a></p>}
-      </div>
-    </main>
-    <Footer />
-  </div>;
+
+  // ---- comandos (substituem os do player demonstrativo) --------------------------------
+
+  togglePlay = () => {
+    const s = this.state;
+    const v = this.video;
+    if (s.resume || s.error || !v) return;
+    if (v.paused) this.playNow();
+    else v.pause();
+    this.wake();
+  };
+  seek(t, label) {
+    const v = this.video;
+    if (!v || this.state.error) return;
+    const dur = isFinite(v.duration) ? v.duration : this.DUR;
+    this.userSeek = true;
+    v.currentTime = Math.max(0, Math.min(Math.max(0, dur - 0.5), t));
+    this.setState({ t: v.currentTime, countdown: 10, ended: false });
+    if (label) this.showOsd(label);
+  }
+  toggleMute = () => {
+    const v = this.video;
+    const muted = !this.state.muted;
+    if (v) v.muted = muted;
+    this.setState({ muted });
+    this.store("nk-player", { speed: this.state.speed, vol: this.state.vol, muted });
+    this.showOsd(muted ? "Sem som" : `Volume ${this.state.vol}%`);
+  };
+  toggleCC = () => {
+    const s = this.state;
+    if (!s.subTracks.length && !this.nativeTracks().length) {
+      this.showOsd("Esta fonte não tem legendas separadas");
+      return;
+    }
+    this.pickSub(s.subIdx >= 0 ? -1 : 0);
+  };
+  nativeTracks() {
+    const v = this.video;
+    if (!v || this.hls) return [];
+    return [...(v.textTracks || [])].map((t, i) => ({ index: i, lang: t.language, name: t.label }));
+  }
+  pickSub(i) {
+    const v = this.video;
+    if (this.hls) this.hls.subtitleTrack = i;
+    else if (v) [...v.textTracks].forEach((t, j) => (t.mode = j === i ? "showing" : "disabled"));
+    this.setState({ subIdx: i, sub: null });
+    this.showOsd(i < 0 ? "Legendas desligadas" : "Legenda ativada");
+  }
+  goEp(n) {
+    const u = this.state.pb && this.state.pb.units[n - 1];
+    if (u && u.available) this.goUnit(u.id);
+  }
+  goUnit(id) {
+    this.report({ force: true });
+    location.href = `/player?episode=${id}`;
+  }
+  setSource(id) {
+    const s = this.state;
+    const src = s.ranked.find((x) => x.id === id);
+    if (!src) return;
+    if (!src.playsInPlayer) {
+      this.setState({ menu: null });
+      if (src.externalUrl) window.open(src.externalUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (!src.compatible) {
+      this.flash("Este navegador não reproduz esta fonte");
+      return;
+    }
+    if (id === s.src && !s.error) {
+      this.setState({ menu: null });
+      return;
+    }
+    const v = this.video;
+    const t = v && v.currentTime ? v.currentTime : s.t;
+    this.report({ force: true }); // salva antes de trocar
+    this.setState({ menu: null });
+    this.attach(src, t, { autoplay: s.playing });
+    this.flash(`${src.label} · posição mantida em ${this.fmt(t)}`);
+  }
+
+  // ---- valores da interface -------------------------------------------------------------
+
+  renderVals() {
+    const base = super.renderVals();
+    const s = this.state;
+    const pb = s.pb;
+    const v = this.video;
+    const loggedIn = session.loggedIn;
+    const dur = this.DUR || 0;
+    const pctN = dur ? Math.min(1, s.t / dur) : 0;
+    const units = pb ? pb.units : [];
+    const unit = pb ? pb.episode : { number: "", title: "" };
+    const src = s.ranked.find((x) => x.id === s.src) || null;
+    const bg = (u) => (u ? `url("${u}")` : "none");
+    const unitLabel = (u) => (u.title ? u.title : `Episódio ${u.number}`);
+    const crumb = pb ? `${pb.episode.seasonTitle} · Episódio ${unit.number}` : "Carregando…";
+    const myProg = s.unitProg;
+    const nextU = pb && pb.next;
+    const prevU = pb && pb.previous;
+    const cur = myProg[this.episodeId];
+    const curDone = !!(cur && cur.completed);
+    const inEnd = s.ended || (this.hasOutro && s.t >= this.ED[0]);
+    const overlayBlock = s.resume || s.error || s.loading;
+    const ctrls = !s.playing || s.active || !!s.menu || s.eps || s.dragging;
+
+    // menus com opções reais
+    const heights = s.levels.map((l) => l.height).filter(Boolean);
+    const audioOpts = s.audioTracks.length
+      ? s.audioTracks.map((a) => [a.index, languageName(a.lang) + (a.name && a.name !== a.lang ? ` · ${a.name}` : ""), ""])
+      : (src ? src.audioLanguages : []).map((l) => [0, languageName(l), "Faixa única desta fonte"]);
+    const subList = s.subTracks.length ? s.subTracks : this.nativeTracks();
+    const subOptsRaw = [[-1, "Desligadas", subList.length ? "" : "Esta fonte não tem faixas de legenda separadas"]].concat(
+      subList.map((t) => [t.index, t.name || languageName(t.lang), languageName(t.lang)]),
+    );
+    const qualityOpts = [[-1, "Automática", heights.length > 1 ? "Ajusta à sua conexão" : "Única qualidade disponível"]].concat(
+      heights.length > 1 ? s.levels.map((l) => [l.index, `${l.height}p`, ""]) : [],
+    );
+    const speedOpts = [0.75, 1, 1.25, 1.5, 2].map((x) => [x, x === 1 ? "Normal" : `${String(x).replace(".", ",")}x`, ""]);
+    const MENUS = {
+      audio: ["Áudio", audioOpts, s.audioTracks.length ? s.audioIdx : 0],
+      subs: ["Legendas", subOptsRaw, s.subIdx],
+      quality: ["Qualidade", qualityOpts, s.level],
+      speed: ["Velocidade", speedOpts, s.speed],
+    };
+    const curHeight = s.curHeight || (heights.length ? Math.max(...heights) : src && src.maxHeight) || null;
+    const qName = s.level >= 0 ? `${(s.levels[s.level] || {}).height}p` : `Automática${curHeight ? ` · ${curHeight}p` : ""}`;
+    const audioName = (audioOpts.find((o) => o[0] === MENUS.audio[2]) || [0, "Original"])[1];
+    const subsName = (subOptsRaw.find((o) => o[0] === s.subIdx) || [0, "Desligadas"])[1];
+    const spName = s.speed === 1 ? "Normal" : `${String(s.speed).replace(".", ",")}x`;
+    const pickers = {
+      audio: (i) => {
+        if (this.hls && s.audioTracks.length) this.hls.audioTrack = i;
+        this.setState({ audioIdx: i, sub: null });
+      },
+      subs: (i) => this.pickSub(i),
+      quality: (i) => {
+        if (this.hls) this.hls.currentLevel = i;
+        this.setState({ level: i, sub: null });
+        this.showOsd(i < 0 ? "Qualidade automática" : `Qualidade: ${(s.levels[i] || {}).height}p`);
+      },
+      speed: (x) => {
+        if (v) v.playbackRate = x;
+        this.setState({ speed: x, sub: null });
+        this.store("nk-player", { speed: x, vol: s.vol, muted: s.muted });
+        this.showOsd(`Velocidade: ${x === 1 ? "Normal" : `${x}x`}`);
+      },
+    };
+    const subOpts = s.sub
+      ? MENUS[s.sub][1].map(([val, l, d]) => {
+          const on = MENUS[s.sub][2] === val;
+          return {
+            label: l,
+            desc: d || "",
+            hasDesc: !!d,
+            on,
+            color: on ? "#DBAF57" : "#F0EEE9",
+            opacity: 1,
+            cursor: "pointer",
+            pick: () => pickers[s.sub](val),
+          };
+        })
+      : [];
+
+    const savedText = !loggedIn
+      ? "Entre para salvar seu progresso"
+      : s.external
+        ? "Marque como assistido quando terminar"
+        : {
+            saving: "Salvando progresso…",
+            pending: "Sem conexão · progresso pendente",
+            "auth-required": "Sessão expirada · entre para salvar",
+            conflict: "Progresso atualizado em outro aparelho",
+            error: "Não foi possível salvar o progresso",
+          }[s.syncStatus] ||
+          (s.savedAt
+            ? Math.round((Date.now() - s.savedAt) / 1000) < 5
+              ? "Progresso salvo agora"
+              : `Progresso salvo há ${Math.round((Date.now() - s.savedAt) / 1000)} s`
+            : "Progresso sincronizado");
+
+    const epList = units.map((u, i) => {
+      const p = myProg[u.id];
+      const isCur = u.id === this.episodeId;
+      const pctE = isCur ? pctN : p && p.durationMs ? p.positionMs / p.durationMs : 0;
+      return {
+        n: u.number,
+        title: unitLabel(u),
+        isCur,
+        done: !!(p && p.completed) && !isCur,
+        hasPct: !(p && p.completed) && pctE > 0.02,
+        pctW: `${Math.round(pctE * 100)}%`,
+        bgImg: bg(null),
+        pos: "center",
+        ring: isCur ? "#DBAF57" : "transparent",
+        titleColor: isCur ? "#DBAF57" : u.available ? "#F0EEE9" : "#8F897D",
+        bg: isCur ? "rgba(219,175,87,.08)" : "transparent",
+        border: isCur ? "rgba(219,175,87,.4)" : "transparent",
+        numColor: isCur ? "#DBAF57" : "#B7B1A4",
+        state: isCur
+          ? "assistindo agora"
+          : !u.available
+            ? "ainda indisponível"
+            : p && p.completed
+              ? "assistido"
+              : p && p.positionMs > 30000
+                ? `parou em ${this.fmt(p.positionMs / 1000)}`
+                : u.durationSeconds
+                  ? `${Math.round(u.durationSeconds / 60)} min`
+                  : u.playable
+                    ? "disponível"
+                    : "abre no provedor",
+        go: () => (u.available && !isCur ? this.goUnit(u.id) : null),
+        _i: i,
+      };
+    });
+
+    const extSrc = s.ranked.find((x) => x.externalUrl);
+    const playableAlt = s.ranked.filter((x) => x.playsInPlayer && x.compatible && x.id !== s.src);
+    const errorVals = s.external
+      ? {
+          errorTitle: "Este episódio abre no site do provedor",
+          errorText:
+            "A fonte disponível não roda dentro do NekoFlow e não informa o tempo assistido. Marque como assistido quando terminar.",
+          errorSaved: false,
+          tryOtherLabel: extSrc ? "Assistir no provedor ↗" : "Voltar à obra",
+          tryOther: () =>
+            extSrc ? window.open(extSrc.externalUrl, "_blank", "noopener,noreferrer") : (location.href = pb.work.href),
+          retryLabel: curDone ? "Assistido · desfazer" : "Marcar como assistido",
+          retry: () => this.toggleDoneReal(curDone),
+        }
+      : s.fatal
+        ? {
+            errorTitle: "Episódio indisponível",
+            errorText: s.errorText,
+            errorSaved: false,
+            tryOtherLabel: "Tentar novamente",
+            tryOther: () => location.reload(),
+            retryLabel: "Voltar",
+            retry: () => history.back(),
+          }
+        : {
+            errorTitle: s.incompatible ? "Formato não suportado neste navegador" : "Não foi possível carregar o vídeo",
+            errorText: s.errorText || "A fonte não respondeu.",
+            errorSaved: loggedIn && s.t > 0,
+            tryOtherLabel: playableAlt.length ? "Tentar outra fonte" : extSrc ? "Assistir no provedor ↗" : "Voltar à obra",
+            tryOther: () =>
+              playableAlt.length
+                ? this.setSource(playableAlt[0].id)
+                : extSrc
+                  ? window.open(extSrc.externalUrl, "_blank", "noopener,noreferrer")
+                  : (location.href = pb ? pb.work.href : "/animes"),
+            retryLabel: "Tentar novamente",
+            retry: () => {
+              const cur2 = s.ranked.find((x) => x.id === s.src);
+              if (cur2) this.attach(cur2, s.t, { autoplay: true });
+            },
+          };
+
+    return {
+      ...base,
+      ...errorVals,
+      demoBanner: false,
+      realVideo: true,
+      commentsOn: false,
+      videoRef: this.videoRef,
+      videoPoster: pb ? pb.work.banner : null,
+      workTitle: pb ? pb.work.title : "",
+      workHref: pb ? pb.work.href : "/animes",
+      hasOrig: !!(pb && pb.adaptation),
+      origHref: pb && pb.adaptation ? pb.adaptation.href : "#",
+      origCta: pb && pb.adaptation ? `Ver o ${pb.adaptation.kind === "manga" ? "mangá" : "original"} →` : "",
+      origText: pb && pb.adaptation ? `Este anime adapta ${pb.adaptation.title}.` : "",
+      crumb,
+      crumbShort: pb ? `${pb.episode.seasonTitle} · Episódio ${unit.number}` : "",
+      savedText,
+      frameBg: "none",
+      frameDim: 1,
+      showSub: false,
+      subText: "",
+      stageClick: () => {
+        if (s.menu || s.eps) {
+          this.setState({ menu: null, sub: null, eps: false });
+          return;
+        }
+        if (s.narrow && !s.active) {
+          this.wake();
+          return;
+        }
+        this.togglePlay();
+      },
+      showBigPlay: !s.playing && !overlayBlock && !s.narrow,
+      resumeYes: () => {
+        this.setState({ resume: false });
+        this.playNow();
+      },
+      resumeNo: () => {
+        this.setState({ resume: false });
+        this.seek(0);
+        this.playNow();
+      },
+      showSkipOp: this.OP[0] >= 0 && s.t >= this.OP[0] && s.t < this.OP[1] && !s.autoSkip && !overlayBlock,
+      skipOp: () => this.seek(this.OP[1], "Abertura pulada"),
+      showNext: inEnd && !s.nextDismissed && !overlayBlock && (!!nextU || s.ended),
+      next: nextU
+        ? {
+            label: s.autoNext && (s.playing || s.ended) ? `Próximo em ${Math.ceil(s.countdown)} s` : "A seguir",
+            title: `Episódio ${nextU.number}${nextU.title ? ` · ${nextU.title}` : ""}`,
+            meta: nextU.durationSeconds ? `${Math.round(nextU.durationSeconds / 60)} min` : "",
+            bg: bg(null),
+            pos: "center",
+            hasCount: s.autoNext && (s.playing || s.ended),
+            countPct: `${Math.max(0, ((10 - s.countdown) / 10) * 100)}%`,
+            cta: "Assistir próximo",
+            go: () => this.goUnit(nextU.id),
+            dismissLabel: s.autoNext && (s.playing || s.ended) ? "Cancelar" : "Ver créditos",
+          }
+        : {
+            label: "Fim do episódio",
+            title: "Você chegou ao último episódio disponível",
+            meta: pb && pb.adaptation ? `A história continua em ${pb.adaptation.title}` : "",
+            bg: bg(null),
+            pos: "center",
+            hasCount: false,
+            countPct: "0%",
+            cta: pb && pb.adaptation ? "Continuar na obra original" : "Voltar à obra",
+            go: () => (location.href = pb && pb.adaptation ? pb.adaptation.href : pb.work.href),
+            dismissLabel: "Fechar",
+          },
+      showControls: ctrls && !s.resume && !s.error,
+      pct: `${pctN * 100}%`,
+      bufPct: dur ? `${Math.min(100, (s.bufEnd / dur) * 100)}%` : "0%",
+      opLeft: this.OP[0] >= 0 && dur ? `${(this.OP[0] / dur) * 100}%` : "0%",
+      opW: this.OP[0] >= 0 && dur ? `${((this.OP[1] - this.OP[0]) / dur) * 100}%` : "0%",
+      edLeft: this.hasOutro && dur ? `${(this.ED[0] / dur) * 100}%` : "0%",
+      edW: this.hasOutro && dur ? `${((this.ED[1] - this.ED[0]) / dur) * 100}%` : "0%",
+      hoverLeft: dur ? `${((s.hover || 0) / dur) * 100}%` : "0%",
+      hoverChapter:
+        this.OP[0] >= 0 && s.hover >= this.OP[0] && s.hover < this.OP[1]
+          ? "Abertura"
+          : this.hasOutro && s.hover >= this.ED[0] && s.hover < this.ED[1]
+            ? "Encerramento"
+            : "",
+      onVol: (e) => {
+        const vol = +e.target.value;
+        if (v) {
+          v.volume = vol / 100;
+          v.muted = vol === 0;
+        }
+        this.setState({ vol, muted: vol === 0 });
+        this.store("nk-player", { speed: s.speed, vol, muted: vol === 0 });
+      },
+      durText: this.fmt(dur),
+      hasNextEp: !!nextU,
+      goNextNow: () => nextU && this.goUnit(nextU.id),
+      ccColor: s.subIdx >= 0 ? "#DBAF57" : "#8F897D",
+      sources: s.ranked.map((x) => ({
+        label: x.label,
+        desc: x.playsInPlayer
+          ? !x.compatible
+            ? "Incompatível com este navegador"
+            : x.capabilities.progress
+              ? "Reprodução integrada · progresso automático"
+              : "Reprodução integrada"
+          : "Abre no site do provedor ↗",
+        rec: x.id === (pickSource(s.ranked) || {}).id,
+        on: s.src === x.id,
+        color: s.src === x.id ? "#DBAF57" : x.compatible ? "#F0EEE9" : "#8F897D",
+        bg: s.src === x.id ? "rgba(219,175,87,.08)" : "transparent",
+        pick: () => this.setSource(x.id),
+      })),
+      subTitle: s.sub ? MENUS[s.sub][0] : "",
+      subOpts,
+      setRows: [
+        ["audio", "Áudio", audioName],
+        ["subs", "Legendas", subsName],
+        ["quality", "Qualidade", qName],
+        ["speed", "Velocidade", spName],
+      ].map(([k, l, val]) => ({ label: l, value: val, open: () => this.setState({ sub: k }) })),
+      epList,
+      seasonLabel: pb ? pb.episode.seasonTitle : "",
+      ep: { n: unit.number, title: unit.title || `Episódio ${unit.number}` },
+      chips: [
+        dur ? `${Math.round(dur / 60)} min` : null,
+        `Áudio ${audioName}`,
+        s.subIdx >= 0 ? `Legenda ${subsName}` : "Sem legenda separada",
+        qName,
+        src ? src.label : "Fonte externa",
+      ].filter(Boolean),
+      fallbackNote: false,
+      synText: (pb && pb.episode.synopsis) || "A sinopse deste episódio ainda não foi cadastrada.",
+      goPrev: () => prevU && this.goUnit(prevU.id),
+      prevCursor: prevU ? "pointer" : "not-allowed",
+      prevOpacity: prevU ? 1 : 0.4,
+      nextCursor: nextU ? "pointer" : "not-allowed",
+      nextBg: nextU ? "#DBAF57" : "#4A443D",
+      toggleDone: () => this.toggleDoneReal(curDone),
+      doneLabel: curDone ? "Assistido · desfazer" : "Marcar como assistido",
+      doneColor: curDone ? "#DBAF57" : "#F0EEE9",
+      doneBorder: curDone ? "rgba(219,175,87,.6)" : "rgba(240,238,233,.18)",
+      reportCtx: `${crumb} · em ${this.fmt(s.t)} · ${src ? src.label : "fonte externa"}`,
+      reportOpts: Object.entries(ISSUE_CATEGORIES).map(([k, l]) => {
+        const on = s.reportReason === k;
+        return {
+          label: l,
+          border: on ? "#DBAF57" : "rgba(240,238,233,.1)",
+          bg: on ? "rgba(219,175,87,.08)" : "transparent",
+          dotBorder: on ? "#DBAF57" : "rgba(240,238,233,.3)",
+          dot: on ? "#DBAF57" : "transparent",
+          pick: () => this.setState({ reportReason: k }),
+        };
+      }),
+      openReport: () => {
+        if (!loggedIn) return goLogin();
+        if (v && !v.paused) v.pause();
+        this.setState({ report: true, menu: null });
+      },
+      sendReport: () => {
+        if (!s.reportReason) return;
+        mediaApi
+          .reportIssue({
+            episodeId: this.episodeId,
+            sourceId: src && src.playsInPlayer ? src.id : null,
+            category: s.reportReason,
+            detail: (s.reportText || "").trim() || null,
+            positionMs: Math.round(s.t * 1000),
+          })
+          .then(() => this.flash("Obrigado! A equipe vai verificar este episódio."))
+          .catch((e) => this.flash(e?.body?.message || "Não foi possível enviar o relato."));
+        this.setState({ report: false, reportReason: null, reportText: "" });
+      },
+    };
+  }
+
+  async toggleDoneReal(done) {
+    if (!session.loggedIn) return goLogin();
+    try {
+      await progressApi.setEpisodeCompleted(this.episodeId, !done);
+      this.loadUnits();
+      this.flash(done ? "Marcado como não assistido" : `Episódio ${this.state.pb.episode.number} marcado como assistido`);
+    } catch (e) {
+      this.flash(e?.body?.message || "Não foi possível salvar.");
+    }
+  }
 }
+
+let hlsPromise = null;
+function loadHls() {
+  if (!hlsPromise) hlsPromise = import("hls.js").then((m) => m.default).catch(() => null);
+  return hlsPromise;
+}
+
+const RealPlayer = defineDC("Player", RealPlayerLogic, render, { helmet });
 
 export default function Player(props) {
   const episodeId = new URLSearchParams(location.search).get("episode");
-  return episodeId ? <ExternalEpisodePlayer episodeId={episodeId} {...props} /> : <LegacyPlayer {...props} />;
+  return episodeId ? <RealPlayer key={episodeId} episodeId={episodeId} {...props} /> : <LegacyPlayer {...props} />;
 }
