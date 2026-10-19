@@ -15,8 +15,7 @@ class LeiturasLogic extends DCLogic {
   componentDidMount() {
     const p = new URLSearchParams(location.search).get("tipo");
     if (["mangas", "manhwas", "webtoons"].includes(p)) this.setState({ tab: p });
-    fetch("/api/content/leituras")
-      .then((r) => r.json())
+    api.get("/api/content/leituras")
       .then((items) => this.setState({ items }));
     if (session.loggedIn)
       api

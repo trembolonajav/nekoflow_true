@@ -1,6 +1,7 @@
 // Origem: design/claude-design/Leitor.dc.html (Claude Design).
 /* eslint-disable */
 import React from "react";
+import { api } from "../lib/api";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 
@@ -92,8 +93,7 @@ class LeitorLogic extends DCLogic {
         q >= 0 && q <= this.LAST ? q : me && me.resumeUnit != null && me.resumeUnit <= this.LAST ? me.resumeUnit : 0;
       this.setState({ ...prefs, prog, bm: this.load("nk-reader-bm", []) }, () => this.enter(ch, true));
     });
-    fetch("/api/content/leitura-obra")
-      .then((r) => r.json())
+    api.get("/api/content/leitura-obra")
       .then((d) => this.setState({ d }));
     document.addEventListener("keydown", this.onKey);
     document.addEventListener("fullscreenchange", this.onFs);

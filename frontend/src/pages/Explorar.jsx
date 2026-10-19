@@ -45,10 +45,8 @@ class ExplorarLogic extends DCLogic {
     this.setState({ kind: k || "todos", q: q || "" });
     // Catálogo editorial + obras cadastradas pela equipe (mesmo id, sem duplicar).
     Promise.all([
-      fetch("/api/content/explorar").then((r) => r.json()),
-      fetch("/api/catalog/all")
-        .then((r) => r.json())
-        .catch(() => []),
+      api.get("/api/content/explorar"),
+      api.get("/api/catalog/all").catch(() => []),
     ]).then(([items, all]) => {
       const known = new Set(items.map((x) => x.id));
       const extra = all

@@ -97,8 +97,7 @@ class ObraLogic extends DCLogic {
   componentDidMount() {
     const a = new URLSearchParams(location.search).get("aba");
     if (["eps", "sobre", "uni", "chars"].includes(a)) this.setState({ active: a });
-    fetch("/api/content/obra")
-      .then((r) => r.json())
+    api.get("/api/content/obra")
       .then((w) => this.setState({ w }));
     this.loadMe();
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });

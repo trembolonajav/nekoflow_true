@@ -106,8 +106,7 @@ class PlayerLogic extends DCLogic {
       });
       this.enter(ep, prog, false);
     });
-    fetch("/api/content/obra")
-      .then((r) => r.json())
+    api.get("/api/content/obra")
       .then((w) => this.setState({ w }));
     this.tick = setInterval(this.step, 250);
     document.addEventListener("keydown", this.onKey);

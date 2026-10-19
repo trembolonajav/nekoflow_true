@@ -106,8 +106,7 @@ class ObraLeituraLogic extends DCLogic {
   componentDidMount() {
     const a = new URLSearchParams(location.search).get("aba");
     if (["caps", "sobre", "adapt", "chars"].includes(a)) this.setState({ active: a });
-    fetch("/api/content/leitura-obra")
-      .then((r) => r.json())
+    api.get("/api/content/leitura-obra")
       .then((d) => this.setState({ d }));
     this.loadMe();
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });

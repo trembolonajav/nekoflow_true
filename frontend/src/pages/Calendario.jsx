@@ -12,7 +12,7 @@ class CalendarioLogic extends DCLogic {
   componentDidMount() {
     // Programação + publicações confirmadas; "Seguir" é o mesmo acompanhamento da obra.
     Promise.all([
-      fetch("/api/calendar").then((r) => r.json()),
+      api.get("/api/calendar"),
       session.loggedIn ? api.get("/api/me/follows").catch(() => []) : Promise.resolve([]),
     ]).then(([data, follow]) => this.setState({ data, follow }));
     this.tick = setInterval(() => this.forceUpdate(), 60000);

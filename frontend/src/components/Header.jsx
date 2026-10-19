@@ -62,8 +62,7 @@ class HeaderLogic extends DCLogic {
   loadCatalog() {
     if (this.catalogLoading) return;
     this.catalogLoading = true;
-    fetch("/api/catalog/all")
-      .then((r) => r.json())
+    api.get("/api/catalog/all")
       .then((items) => {
         this.catalog = items.map((x) => ({ ...x, _t: this.norm(x.title), _a: this.norm(x.alt) }));
         this.forceUpdate();

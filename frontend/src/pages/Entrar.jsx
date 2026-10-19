@@ -34,8 +34,7 @@ class EntrarLogic extends DCLogic {
     this.setState({ mode: p === "boas-vindas" ? "boas" : this.MODES.includes(p) ? p : "entrar" });
     this.onResize();
     window.addEventListener("resize", this.onResize);
-    fetch("/api/content/entrar")
-      .then((r) => r.json())
+    api.get("/api/content/entrar")
       .then((covers) => this.setState({ covers }));
   }
   componentWillUnmount() {

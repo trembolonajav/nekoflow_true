@@ -16,8 +16,7 @@ class HomeLogic extends DCLogic {
   rowRef = React.createRef();
   DUR = 9000;
   componentDidMount() {
-    fetch("/api/content/home")
-      .then((r) => r.json())
+    api.get("/api/content/home")
       .then((data) => this.setState({ data }));
     this.loadMine();
     this.onPersonal = () => this.loadMine();
