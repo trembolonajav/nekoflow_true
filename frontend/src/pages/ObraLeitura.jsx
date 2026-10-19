@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
 
 const WORK_ID = 105398;
 const STATUS_CODE = {
@@ -173,7 +174,7 @@ class ObraLeituraLogic extends DCLogic {
       return {
         n,
         ref: this.ref(n),
-        href: `/leitor?cap=${n}`,
+        href: getUnitUrl({ id: WORK_ID, kind: "manhwa" }, n),
         numLabel: n === 0 ? "0" : String(n),
         title: label,
         isSide: side,
@@ -231,7 +232,7 @@ class ObraLeituraLogic extends DCLogic {
       curTitle: `Capítulo ${this.CUR}`,
       curPctW: `${this.CUR_PCT}%`,
       curMeta: `${this.CUR_PCT}% lido${this.CUR === 111 ? " · logo após o fim da 2ª temporada do anime" : ""}`,
-      ctaHref: reading ? `/leitor?cap=${this.CUR}` : "/leitor?cap=0",
+      ctaHref: getUnitUrl({ id: WORK_ID, kind: "manhwa" }, reading ? this.CUR : 0),
       ctaLabel,
       ctaShort: reading ? `Continuar cap. ${this.CUR}` : "Começar leitura",
       overallPct: `${Math.round(((this.READ_TO + 1) / 201) * 100)}%`,
@@ -369,7 +370,7 @@ class ObraLeituraLogic extends DCLogic {
             roleColor: c.role === "Protagonista" ? "#DBAF57" : "#B7B1A4",
           }))
         : [],
-      recs: d ? d.recs.map((r) => ({ ...r, bg: bg(r.cover) })) : [],
+      recs: d ? d.recs.map((r) => ({ ...r, bg: bg(r.cover), href: getWorkUrl({ ...r, kind: "manhwa" }) })) : [],
       toast: !!s.toast,
       toastText: s.toast || "",
       toastBottom: s.narrow ? "92px" : "28px",
@@ -1803,7 +1804,7 @@ function render(v) {
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                           <a
                             className="nk-hover-1uijps0"
-                            href="/obra"
+                            href={canonicalWorks.soloLevelingAnime}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1820,7 +1821,7 @@ function render(v) {
                           </a>
                           <a
                             className="nk-hover-1rcmvu"
-                            href="/player?ep=1"
+                            href={getUnitUrl({ id: 151807, kind: "anime" }, 1)}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1935,7 +1936,7 @@ function render(v) {
                                 Verificado pela equipe · aproximado
                               </span>
                               <a
-                                href="/leitor?cap=111"
+                                href={getUnitUrl({ id: WORK_ID, kind: "manhwa" }, 111)}
                                 style={{
                                   alignSelf: "flex-start",
                                   height: "38px",
@@ -2133,7 +2134,7 @@ function render(v) {
                 <React.Fragment key={$index}>
                   <a
                     className="nk-hover-1d5grei"
-                    href="#"
+                    href={r?.href}
                     style={{ display: "flex", flexDirection: "column", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
                   >
                     <span

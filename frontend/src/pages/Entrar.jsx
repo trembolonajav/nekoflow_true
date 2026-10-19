@@ -855,13 +855,13 @@ function render(v) {
                         </span>
                         <span>
                           {"Li e aceito os "}
-                          <a href="#" style={{ color: "#DBAF57" }}>
+                          <span title="Documento em preparação" style={{ color: "#DBAF57", textDecoration: "underline dotted" }}>
                             Termos de Uso
-                          </a>
+                          </span>
                           {" e a "}
-                          <a href="#" style={{ color: "#DBAF57" }}>
+                          <span title="Documento em preparação" style={{ color: "#DBAF57", textDecoration: "underline dotted" }}>
                             Política de Privacidade
-                          </a>
+                          </span>
                           .
                         </span>
                       </button>
@@ -1559,15 +1559,15 @@ function render(v) {
                 color: "#8F897D",
               }}
             >
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              <span title="Documento em preparação" style={{ color: "#8F897D" }}>
                 Termos de Uso
-              </a>
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              </span>
+              <span title="Documento em preparação" style={{ color: "#8F897D" }}>
                 Política de Privacidade
-              </a>
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              </span>
+              <span title="Central de ajuda em preparação" style={{ color: "#8F897D" }}>
                 Ajuda
-              </a>
+              </span>
             </div>
           </div>
         </div>

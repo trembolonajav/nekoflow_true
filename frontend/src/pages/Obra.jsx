@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
 
 const WORK_ID = 151807;
 const STATUS_CODE = {
@@ -175,7 +176,7 @@ class ObraLogic extends DCLogic {
         done,
         available,
         unavailable: !available,
-        href: `/player?ep=${e.n}`,
+        href: getUnitUrl({ id: WORK_ID, kind: "anime" }, e.n),
         hasPct: cur && available,
         pctW: `${progress.pct}%`,
         meta: available
@@ -222,7 +223,7 @@ class ObraLogic extends DCLogic {
       coverBg: bg(w && w.cover),
       origBg: bg(w && w.original.cover),
       genresText: w ? w.genres.join(" · ") : "",
-      ctaHref: cur ? `/player?ep=${cur}` : "/player?ep=1",
+      ctaHref: getUnitUrl({ id: WORK_ID, kind: "anime" }, cur || 1),
       ctaLabel,
       ctaShort: cur ? `Continuar ep. ${cur}` : "Assistir ep. 1",
       listLabel: inList ? s.status : "Minha lista",
@@ -346,7 +347,7 @@ class ObraLogic extends DCLogic {
       spoilerOpen: s.spoiler,
       toggleSpoiler: () => this.setState({ spoiler: !s.spoiler }),
       spoilerLabel: s.spoiler ? "Ocultar" : "Mostrar mesmo assim",
-      recs: w ? w.recs : [],
+      recs: w ? w.recs.map((r) => ({ ...r, href: getWorkUrl({ ...r, kind: "anime" }) })) : [],
       toast: !!s.toast,
       toastText: s.toast || "",
       toastBottom: s.narrow ? "92px" : "28px",
@@ -1559,7 +1560,7 @@ function render(v) {
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                           <a
                             className="nk-hover-1uijps0"
-                            href="/leitor?cap=1"
+                            href={getUnitUrl({ id: 105398, kind: "manhwa" }, 1)}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1595,7 +1596,7 @@ function render(v) {
                           </button>
                           <a
                             className="nk-hover-1e3fwvz"
-                            href="/obra-leitura"
+                            href={canonicalWorks.soloLevelingReading}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1631,7 +1632,7 @@ function render(v) {
                               </span>
                               <div style={{ display: "flex", gap: "10px" }}>
                                 <a
-                                  href="/leitor?cap=111"
+                                  href={getUnitUrl({ id: 105398, kind: "manhwa" }, 111)}
                                   style={{
                                     height: "38px",
                                     display: "flex",
@@ -1755,9 +1756,8 @@ function render(v) {
                     >
                       {asList(v.order).map((o, $index) => (
                         <React.Fragment key={$index}>
-                          <a
-                            className="nk-hover-1ifysxm"
-                            href="#"
+                          <div
+                            title="Item informativo da ordem da franquia"
                             style={{
                               display: "flex",
                               gap: "14px",
@@ -1823,7 +1823,7 @@ function render(v) {
                                 </>
                               ) : null}
                             </span>
-                          </a>
+                          </div>
                         </React.Fragment>
                       ))}
                     </div>
@@ -1942,9 +1942,9 @@ function render(v) {
                         Toque em um personagem para ver o dublador original.
                       </span>
                     </div>
-                    <a href="#" style={{ fontSize: "14px" }}>
-                      Ver todos →
-                    </a>
+                    <span title="Todos os personagens cadastrados já estão exibidos" style={{ fontSize: "14px", color: "#8F897D" }}>
+                      Lista disponível nesta ficha
+                    </span>
                   </div>
                   <div
                     style={{
@@ -2033,7 +2033,7 @@ function render(v) {
                 <React.Fragment key={$index}>
                   <a
                     className="nk-hover-1d5grei"
-                    href="#"
+                    href={r?.href}
                     style={{ display: "flex", flexDirection: "column", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
                   >
                     <span

@@ -6,9 +6,9 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { getWorkUrl } from "../features/catalog/workNavigation";
 
-const hrefOf = (x) =>
-  x.id === 151807 ? "/obra" : x.id === 105398 ? "/obra-leitura" : `/explorar?q=${encodeURIComponent(x.title || "")}`;
+const hrefOf = (x) => getWorkUrl(x);
 
 class LeiturasLogic extends DCLogic {
   state = { items: null, tab: "todas", day: "sab", theme: "regressao" };
@@ -625,7 +625,7 @@ function render(v) {
                         >
                           Continuar lendo
                         </h2>
-                        <a href="/conta?aba=lendo" style={{ fontSize: "14px" }}>
+                        <a href="/continuar-lendo" style={{ fontSize: "14px" }}>
                           Minha biblioteca →
                         </a>
                       </div>

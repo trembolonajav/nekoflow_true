@@ -6,10 +6,9 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { getWorkUrl } from "../features/catalog/workNavigation";
 
-/** Página de cada obra: as duas páginas individuais do design ou a busca do Explorar. */
-const hrefOf = (id, title) =>
-  id === 151807 ? "/obra" : id === 105398 ? "/obra-leitura" : `/explorar?q=${encodeURIComponent(title || "")}`;
+const hrefOf = (id, title) => getWorkUrl({ id, title, kind: "anime" });
 
 class HomeLogic extends DCLogic {
   state = { data: null, active: 0, t: 0, paused: false };
@@ -83,7 +82,8 @@ class HomeLogic extends DCLogic {
       pause: () => this.setState({ paused: true }),
       resume: () => this.setState({ paused: false }),
       hero: { ...h, epCount: h.lastEp ? `${h.lastEp} episódios` : "", href: hrefOf(h.id, h.title) },
-      ctaLabel: resumable ? `Continuar Ep. ${mine.ep}` : "Assistir Ep. 1",
+      ctaLabel: resumable ? `Continuar Ep. ${mine.ep}` : "Ver detalhes",
+      ctaPlayable: resumable,
       ctaHref: resumable ? mine.unitHref : hrefOf(h.id, h.title),
       showHeroProgress: resumable && mine.pct > 0,
       heroProgressLabel: resumable ? `Ep. ${mine.ep}${mine.left ? ` · faltam ${mine.left}` : ""}` : "",
@@ -92,7 +92,7 @@ class HomeLogic extends DCLogic {
       listTitle: mine ? "Na sua lista · abrir biblioteca" : "Adicionar à minha lista",
       addToList: () => {
         if (!loggedIn) return goLogin();
-        if (mine) return (location.href = "/conta?aba=lista");
+        if (mine) return (location.href = "/biblioteca");
         api
           .put(`/api/me/library/${h.id}`, { status: "planejado" })
           .then(() => window.dispatchEvent(new Event("nk:personal")))
@@ -295,15 +295,17 @@ function render(v) {
                       fontWeight: "600",
                     }}
                   >
-                    <span
-                      style={{
-                        width: "0",
-                        height: "0",
-                        borderLeft: "10px solid #1A1714",
-                        borderTop: "6px solid transparent",
-                        borderBottom: "6px solid transparent",
-                      }}
-                    />
+                    {v.ctaPlayable ? (
+                      <span
+                        style={{
+                          width: "0",
+                          height: "0",
+                          borderLeft: "10px solid #1A1714",
+                          borderTop: "6px solid transparent",
+                          borderBottom: "6px solid transparent",
+                        }}
+                      />
+                    ) : null}
                     {txt(v.ctaLabel)}
                   </a>
                   <a
@@ -736,7 +738,7 @@ function render(v) {
                         >
                           Continuar assistindo
                         </h2>
-                        <a href="/conta?aba=historico" style={{ fontSize: "14px" }}>
+                        <a href="/historico" style={{ fontSize: "14px" }}>
                           Ver histórico →
                         </a>
                       </div>

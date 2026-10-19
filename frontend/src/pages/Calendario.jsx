@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { getWorkUrl } from "../features/catalog/workNavigation";
 
 class CalendarioLogic extends DCLogic {
   state = { data: null, mode: "todos", week: 0, day: 17, follow: null };
@@ -71,7 +72,7 @@ class CalendarioLogic extends DCLogic {
       const hrs = (e.ts - now) / 3600;
       let status, sc, sb;
       if (done) {
-        status = e.kind === "anime" ? "Assistir" : "Ler";
+        status = "Ver obra";
         sc = "#DBAF57";
         sb = "rgba(219,175,87,.5)";
       } else if (hrs < 24) {
@@ -93,6 +94,7 @@ class CalendarioLogic extends DCLogic {
       const h = parseInt(e.time, 10);
       return {
         ...e,
+        href: getWorkUrl(e),
         period: h < 6 ? 0 : h < 12 ? 1 : h < 18 ? 2 : 3,
         sub:
           e.kind === "anime"
@@ -462,7 +464,7 @@ function render(v) {
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: "0" }}>
                                 <a
                                   className="nk-hover-1d5grei"
-                                  href="#"
+                                  href={r?.href}
                                   style={{
                                     fontSize: "17px",
                                     fontWeight: "500",

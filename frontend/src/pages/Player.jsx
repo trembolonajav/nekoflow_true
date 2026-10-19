@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
+import { canonicalWorks } from "../features/catalog/workNavigation";
 
 const WORK_ID = 151807;
 
@@ -807,7 +808,7 @@ class PlayerLogic extends DCLogic {
             countPct: "0%",
             cta: "Continuar na obra original",
             go: () => {
-              location.href = "/obra?aba=uni";
+              location.href = `${canonicalWorks.soloLevelingAnime}?aba=uni`;
             },
             dismissLabel: "Fechar",
           },
@@ -1031,8 +1032,28 @@ function render(v) {
           __hostStyle={{ position: "absolute", top: "0", left: "0", right: "0", height: "0", zIndex: "50" }}
         />
         <div
+          role="status"
           style={{
-            padding: "84px clamp(16px,3.3vw,48px) 0",
+            position: "fixed",
+            top: "68px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 55,
+            padding: "6px 12px",
+            borderRadius: "999px",
+            background: "rgba(23,20,17,.94)",
+            border: "1px solid rgba(219,175,87,.45)",
+            color: "#D9D5CC",
+            fontSize: "11px",
+            maxWidth: "calc(100vw - 32px)",
+            textAlign: "center",
+          }}
+        >
+          Demonstração de interface · nenhuma fonte oficial de vídeo integrada
+        </div>
+        <div
+          style={{
+            padding: "108px clamp(16px,3.3vw,48px) 0",
             display: "flex",
             flexDirection: "column",
             gap: "14px",
@@ -1052,7 +1073,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1d5grei"
-              href="/obra"
+              href={canonicalWorks.soloLevelingAnime}
               style={{ display: "flex", alignItems: "center", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
             >
               <svg
@@ -1287,7 +1308,7 @@ function render(v) {
                         Tentar novamente
                       </button>
                       <a
-                        href="/obra"
+                        href={canonicalWorks.soloLevelingAnime}
                         style={{
                           height: "42px",
                           display: "flex",
@@ -2813,7 +2834,7 @@ function render(v) {
               >
                 {txt(v.seasonLabel)}
               </h2>
-              <a href="/obra" style={{ fontSize: "14px" }}>
+              <a href={canonicalWorks.soloLevelingAnime} style={{ fontSize: "14px" }}>
                 Ver todas as temporadas →
               </a>
             </div>
@@ -3756,7 +3777,7 @@ function render(v) {
           </section>
           <a
             className="nk-hover-1ifysxm"
-            href="/obra-leitura?aba=adapt"
+            href={`${canonicalWorks.soloLevelingReading}?aba=adapt`}
             style={{
               display: "flex",
               flexWrap: "wrap",

@@ -4,6 +4,7 @@ import React from "react";
 import { api } from "../lib/api";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
+import { canonicalWorks } from "../features/catalog/workNavigation";
 
 class LeitorLogic extends DCLogic {
   SEGS = 24;
@@ -701,6 +702,26 @@ function render(v) {
           overflow: "hidden",
         }}
       >
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 80,
+            padding: "6px 12px",
+            borderRadius: "999px",
+            background: "rgba(23,20,17,.94)",
+            border: "1px solid rgba(219,175,87,.45)",
+            color: "#D9D5CC",
+            fontSize: "11px",
+            maxWidth: "calc(100vw - 32px)",
+            textAlign: "center",
+          }}
+        >
+          Demonstração de interface · páginas de leitura não são conteúdo oficial
+        </div>
         {" "}
         {v.vertical ? (
           <>
@@ -817,7 +838,7 @@ function render(v) {
                       </>
                     ) : null}
                     <a
-                      href="/obra-leitura"
+                      href={canonicalWorks.soloLevelingReading}
                       style={{
                         height: "46px",
                         display: "flex",
@@ -1019,7 +1040,7 @@ function render(v) {
                         </>
                       ) : null}
                       <a
-                        href="/obra-leitura"
+                        href={canonicalWorks.soloLevelingReading}
                         style={{
                           height: "46px",
                           display: "flex",
@@ -1187,7 +1208,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1m5yhr"
-              href="/obra-leitura"
+              href={canonicalWorks.soloLevelingReading}
               aria-label="Voltar à obra"
               title="Voltar à obra"
               style={{
