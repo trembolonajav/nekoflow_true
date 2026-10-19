@@ -51,15 +51,16 @@ cd backend && mvn test
 | Tela                       | Rota                        | Arquivo                               |
 |----------------------------|-----------------------------|---------------------------------------|
 | Home                       | `/`                         | `frontend/src/pages/Home.jsx`         |
+| Animes                     | `/animes`                   | `pages/Explorar.jsx` (catálogo filtrado) |
 | Calendário                 | `/calendario`               | `pages/Calendario.jsx`                |
 | Explorar                   | `/explorar`                 | `pages/Explorar.jsx`                  |
 | Leituras                   | `/leituras`                 | `pages/Leituras.jsx`                  |
-| Obra (anime)               | `/obra`                     | `pages/Obra.jsx`                      |
-| Obra (leitura)             | `/obra-leitura`             | `pages/ObraLeitura.jsx`               |
-| Leitor                     | `/leitor?cap=N`             | `pages/Leitor.jsx`                    |
-| Player                     | `/player?ep=N`              | `pages/Player.jsx`                    |
+| Obra (anime)               | `/animes/:slug`             | `pages/WorkRoute.jsx`                 |
+| Obra (leitura)             | `/leituras/:slug`           | `pages/WorkRoute.jsx`                 |
+| Leitor demonstrativo       | `/leitor?obra=ID&cap=N`     | `pages/Leitor.jsx`                    |
+| Player demonstrativo       | `/player?obra=ID&ep=N`      | `pages/Player.jsx`                    |
 | Conta / Minha biblioteca   | `/conta?aba=...` (privada)  | `pages/Conta.jsx`                     |
-| Entrar / Criar conta       | `/entrar` (`?next=` volta à origem) | `pages/Entrar.jsx`            |
+| Entrar / Criar conta       | `/entrar` e `/criar-conta` (`?next=` volta à origem) | `pages/Entrar.jsx` |
 | Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
 | Painel administrativo      | `/admin` (equipe)           | `pages/Admin.jsx`                     |
 | Estudo das 3 direções da Home | `/estudos/home-direcoes` | `pages/HomeDirecoes.jsx`              |
@@ -68,6 +69,7 @@ cd backend && mvn test
 Atalhos: `/biblioteca`, `/continuar-assistindo`, `/continuar-lendo`, `/historico`,
 `/solicitacoes`, `/notificacoes`, `/configuracoes` (levam às abas da Conta).
 A Conta aceita filtros por link: `/conta?aba=lista&midia=anime&situacao=pausado`.
+As rotas antigas `/obra` e `/obra-leitura` redirecionam para as fichas canônicas de Solo Leveling.
 
 ## Como as partes se integram
 
@@ -115,7 +117,8 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
 - `docs/architecture.md` — responsabilidades e dependências;
 - `docs/design-workflow.md` — atualização segura do design;
 - `docs/api-conventions.md` — cliente HTTP e contrato de erros;
-- `docs/links-pendentes.md` — links deliberadamente preservados para o Protocolo 02.
+- `docs/navigation-audit.md` — auditoria anterior às correções do Protocolo 02;
+- `docs/protocol-02-integration.md` — rotas, limites e integração da navegação real;
 - `docs/visual-baseline.md` — rotas e viewports usados na verificação visual.
 
 ## O que ainda não existe

@@ -31,3 +31,12 @@ Também foram confirmados:
 
 Este documento registra a checagem reproduzível. Capturas binárias não são versionadas para evitar
 inflar o repositório; uma revisão deve repetir os mesmos viewports e rotas ao alterar JSX ou CSS.
+
+## Verificação do Protocolo 02
+
+Em 19/10/2026, desktop e o viewport 390 × 844 foram novamente verificados no Docker em `/`,
+`/animes`, `/explorar?q=coração`, fichas básica e completa, rota antiga, obra inválida, área
+privada e player demonstrativo. A pesquisa “solo leveling” distinguiu anime e manhwa.
+
+Não foram observadas imagens quebradas, overflow horizontal, erros visíveis do runtime ou mudança
+intencional na identidade visual. As fichas básicas reutilizam os componentes e tokens existentes.
