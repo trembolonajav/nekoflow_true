@@ -4,10 +4,14 @@ export const routePaths = Object.freeze({
   calendar: "/calendario",
   account: "/conta",
   login: "/entrar",
+  createAccount: "/criar-conta",
   explore: "/explorar",
+  animes: "/animes",
   readings: "/leituras",
-  animeWork: "/obra",
-  readingWork: "/obra-leitura",
+  animeWork: "/animes/:slug",
+  readingWork: "/leituras/:slug",
+  legacyAnimeWork: "/obra",
+  legacyReadingWork: "/obra-leitura",
   reader: "/leitor",
   player: "/player",
   requestDetail: "/solicitacoes/:id",
@@ -28,4 +32,12 @@ export function accountTab(tab, params = {}) {
 
 export function requestDetailPath(id) {
   return `/solicitacoes/${encodeURIComponent(id)}`;
+}
+
+export function animePath(slug) {
+  return `/animes/${encodeURIComponent(slug)}`;
+}
+
+export function readingPath(slug) {
+  return `/leituras/${encodeURIComponent(slug)}`;
 }

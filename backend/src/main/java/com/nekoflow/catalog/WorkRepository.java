@@ -28,6 +28,25 @@ public class WorkRepository {
                 org.springframework.http.HttpStatus.NOT_FOUND, "Obra não encontrada"));
     }
 
+    public Optional<Work> findBySlug(String section, String slug) {
+        int dash = slug.lastIndexOf('-');
+        if (dash >= 0) {
+            try {
+                long id = Long.parseLong(slug.substring(dash + 1));
+                Optional<Work> byId = find(id).filter(w -> w.section().equals(section) && w.slug().equals(slug));
+                if (byId.isPresent()) {
+                    return byId;
+                }
+            } catch (NumberFormatException ignored) {
+                // Slugs antigos sem ID continuam aceitos abaixo.
+            }
+        }
+        return jdbc.sql("SELECT * FROM work ORDER BY popularity DESC NULLS LAST")
+                .query(WorkRepository::map).list().stream()
+                .filter(w -> w.section().equals(section) && w.titleSlug().equals(slug))
+                .findFirst();
+    }
+
     public boolean exists(long id) {
         return jdbc.sql("SELECT count(*) FROM work WHERE id = ?").param(id).query(Long.class).single() > 0;
     }

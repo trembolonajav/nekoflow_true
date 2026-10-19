@@ -2,11 +2,13 @@ package com.nekoflow.catalog;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/catalog")
@@ -49,5 +51,15 @@ public class CatalogController {
     @GetMapping("/works/{id}")
     public Map<String, Object> get(@PathVariable long id) {
         return works.require(id).view();
+    }
+
+    @GetMapping("/{section}/{slug}")
+    public Map<String, Object> bySlug(@PathVariable String section, @PathVariable String slug) {
+        if (!"animes".equals(section) && !"leituras".equals(section)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Obra não encontrada.");
+        }
+        return works.findBySlug(section, slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Obra não encontrada."))
+                .view();
     }
 }

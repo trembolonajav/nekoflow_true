@@ -19,6 +19,8 @@ import Player, { defaults as playerDefaults } from "../pages/Player";
 import SolicitacaoDetalhe from "../pages/SolicitacaoDetalhe";
 import Admin from "../pages/Admin";
 import NotFound from "../pages/NotFound";
+import WorkRoute from "../pages/WorkRoute";
+import { canonicalWorks } from "../features/catalog/workNavigation";
 import { accountTab, routePaths } from "./routePaths";
 
 function alias(to) {
@@ -59,17 +61,58 @@ export const routes = [
     defaults: entrarDefaults,
     nav: false,
   },
+  {
+    path: routePaths.createAccount,
+    Component: alias(`${routePaths.login}?modo=criar`),
+    defaults: {},
+    nav: false,
+  },
   { path: routePaths.explore, Component: Explorar, defaults: explorarDefaults },
+  {
+    path: routePaths.animes,
+    Component: Explorar,
+    defaults: {
+      ...explorarDefaults,
+      initialKind: "animes",
+      pageTitle: "Animes",
+      pageSubtitle: "Animes e filmes de anime do catálogo NekoFlow.",
+      activeSection: "animes",
+    },
+  },
   {
     path: routePaths.readings,
     Component: Leituras,
     defaults: leiturasDefaults,
   },
-  { path: routePaths.animeWork, Component: Obra, defaults: obraDefaults },
+  {
+    path: routePaths.animeWork,
+    Component: WorkRoute,
+    defaults: {
+      section: "animes",
+      RichComponent: Obra,
+      richDefaults: obraDefaults,
+    },
+  },
   {
     path: routePaths.readingWork,
-    Component: ObraLeitura,
-    defaults: obraLeituraDefaults,
+    Component: WorkRoute,
+    defaults: {
+      section: "leituras",
+      RichComponent: ObraLeitura,
+      richDefaults: obraLeituraDefaults,
+    },
+  },
+  {
+    path: routePaths.legacyAnimeWork,
+    Component: alias(canonicalWorks.soloLevelingAnime),
+    defaults: {},
+    nav: false,
+  },
+  {
+    path: routePaths.legacyReadingWork,
+    Component: alias(canonicalWorks.soloLevelingReading),
+    defaults: {},
+    nav: false,
   },
   {
     path: routePaths.reader,
