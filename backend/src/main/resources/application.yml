@@ -20,6 +20,15 @@ nekoflow:
   demo:
     enabled: ${NEKOFLOW_DEMO:true}
     password: ${NEKOFLOW_DEMO_PASSWORD:nekoflow2026}
+  media:
+    # Arquivos de páginas importadas (volume compartilhado com o Nginx, que os entrega).
+    storage-dir: ${MEDIA_STORAGE_DIR:./data/media}
+    # Segredo do secure_link do Nginx; troque em produção (mesmo valor nos dois serviços).
+    signing-secret: ${MEDIA_SIGNING_SECRET:dev-only-nekoflow-media-secret}
+    url-ttl-seconds: ${MEDIA_URL_TTL_SECONDS:3600}
+    public-prefix: /media
+  anilist:
+    sync-on-boot: ${ANILIST_SYNC_ON_BOOT:true}
 
 spring:
   application:
@@ -37,6 +46,10 @@ spring:
     # Permite aplicar migrações de correção numeradas abaixo da versão atual
     # (ex.: V5_1, que conserta instalações novas sem alterar a V6 já aplicada).
     out-of-order: true
+  servlet:
+    multipart:
+      max-file-size: 400MB
+      max-request-size: 450MB
   session:
     jdbc:
       initialize-schema: never

@@ -53,6 +53,8 @@ public class HistoryService {
                        CASE WHEN h.episode_id IS NOT NULL
                             THEN EXISTS (SELECT 1 FROM episode_source s WHERE s.episode_id = h.episode_id AND s.enabled)
                             ELSE EXISTS (SELECT 1 FROM chapter_source s WHERE s.chapter_id = h.chapter_id AND s.enabled)
+                              OR EXISTS (SELECT 1 FROM chapter_import i WHERE i.chapter_id = h.chapter_id
+                                         AND i.edition_id = h.edition_id AND i.status = 'PUBLISHED')
                        END AS unit_available
                 FROM activity_history h
                 JOIN work w ON w.id = h.work_id
@@ -86,7 +88,12 @@ public class HistoryService {
                     m.put("unitTitle", rs.getString("unit_title"));
                     boolean available = rs.getBoolean("work_published") && rs.getBoolean("unit_available");
                     m.put("available", available);
-                    m.put("unitHref", !available ? href : episode != null ? "/player?episode=" + episode : href);
+                    UUID chapter = rs.getObject("chapter_id", UUID.class);
+                    UUID edition = rs.getObject("edition_id", UUID.class);
+                    m.put("unitHref", !available ? href
+                            : episode != null ? "/player?episode=" + episode
+                            : chapter != null && edition != null ? "/leitor?chapter=" + chapter + "&edition=" + edition
+                            : href);
                     return m;
                 })
                 .list();

@@ -33,6 +33,10 @@ services:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      MEDIA_STORAGE_DIR: /data/media
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-dev-only-nekoflow-media-secret}
+    volumes:
+      - media:/data/media
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -43,6 +47,10 @@ services:
 
   frontend:
     build: ./frontend
+    environment:
+      MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-dev-only-nekoflow-media-secret}
+    volumes:
+      - media:/var/lib/nekoflow/media:ro
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
@@ -50,3 +58,4 @@ services:
 
 volumes:
   pgdata:
+  media:
