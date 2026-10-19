@@ -3,6 +3,7 @@
 import React from "react";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { libraryApi } from "../features/library/libraryApi";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import Header from "../components/Header";
 
@@ -73,8 +74,8 @@ class EntrarLogic extends DCLogic {
     const jobs = [];
     if (s.genres.length) jobs.push(api.put("/api/me/preferences", { genres: s.genres }));
     s.follow.forEach((id) => {
-      jobs.push(api.put(`/api/me/library/${id}`, { status: "planejado" }));
-      jobs.push(api.put(`/api/me/follows/${id}`, { on: true }));
+      jobs.push(libraryApi.setStatus(id, "planejado"));
+      jobs.push(libraryApi.follow(id, true));
     });
     Promise.allSettled(jobs).then(() => this.done("/"));
   }

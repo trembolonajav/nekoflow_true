@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { libraryApi } from "../features/library/libraryApi";
 import { getWorkUrl } from "../features/catalog/workNavigation";
 
 class CalendarioLogic extends DCLogic {
@@ -14,7 +15,9 @@ class CalendarioLogic extends DCLogic {
     // Programação + publicações confirmadas; "Seguir" é o mesmo acompanhamento da obra.
     Promise.all([
       api.get("/api/calendar"),
-      session.loggedIn ? api.get("/api/me/follows").catch(() => []) : Promise.resolve([]),
+      session.loggedIn
+        ? libraryApi.follows().then((list) => list.map((f) => f.legacyId)).catch(() => [])
+        : Promise.resolve([]),
     ]).then(([data, follow]) => this.setState({ data, follow }));
     this.tick = setInterval(() => this.forceUpdate(), 60000);
   }
@@ -118,7 +121,7 @@ class CalendarioLogic extends DCLogic {
             on ? set.add(e.id) : set.delete(e.id);
             return { follow: [...set] };
           });
-          api.put(`/api/me/follows/${e.id}`, { on }).catch(() =>
+          libraryApi.follow(e.id, on).catch(() =>
             this.setState((s) => {
               const set = new Set(s.follow);
               on ? set.delete(e.id) : set.add(e.id);

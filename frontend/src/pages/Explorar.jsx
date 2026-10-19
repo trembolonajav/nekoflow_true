@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl, normalizeSearch } from "../features/catalog/workNavigation";
 import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { libraryApi } from "../features/library/libraryApi";
 
 const quickBtn = (on) => ({
   all: "unset",
@@ -77,20 +78,20 @@ class ExplorarLogic extends DCLogic {
   /** Lista e favoritos da conta (fonte única), para os botões rápidos dos cards. */
   loadMine() {
     if (!session.loggedIn) return;
-    api
-      .get("/api/me/library")
-      .then((lib) => this.setState({ lib }))
+    libraryApi
+      .list({ size: 100 })
+      .then((lib) => this.setState({ lib: lib.items }))
       .catch(() => {});
-    api
-      .get("/api/me/favorites")
-      .then((favs) => this.setState({ favs: favs.map((f) => f.id) }))
+    libraryApi
+      .favorites({ size: 100 })
+      .then((favs) => this.setState({ favs: favs.items.map((f) => f.id) }))
       .catch(() => {});
   }
   quick(e, req) {
     e.preventDefault();
     e.stopPropagation();
     if (!session.loggedIn) return goLogin();
-    req
+    req()
       .then(() => {
         this.loadMine();
         window.dispatchEvent(new Event("nk:personal"));
@@ -199,8 +200,8 @@ class ExplorarLogic extends DCLogic {
       toggleList: (e) =>
         inLib.has(x.id)
           ? (e.preventDefault(), e.stopPropagation(), (location.href = "/conta?aba=lista"))
-          : this.quick(e, api.put(`/api/me/library/${x.id}`, { status: "planejado" })),
-      toggleFav: (e) => this.quick(e, api.put(`/api/me/favorites/${x.id}`, { on: !favSet.has(x.id) })),
+          : this.quick(e, () => libraryApi.setStatus(x.id, "planejado")),
+      toggleFav: (e) => this.quick(e, () => libraryApi.favorite(x.id, !favSet.has(x.id))),
       href: getWorkUrl(x),
       typeLabel: label(x),
       meta: meta(x),

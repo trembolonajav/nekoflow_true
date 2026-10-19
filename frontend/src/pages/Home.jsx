@@ -8,6 +8,8 @@ import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
 import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { libraryApi } from "../features/library/libraryApi";
+import { progressApi } from "../features/progress/progressApi";
 
 const hrefOf = (id, title) => getWorkUrl({ id, title, kind: "anime" });
 
@@ -47,8 +49,8 @@ class HomeLogic extends DCLogic {
   /** Continuar assistindo e estado da lista vêm do progresso real da conta. */
   loadMine() {
     if (!session.loggedIn) return;
-    Promise.all([api.get("/api/me/continue?limit=4"), api.get("/api/me/library")])
-      .then(([cont, lib]) => this.setState({ cont, lib }))
+    Promise.all([progressApi.continueWatching(), libraryApi.list({ size: 100 })])
+      .then(([cont, lib]) => this.setState({ cont, lib: lib.items }))
       .catch(() => {});
   }
   componentWillUnmount() {
@@ -99,10 +101,7 @@ class HomeLogic extends DCLogic {
       addToList: () => {
         if (!loggedIn) return goLogin();
         if (mine) return (location.href = "/biblioteca");
-        api
-          .put(`/api/me/library/${h.id}`, { status: "planejado" })
-          .then(() => window.dispatchEvent(new Event("nk:personal")))
-          .catch(() => {});
+        libraryApi.setStatus(h.id, "planejado").catch(() => {});
       },
       slides: heroList.map((s, i) => ({
         ...s,

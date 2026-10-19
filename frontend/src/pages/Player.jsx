@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { progressApi } from "../features/progress/progressApi";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { canonicalWorks } from "../features/catalog/workNavigation";
 
@@ -3980,6 +3981,29 @@ const LegacyPlayer = defineDC("Player", PlayerLogic, render, { helmet });
 
 function ExternalEpisodePlayer({ episodeId, loggedIn }) {
   const [state, setState] = useState({ loading: true, source: null, episode: null, error: null });
+  const [mine, setMine] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState(null);
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const load = () => progressApi.episode(episodeId).then(setMine).catch(() => {});
+    load();
+    window.addEventListener("nk:personal", load);
+    return () => window.removeEventListener("nk:personal", load);
+  }, [episodeId, loggedIn]);
+  const toggleWatched = async () => {
+    setSaving(true);
+    setNote(null);
+    try {
+      const next = await progressApi.setEpisodeCompleted(episodeId, !mine?.completed);
+      setMine(next);
+      setNote(next.completed ? "Marcado como assistido na sua conta." : "Marcação removida.");
+    } catch (error) {
+      setNote(error?.body?.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -3999,6 +4023,10 @@ function ExternalEpisodePlayer({ episodeId, loggedIn }) {
         {state.error && <div style={{ padding: "40px", background: "#221F1B", borderRadius: "12px" }}>Esta fonte está indisponível no momento.</div>}
         {state.source?.source_type === "EMBED" && state.source?.embed_allowed && <iframe title="Reprodução do episódio" src={state.source.source_url} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="origin" style={{ width: "100%", aspectRatio: "16/9", border: 0, borderRadius: "12px", background: "#000" }} />}
         <p style={{ color: "#B7B1A4", lineHeight: 1.6 }}>Fonte: {state.source?.provider || "—"}. O vídeo permanece hospedado no provedor autorizado. Como este embed não fornece telemetria confiável, o NekoFlow não fabrica posição, duração assistida ou conclusão automática.</p>
+        {state.source?.source_type === "EXTERNAL_LINK" && <a href={state.source.source_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", padding: "12px 18px", borderRadius: "999px", background: "#DBAF57", color: "#1A1714", fontWeight: 600, marginRight: "10px" }}>Assistir no provedor ↗</a>}
+        {loggedIn && mine && <button disabled={saving} onClick={toggleWatched} style={{ padding: "12px 18px", borderRadius: "999px", border: "1px solid rgba(219,175,87,.5)", background: mine.completed ? "rgba(219,175,87,.14)" : "transparent", color: "#DBAF57", cursor: "pointer" }}>{saving ? "Salvando…" : mine.completed ? "Assistido · desfazer" : "Marcar como assistido"}</button>}
+        {note && <p style={{ color: "#DBAF57", fontSize: "13px" }}>{note}</p>}
+        {state.episode?.slug && <p><a href={`/animes/${state.episode.slug}`}>← Voltar para a obra</a></p>}
       </div>
     </main>
     <Footer />

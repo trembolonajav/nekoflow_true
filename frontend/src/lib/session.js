@@ -32,7 +32,9 @@ export const session = {
     return () => subs.delete(fn);
   },
   set(me) {
-    current = me ? { ...me, authState: me.authenticated ? "authenticated" : (me.authState || "visitor") } : { authenticated: false, authState: "visitor" };
+    current = me
+      ? { ...me, authState: me.authenticated ? "authenticated" : me.authState || "visitor" }
+      : { authenticated: false, authState: "visitor" };
     loaded = Promise.resolve(current);
     subs.forEach((f) => f(current));
   },
@@ -55,13 +57,18 @@ export const session = {
   },
 };
 
-/** Remove caches pessoais deste dispositivo (nunca mostra dados da conta anterior). */
+/**
+ * Remove caches pessoais deste dispositivo (nunca mostra dados da conta anterior).
+ * A fila de progresso não sincronizado é mantida isolada: ela guarda o id da conta e só
+ * é reenviada quando essa mesma conta entrar de novo.
+ */
+const ISOLATED_KEYS = new Set(["nk-progress-v1-pending"]);
 export function clearPrivateCache() {
   try {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith("nk-") && !k.startsWith("nk-pending-")) keys.push(k);
+      if (k && k.startsWith("nk-") && !ISOLATED_KEYS.has(k)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   } catch (e) {}

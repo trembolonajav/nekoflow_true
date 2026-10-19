@@ -6,6 +6,8 @@ import { api } from "../lib/api";
 import { session } from "../lib/session";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { libraryApi } from "../features/library/libraryApi";
+import { historyApi } from "../features/history/historyApi";
 
 class ContaLogic extends DCLogic {
   state = {
@@ -83,13 +85,14 @@ class ContaLogic extends DCLogic {
   /** Recarrega tudo que é pessoal; o Header é avisado pelo evento nk:personal. */
   reload() {
     return Promise.all([
-      api.get("/api/me/library"),
+      libraryApi.list({ size: 100 }).then((page) => page.items),
       api.get("/api/me/notifications"),
-      api.get("/api/me/history"),
+      historyApi.list(),
       api.get("/api/requests/mine"),
+      libraryApi.favorites({ size: 12 }).then((page) => page.items),
     ])
-      .then(([library, notifs, history, requests]) => {
-        this.setState({ d: { library, notifs, history, requests }, lib: library });
+      .then(([library, notifs, history, requests, favs]) => {
+        this.setState({ d: { library, notifs, history, requests }, lib: library, favs });
         window.dispatchEvent(new Event("nk:personal"));
       })
       .catch(() => this.flash("Não foi possível carregar seus dados. Tente novamente."));
@@ -264,7 +267,7 @@ class ContaLogic extends DCLogic {
       { n: lib.filter((x) => x.status === "concluido").length, label: "Concluídos" },
       { n: 28, label: "Avaliações" },
     ];
-    const favorites = lib.filter((x) => x.favorite).slice(0, 6);
+    const favorites = (s.favs || lib.filter((x) => x.favorite)).slice(0, 6);
     const recentActivity = hist
       .flatMap((g) => g.items.map((i) => ({ ...i, day: g.day, verb: isAnim(i) ? "Assistiu" : "Leu" })))
       .slice(0, 4);
@@ -317,14 +320,14 @@ class ContaLogic extends DCLogic {
           moves: ST.filter(([k]) => k !== x.status).map(([k, l]) => ({
             label: l,
             color: "#F0EEE9",
-            pick: () => this.act(api.put(`/api/me/library/${x.id}`, { status: k }), `Movido para ${l}`),
+            pick: () => this.act(libraryApi.setStatus(x.publicId, k), `Movido para ${l}`),
           })),
           actions: [
             {
               label: x.favorite ? "Remover dos favoritos" : "Marcar como favorito",
               pick: () =>
                 this.act(
-                  api.put(`/api/me/favorites/${x.id}`, { on: !x.favorite }),
+                  libraryApi.favorite(x.publicId, !x.favorite),
                   x.favorite ? "Removido dos favoritos" : "Adicionado aos favoritos",
                 ),
             },
@@ -332,28 +335,21 @@ class ContaLogic extends DCLogic {
               label: x.follow ? "Desativar alertas de lançamento" : "Ativar alertas de lançamento",
               pick: () =>
                 this.act(
-                  api.put(`/api/me/follows/${x.id}`, { on: !x.follow }),
+                  libraryApi.follow(x.publicId, !x.follow),
                   x.follow ? "Alertas desativados" : "Você será avisado de novos lançamentos",
                 ),
             },
             {
-              label: "Atualizar progresso",
-              pick: () => {
-                const unitName = anim ? "episódio" : "capítulo";
-                const cur = anim ? x.ep : x.ch;
-                const ans = window.prompt(`Até qual ${unitName} você ${anim ? "assistiu" : "leu"}?`, String(cur || 1));
-                const n = parseInt(ans, 10);
-                if (!n || n < 1) return this.setState({ menuFor: null });
-                this.act(
-                  api.put(`/api/me/progress/${x.id}/${n}`, { pct: 100, completed: true, at: Date.now() }),
-                  `Progresso atualizado: ${unitName} ${n}`,
-                );
-              },
+              label: "Atualizar progresso na ficha",
+              pick: () => (location.href = x.href),
             },
             { label: "Ver obra", pick: () => (location.href = x.href) },
           ],
-          remove: () =>
-            this.act(api.del(`/api/me/library/${x.id}`), "Removido da lista · histórico e progresso mantidos"),
+          remove: () => {
+            if (!window.confirm(`Remover "${x.title}" da sua lista? O progresso e o histórico continuam salvos.`))
+              return this.setState({ menuFor: null });
+            this.act(libraryApi.remove(x.publicId), "Removido da lista · histórico e progresso mantidos");
+          },
         };
       });
     const chip = (on) => ({
@@ -397,7 +393,7 @@ class ContaLogic extends DCLogic {
                 ...i,
                 remove: () => {
                   this.setState({ removedH: [...s.removedH, i.hid] });
-                  this.act(api.del(`/api/me/history/${i.hid}`), "Removido do histórico");
+                  this.act(historyApi.remove(i.hid), "Removido do histórico");
                 },
               })),
           }))
@@ -626,7 +622,7 @@ class ContaLogic extends DCLogic {
       cancelClear: () => this.setState({ confirmClear: false }),
       doClear: () => {
         this.setState({ confirmClear: false });
-        this.act(api.del("/api/me/history"), "Histórico apagado · lista e progresso mantidos");
+        this.act(historyApi.clear(), "Histórico apagado · lista e progresso mantidos");
       },
       notifs,
       notifChips,

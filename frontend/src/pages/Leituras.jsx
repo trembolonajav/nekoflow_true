@@ -8,6 +8,8 @@ import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
 import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { libraryApi } from "../features/library/libraryApi";
+import { progressApi } from "../features/progress/progressApi";
 
 const hrefOf = (x) => getWorkUrl(x);
 
@@ -19,9 +21,8 @@ class LeiturasLogic extends DCLogic {
     Promise.all([api.get("/api/content/leituras"), api.get("/api/catalog/all")])
       .then(([items, catalog]) => this.setState({ items: mergeCatalogList(items, catalog, (x) => x.kind === "manga" || x.kind === "manhwa") }));
     if (session.loggedIn)
-      api
-        .get("/api/me/library")
-        .then((lib) => this.setState({ lib }))
+      Promise.all([libraryApi.list({ size: 100 }), progressApi.continueReading()])
+        .then(([lib, contV1]) => this.setState({ lib: lib.items, contV1 }))
         .catch(() => {});
   }
   setTab(tab) {
@@ -100,7 +101,7 @@ class LeiturasLogic extends DCLogic {
     // Continuar lendo: mesma fonte de progresso da Biblioteca e do Leitor.
     const kindOk = (x) =>
       tab === "todas" || (tab === "mangas" ? x.kind === "manga" : tab === "webtoons" ? x.webtoon : x.kind === "manhwa");
-    const cont = (this.state.lib || [])
+    const cont = (this.state.contV1 || [])
       .filter(
         (x) =>
           (x.kind === "manga" || x.kind === "manhwa") &&
@@ -115,7 +116,7 @@ class LeiturasLogic extends DCLogic {
         type: x.kind === "manga" ? "Mangá" : "Manhwa",
         typeLabel: x.typeLabel,
         pct: `${x.pct}%`,
-        where: `Cap. ${x.ch} · ${x.pct}% do capítulo`,
+        where: x.where,
         href: x.unitHref,
       }));
     const updates = [...pool]

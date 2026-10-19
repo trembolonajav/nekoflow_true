@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { libraryApi } from "../features/library/libraryApi";
 import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
 
 const WORK_ID = 105398;
@@ -253,13 +254,13 @@ class ObraLeituraLogic extends DCLogic {
         color: s.status === l ? "#DBAF57" : "#F0EEE9",
         pick: () => {
           this.setState({ status: l, listOpen: false });
-          this.save(api.put(`/api/me/library/${WORK_ID}`, { status: STATUS_CODE[l] }), `Salvo como ${l}`);
+          this.save(libraryApi.setStatus(WORK_ID, STATUS_CODE[l]), `Salvo como ${l}`);
         },
       })),
       inList,
       removeList: () => {
         this.setState({ status: null, listOpen: false });
-        this.save(api.del(`/api/me/library/${WORK_ID}`), "Removido da sua lista · avisos mantidos");
+        this.save(libraryApi.remove(WORK_ID), "Removido da sua lista · avisos mantidos");
       },
       followLabel: loggedIn && s.follow ? "Acompanhando" : "Acompanhar",
       followFill: loggedIn && s.follow ? "#DBAF57" : "none",
@@ -270,7 +271,7 @@ class ObraLeituraLogic extends DCLogic {
         if (need()) return;
         this.setState({ follow: !s.follow });
         this.save(
-          api.put(`/api/me/follows/${WORK_ID}`, { on: !s.follow }),
+          libraryApi.follow(WORK_ID, !s.follow),
           s.follow
             ? "Avisos de novos capítulos desligados"
             : "Você será avisado sobre novos capítulos e histórias paralelas",

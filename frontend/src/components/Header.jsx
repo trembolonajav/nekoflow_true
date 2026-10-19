@@ -5,6 +5,7 @@ import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
+import { libraryApi } from "../features/library/libraryApi";
 
 class HeaderLogic extends DCLogic {
   state = {
@@ -32,8 +33,8 @@ class HeaderLogic extends DCLogic {
       .get("/api/me/notifications")
       .then((notifs) => this.setState({ notifs }))
       .catch(() => {});
-    api
-      .get("/api/me/summary")
+    libraryApi
+      .summary()
       .then((libCounts) => this.setState({ libCounts }))
       .catch(() => {});
   }
