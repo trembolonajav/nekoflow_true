@@ -18,7 +18,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class CatalogAdminController {
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
-    public CatalogAdminController(JdbcClient jdbc,ObjectMapper mapper){this.jdbc=jdbc;this.mapper=mapper;}
+    private final AniListSyncService anilist;
+    public CatalogAdminController(JdbcClient jdbc,ObjectMapper mapper,AniListSyncService anilist){this.jdbc=jdbc;this.mapper=mapper;this.anilist=anilist;}
+
+    /** Puxa sinopse e banner diretamente do AniList (com atribuição e auditoria). */
+    @PostMapping("/works/{publicId}/anilist-sync")
+    public Map<String,Object> anilistSync(@PathVariable UUID publicId){return anilist.syncFromAdmin(work(publicId));}
 
     public record WorkPatch(String title,String synopsisShort,String synopsis,String storyStatus,String coverUrl,String bannerUrl,String originCountry){}
     public record SeasonBody(String title,String displayNumber,BigDecimal sortPosition,String releaseDate){}
