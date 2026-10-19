@@ -104,6 +104,27 @@ public class MediaController {
 
     // ---- editorial (EDITOR) ------------------------------------------------------------
 
+    /** Capítulos de uma obra (inclusive rascunho) com o lote publicado e o último lote enviado. */
+    @GetMapping("/api/admin/catalog/media/works/{publicId}/chapters")
+    public List<Map<String, Object>> workChapters(@PathVariable UUID publicId) {
+        return jdbc.sql("""
+                SELECT c.id, c.display_number, c.title, ed.id AS edition_id, ed.name AS edition_name,
+                       ed.reading_mode, ed.reading_direction,
+                       (SELECT i.page_count FROM chapter_import i WHERE i.chapter_id = c.id
+                          AND i.edition_id = ed.id AND i.status = 'PUBLISHED') AS published_pages,
+                       (SELECT i.status FROM chapter_import i WHERE i.chapter_id = c.id AND i.edition_id = ed.id
+                        ORDER BY i.created_at DESC LIMIT 1) AS last_import_status
+                FROM chapter c JOIN work_edition ed ON ed.id = c.edition_id JOIN work w ON w.id = ed.work_id
+                WHERE w.public_id = ? ORDER BY ed.is_original DESC, ed.name, c.sort_position""")
+                .param(publicId)
+                .query((rs, n) -> PlaybackService.map("id", rs.getObject(1, UUID.class), "number", rs.getString(2),
+                        "title", rs.getString(3), "editionId", rs.getObject(4, UUID.class),
+                        "editionName", rs.getString(5), "readingMode", rs.getString(6),
+                        "direction", rs.getString(7), "publishedPages", rs.getObject(8),
+                        "lastImportStatus", rs.getString(9)))
+                .list();
+    }
+
     @GetMapping("/api/admin/catalog/media/chapters/{chapterId}/imports")
     public List<Map<String, Object>> imports(@PathVariable UUID chapterId, @RequestParam UUID editionId) {
         return imports.list(chapterId, editionId);

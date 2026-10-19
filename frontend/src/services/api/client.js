@@ -92,7 +92,9 @@ export function createApiClient({
         : null;
 
     const headers = { Accept: "application/json", ...extraHeaders };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    // FormData (envio de arquivos) define o próprio Content-Type com o boundary.
+    const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+    if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     if (!/^(GET|HEAD)$/i.test(method)) {
       const token = csrfToken();
       if (token) headers["X-XSRF-TOKEN"] = token;
@@ -104,7 +106,7 @@ export function createApiClient({
         headers,
         credentials: "same-origin",
         signal: controller.signal,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
       });
       const data = await parseResponse(response);
       if (!response.ok) throw new ApiError(response.status, data);
@@ -147,6 +149,9 @@ export function createApiClient({
     patch: (path, body = {}, options = {}) =>
       request("PATCH", path, { ...options, body }),
     del: (path, options) => request("DELETE", path, options),
+    /** Envio multipart (arquivos); sem limite curto de tempo, uploads podem ser grandes. */
+    upload: (path, formData, options = {}) =>
+      request("POST", path, { timeoutMs: 0, ...options, body: formData }),
   };
 }
 

@@ -537,6 +537,7 @@ function CatalogMaintenance() {
   const pick = (w) => { setWork(w); setForm({ title:w.title||"", synopsisShort:w.synopsis_short||"", synopsis:w.synopsis_full||"", storyStatus:w.story_status||"UNKNOWN", coverUrl:w.cover_url||"", bannerUrl:w.banner_url||"" }); };
   const save = () => api.patch(`/api/admin/catalog/works/${work.id}`, form).then((w)=>setMsg({ok:true,text:`${w.title} atualizada.`})).catch((e)=>setMsg({ok:false,text:errText(e)}));
   const visibility = (value) => api.put(`/api/admin/catalog/works/${work.id}/visibility/${value}`,{}).then((w)=>{setWork({...work,visibility:w.visibility});setMsg({ok:true,text:`Visibilidade: ${w.visibility}.`});}).catch((e)=>setMsg({ok:false,text:errText(e)}));
+  const anilist = () => { setMsg({ok:true,text:"Consultando o AniList…"}); api.post(`/api/admin/catalog/works/${work.id}/anilist-sync`,{}).then((r)=>{setForm((f)=>({...f,synopsis:r.synopsis||f.synopsis}));setMsg({ok:true,text:`Sinopse atualizada pelo AniList (${r.synopsisSource||"AniList"}).`});}).catch((e)=>setMsg({ok:false,text:errText(e)})); };
   const importCatalog = (dryRun) => api.post(`/api/admin/catalog/imports?dryRun=${dryRun}`,{}).then((r)=>setMsg({ok:true,text:`${dryRun?"Simulação":"Importação"}: ${r.created} novos, ${r.unchanged} preservados, ${r.rejected} rejeitados.`})).catch((e)=>setMsg({ok:false,text:errText(e)}));
   return <section style={{ ...card, display:"grid", gap:"14px" }}>
     <span style={{ fontFamily:F.serif,fontSize:"26px" }}>Revisão editorial</span>
@@ -549,11 +550,145 @@ function CatalogMaintenance() {
       <label style={label}>Resumo<input value={form.synopsisShort} onChange={(e)=>setForm({...form,synopsisShort:e.target.value})} style={input}/></label>
       <label style={label}>Sinopse<textarea rows={5} value={form.synopsis} onChange={(e)=>setForm({...form,synopsis:e.target.value})} style={{...input,resize:"vertical"}}/></label>
       <label style={label}>Situação<select value={form.storyStatus} onChange={(e)=>setForm({...form,storyStatus:e.target.value})} style={input}>{["ONGOING","COMPLETED","HIATUS","UNKNOWN"].map(x=><option key={x}>{x}</option>)}</select></label>
-      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}><button onClick={save} style={btn("primary")}>Salvar metadados</button>{["DRAFT","PUBLISHED","HIDDEN","ARCHIVED"].map(x=><button key={x} onClick={()=>visibility(x)} style={chip(work.visibility===x)}>{x}</button>)}</div>
+      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}><button onClick={save} style={btn("primary")}>Salvar metadados</button><button onClick={anilist} style={btn("secondary")}>Puxar sinopse do AniList</button>{["DRAFT","PUBLISHED","HIDDEN","ARCHIVED"].map(x=><button key={x} onClick={()=>visibility(x)} style={chip(work.visibility===x)}>{x}</button>)}</div>
+      {work.media_family === "READING" && <ChapterPages workId={work.id} />}
     </>}
     {msg&&<span style={{fontSize:"13px",color:msg.ok?C.green:C.red}}>{msg.text}</span>}
     <span style={{fontSize:"12px",color:C.faint}}>Temporadas, episódios, edições, capítulos, relações e auditoria usam a mesma API editorial protegida.</span>
   </section>;
+}
+
+/**
+ * Páginas dos capítulos (Protocolo 06): envia ZIP ou imagens, o Java valida e ordena,
+ * a equipe confere a pré-visualização e só então publica. Lotes com erro não publicam.
+ */
+function ChapterPages({ workId }) {
+  const [chapters, setChapters] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [batch, setBatch] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const load = useCallback(
+    () => api.get(`/api/admin/catalog/media/works/${workId}/chapters`).then(setChapters).catch(() => setChapters([])),
+    [workId],
+  );
+  useEffect(() => {
+    load();
+  }, [load]);
+  const send = (c, files) => {
+    if (!files || !files.length) return;
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    setBusy(c.id);
+    setMsg(null);
+    api
+      .upload(`/api/admin/catalog/media/chapters/${c.id}/imports?editionId=${c.editionId}`, fd)
+      .then((b) => {
+        setBatch({ ...b, chapter: c });
+        load();
+      })
+      .catch((e) => setMsg({ ok: false, text: errText(e) }))
+      .finally(() => setBusy(null));
+  };
+  const publish = () =>
+    api
+      .post(`/api/admin/catalog/media/imports/${batch.id}/publish`, {})
+      .then(() => {
+        setMsg({ ok: true, text: `Capítulo ${batch.chapter.number} publicado com ${batch.pageCount} páginas.` });
+        setBatch(null);
+        load();
+      })
+      .catch((e) => setMsg({ ok: false, text: errText(e) }));
+  const discard = () =>
+    api
+      .del(`/api/admin/catalog/media/imports/${batch.id}`)
+      .then(() => {
+        setBatch(null);
+        load();
+      })
+      .catch((e) => setMsg({ ok: false, text: errText(e) }));
+  return (
+    <div style={{ display: "grid", gap: "10px", paddingTop: "8px", borderTop: `1px solid ${C.line || "rgba(240,238,233,.1)"}` }}>
+      <span style={{ fontFamily: F.serif, fontSize: "22px" }}>Páginas dos capítulos</span>
+      <span style={{ fontSize: "12px", color: C.faint, lineHeight: 1.5 }}>
+        Envie um ZIP numerado ou as imagens (JPEG, PNG ou WebP; até 20 MB cada). Os arquivos são conferidos pelo
+        conteúdo, ordenados pelo nome e só ficam públicos depois da sua revisão. Use apenas material com direito de
+        distribuição.
+      </span>
+      {chapters.length === 0 && <span style={{ fontSize: "13px", color: C.muted }}>Nenhum capítulo cadastrado.</span>}
+      {chapters.map((c) => (
+        <div
+          key={c.id + c.editionId}
+          style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}
+        >
+          <span style={{ fontSize: "13px" }}>
+            Cap. {c.number} · {c.editionName} · {c.readingMode === "VERTICAL" ? "vertical" : `paginado ${c.direction === "RTL" ? "dir.→esq." : "esq.→dir."}`}
+            <span style={{ color: C.muted }}>
+              {" "}
+              · {c.publishedPages ? `${c.publishedPages} páginas publicadas` : "sem páginas publicadas"}
+              {c.lastImportStatus && c.lastImportStatus !== "PUBLISHED" ? ` · último lote: ${c.lastImportStatus}` : ""}
+            </span>
+          </span>
+          <label style={{ ...btn("secondary", busy === c.id), cursor: busy ? "wait" : "pointer" }}>
+            {busy === c.id ? "Validando…" : c.publishedPages ? "Substituir páginas" : "Enviar páginas"}
+            <input
+              type="file"
+              multiple
+              accept=".zip,image/jpeg,image/png,image/webp"
+              disabled={!!busy}
+              onChange={(e) => send(c, e.target.files)}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+      ))}
+      {batch && (
+        <div style={{ display: "grid", gap: "10px", padding: "12px", borderRadius: "10px", background: "rgba(0,0,0,.25)" }}>
+          <span style={{ fontSize: "14px" }}>
+            Lote do capítulo {batch.chapter.number}:{" "}
+            <strong style={{ color: batch.status === "READY" ? C.green : C.red }}>
+              {batch.status === "READY" ? `${batch.pageCount} páginas prontas para revisão` : "falhou na validação"}
+            </strong>
+          </span>
+          {batch.status === "FAILED" && (
+            <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: C.red }}>
+              {((batch.report && batch.report.errors) || []).map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+          {batch.status === "READY" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(84px,1fr))", gap: "8px" }}>
+              {batch.pages.map((p) => (
+                <figure key={p.id} style={{ margin: 0, display: "grid", gap: "4px", justifyItems: "center" }}>
+                  <img
+                    src={p.url}
+                    alt={`Página ${p.position}`}
+                    loading="lazy"
+                    style={{ width: "100%", aspectRatio: `${p.width}/${p.height}`, objectFit: "contain", background: "#000" }}
+                  />
+                  <figcaption style={{ fontSize: "11px", color: C.muted }}>
+                    {p.position}
+                    {p.type === "DOUBLE" ? " · dupla" : ""}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {batch.status === "READY" && (
+              <button onClick={publish} style={btn("primary")}>
+                Publicar capítulo
+              </button>
+            )}
+            <button onClick={discard} style={btn("secondary")}>
+              Descartar lote
+            </button>
+          </div>
+        </div>
+      )}
+      {msg && <span style={{ fontSize: "13px", color: msg.ok ? C.green : C.red }}>{msg.text}</span>}
+    </div>
+  );
 }
 
 // ---- usuários e auditoria ----------------------------------------------------------
