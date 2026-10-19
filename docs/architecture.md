@@ -27,8 +27,9 @@ por fluxo de produto nos próximos protocolos, sem uma movimentação em massa q
 
 ### Backend
 
-- Pacotes de domínio (`auth`, `catalog`, `library`, `progress`, `notification`, `request`, `admin`)
-  contêm os casos de uso já implementados. `library` (biblioteca, favoritos, acompanhamento) e
+- Pacotes de domínio (`auth`, `catalog`, `library`, `progress`, `media`, `notification`, `request`, `admin`)
+  contêm os casos de uso já implementados. `media` resolve fontes de vídeo autorizadas, manifestos de
+  páginas e a importação editorial — ver `docs/protocol-06-real-media.md`. `library` (biblioteca, favoritos, acompanhamento) e
   `progress` (progresso, continuidade, histórico) são a fonte oficial dos dados pessoais — ver
   `docs/protocol-05-library-progress.md`.
 - `content` preserva os documentos JSON usados pelas telas legadas.
@@ -40,6 +41,8 @@ por fluxo de produto nos próximos protocolos, sem uma movimentação em massa q
 - Nginx serve o bundle e encaminha `/api/` ao Spring Boot.
 - O fallback `try_files ... /index.html` permite atualizar diretamente qualquer rota React.
 - O PostgreSQL usa o volume nomeado `pgdata`. O Protocolo 01 não remove nem recria esse volume.
+- Páginas importadas ficam no volume `media` (escrita pelo backend, leitura pelo Nginx em `/media/`,
+  apenas com link assinado). Vídeos e imagens de provedores são carregados direto do CDN deles.
 
 ## Dependências entre camadas
 

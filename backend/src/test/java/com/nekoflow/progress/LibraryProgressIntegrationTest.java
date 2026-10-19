@@ -124,7 +124,7 @@ class LibraryProgressIntegrationTest {
         return id;
     }
 
-    /** Episódios de 60 s com fonte de teste que informa progresso (player com telemetria). */
+    /** Episódios de 60 s com fonte MP4 de teste que informa progresso (player com telemetria). */
     private UUID episode(UUID season, int n, boolean withSource) {
         UUID id = UUID.randomUUID();
         jdbc.sql("INSERT INTO episode (id, season_id, display_number, sort_position, duration_seconds) VALUES (?, ?, ?, ?, 60)")
@@ -132,8 +132,8 @@ class LibraryProgressIntegrationTest {
         if (withSource) {
             jdbc.sql("""
                     INSERT INTO episode_source (episode_id, source_type, source_url, provider, embed_allowed, provenance, reports_progress)
-                    VALUES (?, 'EMBED', ?, 'Teste', TRUE, 'fonte de teste automatizado', TRUE)""")
-                    .params(id, "https://example.test/ep" + n).update();
+                    VALUES (?, 'MP4', ?, 'Teste', FALSE, 'fonte de teste automatizado', TRUE)""")
+                    .params(id, "https://example.test/ep" + n + ".mp4").update();
         }
         return id;
     }

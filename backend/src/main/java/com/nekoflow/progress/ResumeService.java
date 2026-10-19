@@ -40,8 +40,10 @@ public class ResumeService {
             if ("ANIMATION".equals(mediaFamily)) {
                 return "/player?episode=" + unitId;
             }
-            // Leitor nativo chega no Protocolo 07; até lá a leitura abre pela ficha (fonte externa).
-            return workHref;
+            // Leitor do NekoFlow: páginas publicadas ou o aviso da fonte externa daquele capítulo.
+            return available && unitId != null && editionId != null
+                    ? "/leitor?chapter=" + unitId + "&edition=" + editionId
+                    : workHref;
         }
 
         public Map<String, Object> view(String workHref) {
@@ -211,7 +213,9 @@ public class ResumeService {
                 ), units AS (
                     SELECT c.id, c.edition_id, ed.work_id, c.display_number, c.title,
                            row_number() OVER (PARTITION BY c.edition_id ORDER BY c.sort_position) AS ord,
-                           EXISTS (SELECT 1 FROM chapter_source cs WHERE cs.chapter_id = c.id AND cs.enabled) AS has_source
+                           (EXISTS (SELECT 1 FROM chapter_source cs WHERE cs.chapter_id = c.id AND cs.enabled)
+                            OR EXISTS (SELECT 1 FROM chapter_import ci WHERE ci.chapter_id = c.id
+                                       AND ci.edition_id = c.edition_id AND ci.status = 'PUBLISHED')) AS has_source
                     FROM chapter c JOIN work_edition ed ON ed.id = c.edition_id
                     WHERE ed.work_id IN (SELECT work_id FROM mine)
                 ), latest AS (

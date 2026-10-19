@@ -36,19 +36,23 @@ public class ProgressException extends RuntimeException {
         return current;
     }
 
-    static ProgressException badRequest(String code, String message) {
+    public static ProgressException badRequest(String code, String message) {
         return new ProgressException(HttpStatus.BAD_REQUEST, code, message);
     }
 
-    static ProgressException notFound(String message) {
+    public static ProgressException notFound(String message) {
         return new ProgressException(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", message);
     }
 
-    static ProgressException conflict(String code, String message, Map<String, Object> current) {
+    public static ProgressException notFound(String code, String message) {
+        return new ProgressException(HttpStatus.NOT_FOUND, code, message);
+    }
+
+    public static ProgressException conflict(String code, String message, Map<String, Object> current) {
         return new ProgressException(HttpStatus.CONFLICT, code, message, current);
     }
 
-    static ProgressException unprocessable(String code, String message) {
+    public static ProgressException unprocessable(String code, String message) {
         return new ProgressException(HttpStatus.UNPROCESSABLE_ENTITY, code, message);
     }
 }

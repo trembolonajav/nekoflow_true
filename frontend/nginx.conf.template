@@ -1,0 +1,48 @@
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Importação editorial de capítulos (ZIP/imagens). O Java valida conteúdo e limites.
+    location /api/admin/catalog/media/ {
+        client_max_body_size 450m;
+        proxy_request_buffering on;
+        proxy_read_timeout 300s;
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Páginas importadas: entregues pelo Nginx (não pelo Java) somente com link
+    # temporário assinado pela API (secure_link). Sem assinatura: 403; expirado: 410.
+    location /media/ {
+        alias /var/lib/nekoflow/media/;
+        secure_link $arg_md5,$arg_expires;
+        secure_link_md5 "$secure_link_expires$uri ${MEDIA_SIGNING_SECRET}";
+        if ($secure_link = "") { return 403; }
+        if ($secure_link = "0") { return 410; }
+        types {
+            image/jpeg jpg;
+            image/png png;
+            image/webp webp;
+        }
+        default_type application/octet-stream;
+        add_header Cache-Control "private, max-age=3600";
+        add_header X-Content-Type-Options "nosniff";
+    }
+
+    location /static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # SPA: toda rota do app cai no index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
