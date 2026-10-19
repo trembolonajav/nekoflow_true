@@ -5,6 +5,9 @@ import { api } from "../lib/api";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import { canonicalWorks } from "../features/catalog/workNavigation";
+import { session } from "../lib/session";
+import { mediaApi } from "../features/media/mediaApi";
+import { progressApi } from "../features/progress/progressApi";
 
 class LeitorLogic extends DCLogic {
   SEGS = 24;
@@ -496,6 +499,10 @@ class LeitorLogic extends DCLogic {
     const sinceSaved = s.savedAt ? Math.round((Date.now() - s.savedAt) / 1000) : null;
     const leftIsForward = rtl;
     return {
+      // Valores do leitor demonstrativo; o leitor real (RealLeitorLogic) substitui.
+      demoBanner: true,
+      workTitle: "Solo Leveling",
+      workHref: canonicalWorks.soloLevelingReading,
       rootRef: this.rootRef,
       scrollRef: this.scrollRef,
       endRef: this.endRef,
@@ -702,6 +709,7 @@ function render(v) {
           overflow: "hidden",
         }}
       >
+        {v.demoBanner ? (
         <div
           role="status"
           style={{
@@ -722,6 +730,7 @@ function render(v) {
         >
           Demonstração de interface · páginas de leitura não são conteúdo oficial
         </div>
+        ) : null}
         {" "}
         {v.vertical ? (
           <>
@@ -765,6 +774,48 @@ function render(v) {
                       }}
                     >
                       {" "}
+                      {g?.src ? (
+                        <>
+                          <img
+                            src={g.src}
+                            alt={g.alt}
+                            loading={g.eager ? "eager" : "lazy"}
+                            decoding="async"
+                            draggable={false}
+                            onLoad={g.onLoad}
+                            onError={g.onError}
+                            style={{
+                              position: "absolute",
+                              inset: "0",
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              display: g.failed ? "none" : "block",
+                            }}
+                          />
+                          {g.failed ? (
+                            <button
+                              onClick={g.retry}
+                              style={{
+                                position: "absolute",
+                                left: "50%",
+                                top: "50%",
+                                transform: "translate(-50%,-50%)",
+                                padding: "10px 16px",
+                                borderRadius: "999px",
+                                border: "1px solid rgba(219,175,87,.6)",
+                                background: "#1A1714",
+                                color: "#DBAF57",
+                                fontSize: "13px",
+                                cursor: "pointer",
+                                zIndex: 2,
+                              }}
+                            >
+                              Página {g.position} não carregou · recarregar
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}{" "}
                       <span style={{ position: "absolute", inset: "0", background: `${g?.shade ?? ""}` }} />{" "}
                       <span
                         style={{
@@ -838,7 +889,7 @@ function render(v) {
                       </>
                     ) : null}
                     <a
-                      href={canonicalWorks.soloLevelingReading}
+                      href={v.workHref}
                       style={{
                         height: "46px",
                         display: "flex",
@@ -904,7 +955,7 @@ function render(v) {
                       style={{
                         position: "relative",
                         height: `${v.pageH ?? ""}`,
-                        aspectRatio: "2/3",
+                        aspectRatio: `${g?.aspect ?? "2/3"}`,
                         backgroundColor: "#1A1714",
                         backgroundImage: `${g?.bg ?? ""}`,
                         backgroundSize: "cover",
@@ -913,6 +964,48 @@ function render(v) {
                       }}
                     >
                       {" "}
+                      {g?.src ? (
+                        <>
+                          <img
+                            src={g.src}
+                            alt={g.alt}
+                            loading={g.eager ? "eager" : "lazy"}
+                            decoding="async"
+                            draggable={false}
+                            onLoad={g.onLoad}
+                            onError={g.onError}
+                            style={{
+                              position: "absolute",
+                              inset: "0",
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "contain",
+                              display: g.failed ? "none" : "block",
+                            }}
+                          />
+                          {g.failed ? (
+                            <button
+                              onClick={g.retry}
+                              style={{
+                                position: "absolute",
+                                left: "50%",
+                                top: "50%",
+                                transform: "translate(-50%,-50%)",
+                                padding: "10px 16px",
+                                borderRadius: "999px",
+                                border: "1px solid rgba(219,175,87,.6)",
+                                background: "#1A1714",
+                                color: "#DBAF57",
+                                fontSize: "13px",
+                                cursor: "pointer",
+                                zIndex: 2,
+                              }}
+                            >
+                              Página {g.position} não carregou · recarregar
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}{" "}
                       <span style={{ position: "absolute", inset: "0", background: `${g?.shade ?? ""}` }} />{" "}
                       <span
                         style={{
@@ -1040,7 +1133,7 @@ function render(v) {
                         </>
                       ) : null}
                       <a
-                        href={canonicalWorks.soloLevelingReading}
+                        href={v.workHref}
                         style={{
                           height: "46px",
                           display: "flex",
@@ -1208,7 +1301,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1m5yhr"
-              href={canonicalWorks.soloLevelingReading}
+              href={v.workHref}
               aria-label="Voltar à obra"
               title="Voltar à obra"
               style={{
@@ -1236,7 +1329,7 @@ function render(v) {
                   textOverflow: "ellipsis",
                 }}
               >
-                Solo Leveling
+                {txt(v.workTitle)}
               </span>
               <button
                 className="nk-hover-1d5grei"
@@ -2101,4 +2194,549 @@ function render(v) {
 
 export const defaults = {};
 
-export default defineDC("Leitor", LeitorLogic, render, { helmet });
+/**
+ * Leitor real (Protocolo 06): mesma interface do design, páginas de verdade.
+ * - o manifesto vem do Java (lote publicado do capítulo + edição, na ordem editorial);
+ * - cada página reserva a altura pelas dimensões antes de carregar (sem saltos);
+ * - modo e direção padrão vêm da edição; página dupla isola a capa e páginas duplas;
+ * - a posição salva é página (paginado) ou segmento + deslocamento (vertical), por edição;
+ * - abrir o capítulo não conta como leitura: só a navegação real gera progresso.
+ */
+const PRELOAD_AHEAD = 3;
+
+class RealLeitorLogic extends LeitorLogic {
+  state = {
+    ...this.state,
+    d: null,
+    man: null,
+    ch: 0,
+    loadState: "loading",
+    failed: {},
+    retry: {},
+    syncStatus: null,
+    serverProg: null,
+    unitProg: {},
+  };
+
+  get chapterId() {
+    return this.props.chapterId;
+  }
+  get editionId() {
+    return this.props.editionId;
+  }
+
+  componentDidMount() {
+    const prefs = this.load("nk-reader-prefs", {});
+    this.prefs = prefs;
+    this.allBm = this.load("nk-reader-bm", []);
+    document.addEventListener("keydown", this.onKey);
+    document.addEventListener("fullscreenchange", this.onFs);
+    window.addEventListener("resize", this.onResize);
+    window.addEventListener("pagehide", this.flushNow);
+    document.addEventListener("visibilitychange", this.onVisibility);
+    this.onResize();
+    this.idle = setInterval(() => {
+      const s = this.state;
+      if (s.ctrl && !s.panel && !s.resume && Date.now() - (this.lastMove || 0) > 3000 && this.started)
+        this.setState({ ctrl: false });
+    }, 500);
+    this.boot();
+  }
+
+  componentWillUnmount() {
+    this.flushNow();
+    clearInterval(this.idle);
+    clearTimeout(this.sv);
+    document.removeEventListener("keydown", this.onKey);
+    document.removeEventListener("fullscreenchange", this.onFs);
+    window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("pagehide", this.flushNow);
+    document.removeEventListener("visibilitychange", this.onVisibility);
+  }
+
+  onVisibility = () => {
+    if (document.visibilityState === "hidden") this.flushNow();
+  };
+
+  async boot() {
+    let man;
+    try {
+      man = await mediaApi.manifest(this.chapterId, this.editionId);
+    } catch (error) {
+      let external = null;
+      if (error?.status === 404) external = await api.get(`/api/v1/chapters/${this.chapterId}/source`).catch(() => null);
+      this.setState({ loadState: error?.status === 404 ? "unavailable" : "error", external });
+      return;
+    }
+    this.applyManifest(man);
+    await session.load(); // o leitor não tem Header: a sessão é carregada aqui
+    const index = man.chapters.findIndex((c) => c.id === this.chapterId);
+    const prefs = this.prefs || {};
+    // Modo e direção da edição; o leitor só muda se a pessoa escolher outro aqui.
+    const editionMode = man.readingMode === "VERTICAL" ? "vertical" : "single";
+    this.setState({
+      ...prefs,
+      mode: prefs.modeFor === man.editionId && prefs.mode ? prefs.mode : editionMode,
+      dir: prefs.modeFor === man.editionId && prefs.dir ? prefs.dir : "auto",
+      man,
+      ch: index,
+      loadState: "ready",
+      bm: this.allBm.filter((b) => b.chapterId && man.chapters.some((c) => c.id === b.chapterId)),
+    });
+    document.title = `${man.work.title} · Capítulo ${man.chapter.number} — NekoFlow`;
+
+    if (session.loggedIn) {
+      this.loadUnits();
+      this.sync = progressApi.sync("chapter", this.chapterId, this.editionId, (st) =>
+        this.setState({ syncStatus: st.status, savedAt: st.status === "saved" ? Date.now() : this.state.savedAt }),
+      );
+      try {
+        const server = await this.sync.load();
+        await this.sync.flush();
+        const pos = this.fromServer(server);
+        this.setState({ serverProg: server });
+        if (pos && !server.completed && pos.pct > 0.03) {
+          this.setState({ resume: true, resumePos: pos });
+          return;
+        }
+      } catch {
+        /* sem progresso: começa do início */
+      }
+    }
+    this.started = true;
+  }
+
+  applyManifest(man) {
+    this.SEGS = man.pages.length;
+    this.LAST = man.chapters.length - 1;
+    this.expiresAt = Date.parse(man.expiresAt) || 0;
+  }
+
+  loadUnits() {
+    const man = this.state.man;
+    if (!man) return;
+    progressApi
+      .workUnits(man.work.id)
+      .then((p) => {
+        const unitProg = {};
+        for (const u of p.chapters || []) unitProg[`${u.chapterId}:${u.editionId}`] = u;
+        this.setState({ unitProg });
+      })
+      .catch(() => {});
+  }
+
+  /** Converte o registro do servidor em página/segmento deste manifesto. */
+  fromServer(server) {
+    const man = this.state.man;
+    if (!server || !man) return null;
+    let seg = server.pageIndex != null ? server.pageIndex : 0;
+    if (server.segmentKey) {
+      const i = man.pages.findIndex((p) => p.id === server.segmentKey);
+      if (i >= 0) seg = i;
+    }
+    seg = Math.max(0, Math.min(man.pages.length - 1, seg));
+    return {
+      seg,
+      page: seg,
+      off: server.segmentOffset != null ? Number(server.segmentOffset) : 0,
+      pct: Number(server.percentComplete || 0) / 100,
+      at: server.lastActivityAt ? Date.parse(server.lastActivityAt) : null,
+    };
+  }
+
+  rtl() {
+    const s = this.state;
+    if (s.dir === "rtl") return true;
+    if (s.dir === "ltr") return false;
+    return !!(s.man && s.man.direction === "RTL");
+  }
+
+  isWide(i) {
+    const p = this.state.man && this.state.man.pages[i];
+    return !!p && (p.type === "DOUBLE" || p.width > p.height);
+  }
+
+  /** Páginas mostradas juntas no modo duplo: capa sozinha, páginas duplas sozinhas. */
+  spreadAt(i) {
+    const s = this.state;
+    if (s.mode !== "double") return [i];
+    if (i === 0 || this.isWide(i)) return [i];
+    if (i + 1 < this.SEGS && !this.isWide(i + 1)) return [i, i + 1];
+    return [i];
+  }
+
+  fwd() {
+    const s = this.state;
+    if (!s.man || s.resume) return;
+    const next = s.page + this.spreadAt(s.page).length;
+    if (next > this.SEGS - 1) {
+      this.setState({ pagedEnd: true });
+      this.complete();
+      return;
+    }
+    this.setPage(next);
+  }
+
+  back() {
+    const s = this.state;
+    if (!s.man || s.resume) return;
+    if (s.pagedEnd) {
+      this.setState({ pagedEnd: false });
+      return;
+    }
+    let p = Math.max(0, s.page - 1);
+    if (s.mode === "double" && p > 0 && !this.isWide(p) && !this.isWide(p - 1) && this.spreadAt(p - 1).length === 2)
+      p -= 1;
+    this.setPage(p);
+  }
+
+  setPage(p) {
+    this.setState({ page: p, seg: p, off: 0, pct: this.SEGS > 1 ? p / (this.SEGS - 1) : 1, pagedEnd: false });
+    this.started = true;
+    this.queueSave();
+    this.preload(p);
+  }
+
+  preload(p) {
+    const man = this.state.man;
+    if (!man) return;
+    for (let i = p - 1; i <= p + PRELOAD_AHEAD + 1; i++) {
+      const page = man.pages[i];
+      if (page && !this.preloaded?.has(i)) {
+        (this.preloaded ||= new Set()).add(i);
+        const img = new Image();
+        img.decoding = "async";
+        img.src = page.url;
+      }
+    }
+  }
+
+  setMode(m) {
+    const s = this.state;
+    if (m === s.mode) return;
+    if (m === "double" && !s.wide) return;
+    // Preserva a página atual (não a porcentagem): as páginas têm alturas diferentes.
+    const cur = s.mode === "vertical" ? s.seg : s.page;
+    this.savePrefs({ mode: m, pagedEnd: false });
+    if (m === "vertical") this.restore({ seg: cur, off: s.mode === "vertical" ? s.off : 0 });
+    else this.setState({ page: cur, seg: cur });
+  }
+
+  restore(p) {
+    if (this.state.mode === "vertical") {
+      setTimeout(() => {
+        const box = this.scrollRef.current;
+        if (!box) return;
+        const el = box.querySelector(`[data-seg="${p.seg || 0}"]`);
+        if (el) box.scrollTop = el.offsetTop + (p.off || 0) * el.offsetHeight - 70;
+        this.started = true;
+        this.onScroll();
+      }, 40);
+    } else {
+      const page = Math.max(0, Math.min(this.SEGS - 1, p.page ?? p.seg ?? 0));
+      this.setState({ page, seg: page });
+      this.preload(page);
+      this.started = true;
+    }
+  }
+
+  queueSave() {
+    clearTimeout(this.sv);
+    this.sv = setTimeout(this.flushNow, 1500);
+  }
+
+  flush = () => this.flushNow();
+
+  /** Envia a posição real ao Protocolo 05 (página/segmento estável + edição). */
+  flushNow = (completed = false) => {
+    const s = this.state;
+    if (!this.sync || !this.started || !s.man) return;
+    const vertical = s.mode === "vertical";
+    const idx = vertical ? s.seg : s.page;
+    const page = s.man.pages[idx];
+    const key = `${idx}:${Math.round((vertical ? s.off : 0) * 100)}:${completed}`;
+    if (key === this.lastSent) return;
+    this.lastSent = key;
+    const pct = completed === true ? 1 : Math.min(vertical ? s.pct : this.SEGS > 1 ? s.page / (this.SEGS - 1) : 1, 0.999);
+    this.sync
+      .report(
+        {
+          pageIndex: idx,
+          segmentKey: vertical && page ? page.id : null,
+          segmentOffset: vertical ? Math.round(Math.min(1, Math.max(0, s.off)) * 1e6) / 1e6 : null,
+          percentComplete: Math.round(pct * 1000) / 10,
+          completed: completed === true,
+        },
+        { live: true },
+      )
+      .then((server) => {
+        if (completed === true && server && server.completed) {
+          window.dispatchEvent(new Event("nk:personal"));
+          this.loadUnits();
+        }
+      })
+      .catch(() => {});
+  };
+
+  complete() {
+    const s = this.state;
+    const cur = s.unitProg[`${this.chapterId}:${this.editionId}`];
+    if (this.sentComplete) return;
+    this.sentComplete = true;
+    clearTimeout(this.sv);
+    this.flushNow(true);
+    if (!cur || !cur.completed) this.flash(`Capítulo ${s.man.chapter.number} lido`);
+    const next = s.man.next;
+    if (s.autoNext && next && next.readable) setTimeout(() => this.goChapter(next.id), 1200);
+  }
+
+  enter(ch) {
+    this.goCh(ch);
+  }
+
+  /** Preferências do aparelho; modo e direção valem só para a edição em que foram escolhidos. */
+  savePrefs(patch) {
+    this.setState(patch, () => {
+      const s = this.state;
+      this.store("nk-reader-prefs", {
+        mode: s.mode,
+        dir: s.dir,
+        modeFor: s.man ? s.man.editionId : null,
+        fit: s.fit,
+        zoom: s.zoom,
+        theme: s.theme,
+        offerNext: s.offerNext,
+        showPct: s.showPct,
+        autoNext: s.autoNext,
+      });
+    });
+  }
+
+  goChapter(id) {
+    this.flushNow();
+    location.href = `/leitor?chapter=${id}&edition=${this.editionId}`;
+  }
+
+  goCh(n) {
+    const c = this.state.man && this.state.man.chapters[n];
+    if (!c || c.id === this.chapterId) return;
+    if (!c.available) {
+      this.flash("Este capítulo ainda não está disponível");
+      return;
+    }
+    this.goChapter(c.id);
+  }
+
+  addBookmark = () => {
+    const s = this.state;
+    if (!s.man) return;
+    const where = s.mode === "vertical" ? `${Math.round(s.pct * 100)}%` : `página ${s.page + 1}`;
+    const entry = {
+      id: Date.now(),
+      chapterId: this.chapterId,
+      editionId: this.editionId,
+      ch: s.ch,
+      seg: s.seg,
+      off: s.off,
+      page: s.page,
+      pct: s.pct,
+      where: `Cap. ${s.man.chapter.number} · ${where}`,
+      at: Date.now(),
+    };
+    this.allBm = [entry, ...this.allBm];
+    this.store("nk-reader-bm", this.allBm);
+    this.setState({ bm: [entry, ...s.bm] });
+    this.flash(`Marcador salvo · capítulo ${s.man.chapter.number}, ${where}`);
+  };
+
+  async retryPage(i) {
+    // URLs assinadas expiram: renova o manifesto antes de tentar de novo.
+    if (this.expiresAt && Date.now() > this.expiresAt - 60_000) {
+      try {
+        const man = await mediaApi.manifest(this.chapterId, this.editionId);
+        this.applyManifest(man);
+        this.setState({ man });
+      } catch {
+        /* mantém o manifesto atual */
+      }
+    }
+    const failed = { ...this.state.failed };
+    delete failed[i];
+    this.setState({ failed, retry: { ...this.state.retry, [i]: (this.state.retry[i] || 0) + 1 } });
+  }
+
+  renderVals() {
+    const base = super.renderVals();
+    const s = this.state;
+    const man = s.man;
+    if (!man) {
+      return {
+        ...base,
+        demoBanner: false,
+        segs: [],
+        spread: [],
+        workTitle: "",
+        workHref: "/leituras",
+        chTitle: s.loadState === "loading" ? "Carregando capítulo…" : "Capítulo indisponível",
+        pagedEnd: s.loadState !== "loading",
+        endTitle: s.loadState === "unavailable" ? "Este capítulo ainda não tem páginas no NekoFlow" : "Não foi possível abrir o capítulo",
+        endText:
+          s.loadState === "unavailable"
+            ? s.external && s.external.source_url
+              ? "A leitura deste capítulo acontece no site do provedor autorizado."
+              : "Assim que as páginas forem publicadas, ele aparece aqui."
+            : "Verifique sua conexão e tente novamente.",
+        hasNextCh: !!(s.external && s.external.source_url),
+        nextChLabel: "Ler no provedor ↗",
+        goNextCh: () => s.external && window.open(s.external.source_url, "_blank", "noopener,noreferrer"),
+        resumeAsk: false,
+        syncText: "",
+      };
+    }
+    const vertical = s.mode === "vertical";
+    const rtl = this.rtl();
+    const zoom = s.zoom / 100;
+    const pageVal = (p, i) => {
+      const n = s.retry[i] || 0;
+      const src = n ? `${p.url}${p.url.includes("?") ? "&" : "?"}r=${n}` : p.url;
+      return {
+        i,
+        ratio: `${p.width}/${p.height}`,
+        aspect: `${p.width}/${p.height}`,
+        bg: "none",
+        size: "contain",
+        pos: "center",
+        shade: "none",
+        label: "",
+        src,
+        alt: `Página ${p.position} de ${man.pages.length}`,
+        position: p.position,
+        eager: vertical ? i < 3 : true,
+        failed: !!s.failed[i],
+        onLoad: () => s.failed[i] && this.setState({ failed: { ...this.state.failed, [i]: false } }),
+        onError: () => this.setState({ failed: { ...this.state.failed, [i]: true } }),
+        retry: () => this.retryPage(i),
+      };
+    };
+    const segs = man.pages.map(pageVal);
+    const spreadIdx = this.spreadAt(Math.min(s.page, man.pages.length - 1));
+    const spread = spreadIdx.map((i) => segs[i]);
+    const landscape = spreadIdx.some((i) => this.isWide(i));
+    const pageH = landscape
+      ? `calc(min(100vh - 40px, (100vw - 40px) * ${
+          man.pages[spreadIdx[0]].height / man.pages[spreadIdx[0]].width
+        }) * ${zoom})`
+      : base.pageH;
+    const chName = (c) => `Capítulo ${c.number}`;
+    const prog = s.unitProg;
+    const next = man.next;
+    const prev = man.previous;
+    const curP = s.resumePos || {};
+    const sinceSaved = s.savedAt ? Math.round((Date.now() - s.savedAt) / 1000) : null;
+    const loggedIn = session.loggedIn;
+    const pq = String(s.pickQ || "").trim();
+    const pickList = man.chapters
+      .map((c, n) => ({ c, n }))
+      .reverse()
+      .filter(({ c }) => !pq || String(c.number).startsWith(pq))
+      .map(({ c, n }) => {
+        const cur = c.id === this.chapterId;
+        const p = prog[`${c.id}:${man.editionId}`];
+        const done = !!(p && p.completed);
+        return {
+          n,
+          title: c.title && c.title !== chName(c) ? `${chName(c)} · ${c.title}` : chName(c),
+          done: done && !cur,
+          go: () => this.goCh(n),
+          cursor: c.available ? "pointer" : "not-allowed",
+          state: cur
+            ? "Lendo agora"
+            : !c.available
+              ? "Ainda indisponível"
+              : !c.readable
+                ? "Abre no provedor"
+                : done
+                  ? "Concluído"
+                  : p && Number(p.percentComplete) > 3
+                    ? `Parou em ${Math.round(Number(p.percentComplete))}%`
+                    : "Disponível",
+          stateColor: cur ? "#DBAF57" : "#B7B1A4",
+          numColor: cur ? "#DBAF57" : done ? "#8F897D" : "#F0EEE9",
+          bg: cur ? "rgba(219,175,87,.1)" : "transparent",
+          border: cur ? "rgba(219,175,87,.45)" : "transparent",
+          opacity: c.available ? 1 : 0.5,
+        };
+      });
+    return {
+      ...base,
+      demoBanner: false,
+      workTitle: man.work.title,
+      workHref: man.work.href,
+      segs,
+      spread,
+      pageH,
+      chTitle: chName(man.chapter),
+      endTitle: next ? "Capítulo concluído" : "Você chegou ao último capítulo disponível",
+      endText: next
+        ? s.offerNext
+          ? `Você terminou o ${chName(man.chapter).toLowerCase()}. A seguir: ${chName(next).toLowerCase()}.`
+          : `Você terminou o ${chName(man.chapter).toLowerCase()}.`
+        : "Novos capítulos aparecem aqui assim que forem publicados.",
+      hasNextCh: !!next && s.offerNext,
+      nextChLabel: next ? `Ler ${chName(next).toLowerCase()}${next.readable ? "" : " no provedor"}` : "",
+      goNextCh: () => next && this.goChapter(next.id),
+      goPrevCh: () => prev && this.goChapter(prev.id),
+      prevCursor: prev ? "pointer" : "not-allowed",
+      prevOpacity: prev ? 1 : 0.4,
+      nextCursor: next ? "pointer" : "not-allowed",
+      nextOpacity: next ? 1 : 0.4,
+      resumePct: `${Math.round((curP.pct || 0) * 100)}%`,
+      resumeText: `Você parou na página ${(curP.seg || 0) + 1} deste capítulo${
+        curP.at ? `, ${this.ago(curP.at)}` : ""
+      }. A posição é a mesma em todos os seus dispositivos.`,
+      resumeYes: () => {
+        this.setState({ resume: false });
+        this.restore(curP);
+      },
+      resumeNo: () => {
+        this.setState({ resume: false });
+        this.started = true;
+      },
+      syncText: !loggedIn
+        ? "Entre para salvar"
+        : {
+            saving: "Salvando…",
+            pending: "Sem conexão · pendente",
+            "auth-required": "Entre para salvar",
+            conflict: "Atualizado em outro aparelho",
+            error: "Não foi possível salvar",
+          }[s.syncStatus] ||
+          (s.savedAt ? (sinceSaved < 5 ? "Progresso salvo" : `Salvo há ${sinceSaved} s`) : "Sincronizado"),
+      posText: vertical
+        ? `${Math.round(s.pct * 100)}% · página ${s.seg + 1} de ${this.SEGS}`
+        : spreadIdx.length === 2
+          ? `Páginas ${s.page + 1}–${s.page + 2} de ${this.SEGS}`
+          : `Página ${s.page + 1} de ${this.SEGS}`,
+      modeText: vertical
+        ? "Rolagem vertical"
+        : `${s.mode === "double" ? "Página dupla" : "Página única"} · ${rtl ? "dir. → esq." : "esq. → dir."}`,
+      pickList,
+      editionNote: man.readingMode === "VERTICAL" && !vertical,
+      showDiscussion: () => this.flash("A discussão do capítulo chega com o protocolo de Comunidade"),
+    };
+  }
+}
+
+const RealLeitor = defineDC("Leitor", RealLeitorLogic, render, { helmet });
+const LegacyLeitor = defineDC("Leitor", LeitorLogic, render, { helmet });
+
+export default function Leitor(props) {
+  const q = new URLSearchParams(location.search);
+  const chapterId = q.get("chapter");
+  const editionId = q.get("edition");
+  return chapterId && editionId ? (
+    <RealLeitor key={chapterId + editionId} chapterId={chapterId} editionId={editionId} {...props} />
+  ) : (
+    <LegacyLeitor {...props} />
+  );
+}
