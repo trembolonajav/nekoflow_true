@@ -113,6 +113,11 @@ class HeaderLogic extends DCLogic {
   componentDidMount() {
     this.setState({ read: [], guest: !session.loggedIn });
     this.loadPersonal();
+    // A sessão pode terminar de carregar depois do Header montar (páginas públicas não esperam).
+    this.unsubscribe = session.subscribe((me) => {
+      this.setState({ guest: !me.authenticated });
+      this.loadPersonal();
+    });
     // Outras telas avisam quando algo pessoal muda (biblioteca, avisos lidos).
     this.onPersonal = () => this.loadPersonal();
     window.addEventListener("nk:personal", this.onPersonal);
@@ -128,6 +133,7 @@ class HeaderLogic extends DCLogic {
     document.removeEventListener("keydown", this.onDocKey);
     clearInterval(this.poll);
     window.removeEventListener("nk:personal", this.onPersonal);
+    if (this.unsubscribe) this.unsubscribe();
   }
   renderVals() {
     const active = this.props.active ?? "inicio";

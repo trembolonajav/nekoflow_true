@@ -286,26 +286,29 @@ class ContaLogic extends DCLogic {
       .filter((x) => s.status === "todos" || x.status === s.status)
       .map((x) => {
         const anim = isAnim(x);
-        const progress =
-          x.status === "planejado"
-            ? anim
-              ? "Ainda não começou"
-              : "Ainda não começou"
-            : x.done && x.status === "andamento"
-              ? `Em dia · ${anim ? `Ep. ${x.ep}` : `Cap. ${x.ch}`}`
+        // Textos derivados do progresso real: sem registro, a obra "ainda não começou".
+        const unitText = anim ? `Ep. ${x.ep}` : `Cap. ${x.ch}`;
+        const started = x.hasProgress;
+        const progress = !started
+          ? "Ainda não começou"
+          : x.done
+            ? `Em dia · ${unitText}`
+            : x.resume && x.resume.state === "NEXT"
+              ? `Próximo: ${unitText}`
               : anim
-                ? `Ep. ${x.ep}${x.of ? ` de ${x.of}` : ""}`
-                : `Cap. ${x.ch}`;
-        const cta =
-          x.status === "planejado"
+                ? `${unitText}${x.of ? ` de ${x.of}` : ""}`
+                : unitText;
+        const cta = !started
+          ? x.status === "planejado" || x.status === "andamento"
             ? anim
-              ? "Assistir ep. 1"
-              : "Ler cap. 1"
-            : x.status === "concluido"
-              ? "Ver obra"
-              : anim
-                ? "Continuar assistindo"
-                : "Continuar lendo";
+              ? "Começar a assistir"
+              : "Começar a ler"
+            : "Ver obra"
+          : x.status === "concluido" || x.done
+            ? "Ver obra"
+            : anim
+              ? "Continuar assistindo"
+              : "Continuar lendo";
         return {
           ...x,
           statusLabel: stMap[x.status].l,
@@ -316,7 +319,7 @@ class ContaLogic extends DCLogic {
           pctW: `${x.pct || 0}%`,
           menuOpen: s.menuFor === x.id + x.kind,
           menu: () => this.setState({ menuFor: s.menuFor === x.id + x.kind ? null : x.id + x.kind }),
-          ctaHref: x.status === "concluido" ? x.href : x.unitHref,
+          ctaHref: !started || x.status === "concluido" || x.done ? x.href : x.unitHref,
           moves: ST.filter(([k]) => k !== x.status).map(([k, l]) => ({
             label: l,
             color: "#F0EEE9",
