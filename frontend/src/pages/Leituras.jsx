@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
+import { mergeCatalogList } from "../features/catalog/mergeCatalog";
 
 const hrefOf = (x) => getWorkUrl(x);
 
@@ -15,8 +16,8 @@ class LeiturasLogic extends DCLogic {
   componentDidMount() {
     const p = new URLSearchParams(location.search).get("tipo");
     if (["mangas", "manhwas", "webtoons"].includes(p)) this.setState({ tab: p });
-    api.get("/api/content/leituras")
-      .then((items) => this.setState({ items }));
+    Promise.all([api.get("/api/content/leituras"), api.get("/api/catalog/all")])
+      .then(([items, catalog]) => this.setState({ items: mergeCatalogList(items, catalog, (x) => x.kind === "manga" || x.kind === "manhwa") }));
     if (session.loggedIn)
       api
         .get("/api/me/library")

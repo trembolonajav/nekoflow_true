@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
+import { mergeCatalogList } from "../features/catalog/mergeCatalog";
 
 const hrefOf = (id, title) => getWorkUrl({ id, title, kind: "anime" });
 
@@ -15,8 +16,13 @@ class HomeLogic extends DCLogic {
   rowRef = React.createRef();
   DUR = 9000;
   componentDidMount() {
-    api.get("/api/content/home")
-      .then((data) => this.setState({ data }));
+    Promise.all([api.get("/api/content/home"), api.get("/api/catalog/all")])
+      .then(([data, catalog]) => this.setState({ data: {
+        ...data,
+        hero: mergeCatalogList(data.hero, catalog, () => false),
+        season: mergeCatalogList(data.season, catalog, () => false),
+        recent: mergeCatalogList(data.recent, catalog, () => false),
+      } }));
     this.loadMine();
     this.onPersonal = () => this.loadMine();
     window.addEventListener("nk:personal", this.onPersonal);

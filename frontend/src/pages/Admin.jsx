@@ -469,6 +469,7 @@ function Catalog() {
       .finally(() => setBusy(false));
   };
   return (
+    <div style={{ display: "grid", gap: "18px" }}>
     <section style={{ ...card, maxWidth: "720px", display: "flex", flexDirection: "column", gap: "16px" }}>
       <span style={{ fontFamily: F.serif, fontSize: "26px" }}>Cadastrar obra</span>
       <span style={{ fontSize: "13px", color: C.muted, lineHeight: 1.55 }}>
@@ -520,7 +521,39 @@ function Catalog() {
         {res && <span style={{ fontSize: "13px", color: res.ok ? C.green : C.red }}>{res.text}</span>}
       </div>
     </section>
+    <CatalogMaintenance />
+    </div>
   );
+}
+
+function CatalogMaintenance() {
+  const [q, setQ] = useState("");
+  const [list, setList] = useState([]);
+  const [work, setWork] = useState(null);
+  const [form, setForm] = useState({ title: "", synopsisShort: "", synopsis: "", storyStatus: "UNKNOWN", coverUrl: "", bannerUrl: "" });
+  const [msg, setMsg] = useState(null);
+  const search = () => api.get(`/api/admin/catalog/works?q=${encodeURIComponent(q)}`).then(setList).catch(() => setList([]));
+  useEffect(() => { const t=setTimeout(search,250); return()=>clearTimeout(t); }, [q]);
+  const pick = (w) => { setWork(w); setForm({ title:w.title||"", synopsisShort:w.synopsis_short||"", synopsis:w.synopsis_full||"", storyStatus:w.story_status||"UNKNOWN", coverUrl:w.cover_url||"", bannerUrl:w.banner_url||"" }); };
+  const save = () => api.patch(`/api/admin/catalog/works/${work.id}`, form).then((w)=>setMsg({ok:true,text:`${w.title} atualizada.`})).catch((e)=>setMsg({ok:false,text:errText(e)}));
+  const visibility = (value) => api.put(`/api/admin/catalog/works/${work.id}/visibility/${value}`,{}).then((w)=>{setWork({...work,visibility:w.visibility});setMsg({ok:true,text:`Visibilidade: ${w.visibility}.`});}).catch((e)=>setMsg({ok:false,text:errText(e)}));
+  const importCatalog = (dryRun) => api.post(`/api/admin/catalog/imports?dryRun=${dryRun}`,{}).then((r)=>setMsg({ok:true,text:`${dryRun?"Simulação":"Importação"}: ${r.created} novos, ${r.unchanged} preservados, ${r.rejected} rejeitados.`})).catch((e)=>setMsg({ok:false,text:errText(e)}));
+  return <section style={{ ...card, display:"grid", gap:"14px" }}>
+    <span style={{ fontFamily:F.serif,fontSize:"26px" }}>Revisão editorial</span>
+    <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}><button onClick={()=>importCatalog(true)} style={btn("secondary")}>Simular importação</button><button onClick={()=>importCatalog(false)} style={btn("secondary")}>Aplicar importação idempotente</button></div>
+    <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Buscar obra publicada ou rascunho" style={input}/>
+    {!work && <div style={{display:"grid",gap:"6px"}}>{list.slice(0,10).map((w)=><button key={w.id} onClick={()=>pick(w)} style={{...btn("secondary"),textAlign:"left"}}>{w.title} · {w.media_family} · {w.visibility}</button>)}</div>}
+    {work && <>
+      <button onClick={()=>setWork(null)} style={{all:"unset",cursor:"pointer",color:C.gold,fontSize:"13px"}}>← Escolher outra obra</button>
+      <label style={label}>Título<input value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} style={input}/></label>
+      <label style={label}>Resumo<input value={form.synopsisShort} onChange={(e)=>setForm({...form,synopsisShort:e.target.value})} style={input}/></label>
+      <label style={label}>Sinopse<textarea rows={5} value={form.synopsis} onChange={(e)=>setForm({...form,synopsis:e.target.value})} style={{...input,resize:"vertical"}}/></label>
+      <label style={label}>Situação<select value={form.storyStatus} onChange={(e)=>setForm({...form,storyStatus:e.target.value})} style={input}>{["ONGOING","COMPLETED","HIATUS","UNKNOWN"].map(x=><option key={x}>{x}</option>)}</select></label>
+      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}><button onClick={save} style={btn("primary")}>Salvar metadados</button>{["DRAFT","PUBLISHED","HIDDEN","ARCHIVED"].map(x=><button key={x} onClick={()=>visibility(x)} style={chip(work.visibility===x)}>{x}</button>)}</div>
+    </>}
+    {msg&&<span style={{fontSize:"13px",color:msg.ok?C.green:C.red}}>{msg.text}</span>}
+    <span style={{fontSize:"12px",color:C.faint}}>Temporadas, episódios, edições, capítulos, relações e auditoria usam a mesma API editorial protegida.</span>
+  </section>;
 }
 
 // ---- usuários e auditoria ----------------------------------------------------------

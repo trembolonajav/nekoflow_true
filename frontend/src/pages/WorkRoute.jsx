@@ -21,8 +21,14 @@ export default function WorkRoute({
   useEffect(() => {
     let active = true;
     setState({ loading: true, work: null, missing: false });
+    const resolve = `/api/v1/works/resolve?section=${encodeURIComponent(section)}&slug=${encodeURIComponent(slug)}`;
     api
-      .get(`/api/catalog/${section}/${encodeURIComponent(slug)}`)
+      .get(resolve)
+      .catch((error) => {
+        // Compatibilidade temporária para URLs históricas que ainda carregam o ID no slug.
+        if (error?.status !== 404) throw error;
+        return api.get(`/api/catalog/${section}/${encodeURIComponent(slug)}`);
+      })
       .then(
         (work) => active && setState({ loading: false, work, missing: false }),
       )
@@ -43,11 +49,11 @@ export default function WorkRoute({
     return <BasicWorkDetail loading section={section} loggedIn={loggedIn} />;
   if (!state.work)
     return <BasicWorkDetail missing section={section} loggedIn={loggedIn} />;
-  if (RICH_IDS.has(Number(state.work.id))) {
+  if (RICH_IDS.has(Number(state.work.legacyId ?? state.work.id))) {
     return (
       <RichComponent
         {...richDefaults}
-        canonicalWork={state.work}
+        canonicalWork={{ ...state.work, id: state.work.legacyId ?? state.work.id }}
         loggedIn={loggedIn}
       />
     );

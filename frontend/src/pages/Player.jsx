@@ -1,6 +1,6 @@
 // Origem: design/claude-design/Player.dc.html (Claude Design).
 /* eslint-disable */
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -3976,4 +3976,36 @@ function render(v) {
 
 export const defaults = { loggedIn: true, simularErro: false };
 
-export default defineDC("Player", PlayerLogic, render, { helmet });
+const LegacyPlayer = defineDC("Player", PlayerLogic, render, { helmet });
+
+function ExternalEpisodePlayer({ episodeId, loggedIn }) {
+  const [state, setState] = useState({ loading: true, source: null, episode: null, error: null });
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api.get(`/api/v1/episodes/${episodeId}/source`),
+      api.get(`/api/v1/episodes/${episodeId}`),
+    ]).then(([source, episode]) => active && setState({ loading: false, source, episode, error: null }))
+      .catch((error) => active && setState({ loading: false, source: null, episode: null, error }));
+    return () => { active = false; };
+  }, [episodeId]);
+  return <div style={{ minHeight: "100vh", background: "#171411", color: "#F0EEE9", fontFamily: "Inter,system-ui,sans-serif" }}>
+    <Header active="animes" loggedIn={loggedIn} solid />
+    <main style={{ padding: "104px clamp(16px,4vw,56px) 56px", minHeight: "76vh" }}>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+        <p style={{ color: "#DBAF57", textTransform: "uppercase", letterSpacing: ".18em", fontSize: "11px" }}>Player externo autorizado</p>
+        <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 500 }}>{state.episode?.work_title || "Episódio"} · {state.episode?.title || state.episode?.display_number || ""}</h1>
+        {state.loading && <div style={{ aspectRatio: "16/9", display: "grid", placeItems: "center", background: "#0D0C0B", borderRadius: "12px" }}>Carregando fonte verificada…</div>}
+        {state.error && <div style={{ padding: "40px", background: "#221F1B", borderRadius: "12px" }}>Esta fonte está indisponível no momento.</div>}
+        {state.source?.source_type === "EMBED" && state.source?.embed_allowed && <iframe title="Reprodução do episódio" src={state.source.source_url} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="origin" style={{ width: "100%", aspectRatio: "16/9", border: 0, borderRadius: "12px", background: "#000" }} />}
+        <p style={{ color: "#B7B1A4", lineHeight: 1.6 }}>Fonte: {state.source?.provider || "—"}. O vídeo permanece hospedado no provedor autorizado. Como este embed não fornece telemetria confiável, o NekoFlow não fabrica posição, duração assistida ou conclusão automática.</p>
+      </div>
+    </main>
+    <Footer />
+  </div>;
+}
+
+export default function Player(props) {
+  const episodeId = new URLSearchParams(location.search).get("episode");
+  return episodeId ? <ExternalEpisodePlayer episodeId={episodeId} {...props} /> : <LegacyPlayer {...props} />;
+}

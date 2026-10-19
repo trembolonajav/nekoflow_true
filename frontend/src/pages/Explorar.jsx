@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl, normalizeSearch } from "../features/catalog/workNavigation";
+import { mergeCatalogList } from "../features/catalog/mergeCatalog";
 
 const quickBtn = (on) => ({
   all: "unset",
@@ -66,11 +67,10 @@ class ExplorarLogic extends DCLogic {
       api.get("/api/content/explorar"),
       api.get("/api/catalog/all").catch(() => []),
     ]).then(([items, all]) => {
-      const known = new Set(items.map((x) => x.id));
-      const extra = all
-        .filter((w) => !known.has(w.id) && w.id >= 900000000)
-        .map((w) => ({ ...w, genres: [], themes: [], score: null, origin: null, studio: "", pop: w.pop || 1 }));
-      this.setState({ items: [...items, ...extra] });
+      this.setState({ items: mergeCatalogList(items, all).map((w) => ({
+        ...w, genres: w.genres || [], themes: w.themes || [], score: w.score ?? null,
+        origin: w.origin ?? null, studio: w.studio || "", pop: w.pop || 1,
+      })) });
     });
     this.loadMine();
   }
