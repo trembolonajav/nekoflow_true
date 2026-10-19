@@ -5,6 +5,8 @@ import { DCLogic, defineDC, txt, asList, css } from "../dc/runtime";
 
 class FooterLogic extends DCLogic {}
 
+const pendingStyle = { fontSize: "14px", color: "#8F897D", cursor: "not-allowed" };
+
 const helmet = [];
 
 function render(v) {
@@ -71,7 +73,7 @@ function render(v) {
             >
               Conteúdos
             </span>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            <a className="nk-hover-1d5grei" href="/animes" style={{ fontSize: "14px", color: "#D9D5CC" }}>
               Animes
             </a>
             <a className="nk-hover-1d5grei" href="/explorar?tipo=filmes" style={{ fontSize: "14px", color: "#D9D5CC" }}>
@@ -114,10 +116,10 @@ function render(v) {
             <a className="nk-hover-1d5grei" href="/calendario" style={{ fontSize: "14px", color: "#D9D5CC" }}>
               Calendário
             </a>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            <a className="nk-hover-1d5grei" href="/biblioteca" style={{ fontSize: "14px", color: "#D9D5CC" }}>
               Minha lista
             </a>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            <a className="nk-hover-1d5grei" href="/solicitacoes" style={{ fontSize: "14px", color: "#D9D5CC" }}>
               Solicitar obra
             </a>
           </nav>
@@ -134,18 +136,18 @@ function render(v) {
             >
               Nekoflow
             </span>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            <span title="Página institucional em preparação" aria-disabled="true" style={pendingStyle}>
               Sobre o projeto
-            </a>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            </span>
+            <span title="Central de ajuda em preparação" aria-disabled="true" style={pendingStyle}>
               Ajuda e contato
-            </a>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            </span>
+            <span title="Documento em preparação" aria-disabled="true" style={pendingStyle}>
               Termos de Uso
-            </a>
-            <a className="nk-hover-1d5grei" href="#" style={{ fontSize: "14px", color: "#D9D5CC" }}>
+            </span>
+            <span title="Documento em preparação" aria-disabled="true" style={pendingStyle}>
               Privacidade
-            </a>
+            </span>
           </nav>
         </div>
         <div

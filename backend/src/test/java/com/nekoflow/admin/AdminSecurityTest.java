@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.nekoflow.auth.NekoPrincipal;
@@ -70,12 +71,20 @@ class AdminSecurityTest {
 
     @Test
     void anonymousGets401() throws Exception {
-        mvc.perform(get("/api/admin/requests")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/requests"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").isNotEmpty())
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test
     void userCannotModerate() throws Exception {
-        mvc.perform(get("/api/admin/requests").with(as(Role.USER))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/requests").with(as(Role.USER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.message").isNotEmpty())
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test

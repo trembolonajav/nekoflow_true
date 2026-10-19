@@ -50,7 +50,7 @@
     position: fixed !important; left: 8px !important; right: 8px !important; top: 56px !important;
     width: auto !important; max-height: calc(100vh - 140px) !important;
   }
-  .nk-hdr a[href="/entrar?modo=criar"] { display: none !important; }
+  .nk-hdr a[href="/criar-conta"] { display: none !important; }
 
   /* menus suspensos viram painel inferior com opções grandes */
   .nk-sheet {
@@ -121,7 +121,7 @@
 
 /* tablet: o header de visitante não comporta os dois botões ao lado da navegação */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .nk-hdr a[href="/entrar?modo=criar"] { display: none !important; }
+  .nk-hdr a[href="/criar-conta"] { display: none !important; }
 }
 
 /* modo imersivo: player em tela cheia */

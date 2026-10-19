@@ -40,6 +40,10 @@ class ContentControllerTest {
     void unknownKeyIs404() throws Exception {
         given(repository.findById("nada")).willReturn(Optional.empty());
 
-        mvc.perform(get("/api/content/nada")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/content/nada"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Conteúdo não encontrado."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 }

@@ -1,8 +1,10 @@
 // Origem: design/claude-design/Leitor.dc.html (Claude Design).
 /* eslint-disable */
 import React from "react";
+import { api } from "../lib/api";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
+import { canonicalWorks } from "../features/catalog/workNavigation";
 
 class LeitorLogic extends DCLogic {
   SEGS = 24;
@@ -92,8 +94,7 @@ class LeitorLogic extends DCLogic {
         q >= 0 && q <= this.LAST ? q : me && me.resumeUnit != null && me.resumeUnit <= this.LAST ? me.resumeUnit : 0;
       this.setState({ ...prefs, prog, bm: this.load("nk-reader-bm", []) }, () => this.enter(ch, true));
     });
-    fetch("/api/content/leitura-obra")
-      .then((r) => r.json())
+    api.get("/api/content/leitura-obra")
       .then((d) => this.setState({ d }));
     document.addEventListener("keydown", this.onKey);
     document.addEventListener("fullscreenchange", this.onFs);
@@ -701,6 +702,26 @@ function render(v) {
           overflow: "hidden",
         }}
       >
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 80,
+            padding: "6px 12px",
+            borderRadius: "999px",
+            background: "rgba(23,20,17,.94)",
+            border: "1px solid rgba(219,175,87,.45)",
+            color: "#D9D5CC",
+            fontSize: "11px",
+            maxWidth: "calc(100vw - 32px)",
+            textAlign: "center",
+          }}
+        >
+          Demonstração de interface · páginas de leitura não são conteúdo oficial
+        </div>
         {" "}
         {v.vertical ? (
           <>
@@ -817,7 +838,7 @@ function render(v) {
                       </>
                     ) : null}
                     <a
-                      href="/obra-leitura"
+                      href={canonicalWorks.soloLevelingReading}
                       style={{
                         height: "46px",
                         display: "flex",
@@ -1019,7 +1040,7 @@ function render(v) {
                         </>
                       ) : null}
                       <a
-                        href="/obra-leitura"
+                        href={canonicalWorks.soloLevelingReading}
                         style={{
                           height: "46px",
                           display: "flex",
@@ -1187,7 +1208,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1m5yhr"
-              href="/obra-leitura"
+              href={canonicalWorks.soloLevelingReading}
               aria-label="Voltar à obra"
               title="Voltar à obra"
               style={{

@@ -1,78 +1,26 @@
-// Progresso de episódios/capítulos: grava no servidor e, sem conexão, guarda a
-// posição neste dispositivo para reenviar depois (o servidor descarta o que for
-// mais antigo que a posição já salva, então reenviar nunca sobrescreve dados novos).
+// Ponte das páginas demonstrativas do design (Player e Leitor de Solo Leveling).
+//
+// Essas páginas simulam reprodução/leitura com temporizadores e rolagem; elas não têm
+// episódios/capítulos reais no catálogo. Pelo Protocolo 05 isso não pode virar progresso
+// pessoal: nada aqui envia posição, conclusão ou "aberto" para o servidor. O progresso
+// verdadeiro usa features/progress (ids reais de episódio/capítulo + edição).
 import { api } from "./api";
 import { session } from "./session";
+import { discardLegacyProgressCache } from "../features/progress/progressApi";
 
-const KEY = "nk-pending-progress";
+discardLegacyProgressCache();
 
-function readPending() {
-  try {
-    const p = JSON.parse(localStorage.getItem(KEY) || "null");
-    return p && p.uid === session.user.id ? p.items || {} : {};
-  } catch (e) {
-    return {};
-  }
+/** Eventos do player/leitor demonstrativo são descartados (não são progresso verificável). */
+export function saveUnit() {
+  return Promise.resolve({ ignored: true, reason: "DEMO_PLAYBACK_NOT_RECORDED" });
 }
 
-function writePending(items) {
-  try {
-    if (Object.keys(items).length) localStorage.setItem(KEY, JSON.stringify({ uid: session.user.id, items }));
-    else localStorage.removeItem(KEY);
-  } catch (e) {}
-}
+export function flushPending() {}
 
-/** Salva uma unidade. body: { position, duration, pct, completed, reset } */
-export function saveUnit(workId, unit, body) {
-  if (!session.loggedIn) return Promise.resolve(null);
-  const payload = { ...body, at: Date.now() };
-  return api.put(`/api/me/progress/${workId}/${unit}`, payload).then(
-    (r) => {
-      flushPending();
-      window.dispatchEvent(new Event("nk:personal"));
-      return r;
-    },
-    (e) => {
-      if (e && e.status === 401) return null;
-      const items = readPending();
-      items[`${workId}:${unit}`] = { workId, unit, body: payload };
-      writePending(items);
-      return null;
-    },
-  );
-}
+export function recordOpened() {}
 
-let flushing = false;
-/** Reenvia posições que ficaram pendentes por falta de conexão. */
-export function flushPending() {
-  if (flushing || !session.loggedIn) return;
-  const items = readPending();
-  const list = Object.entries(items);
-  if (!list.length) return;
-  flushing = true;
-  Promise.all(
-    list.map(([k, it]) =>
-      api.put(`/api/me/progress/${it.workId}/${it.unit}`, it.body).then(
-        () => delete items[k],
-        () => {},
-      ),
-    ),
-  ).finally(() => {
-    writePending(items);
-    flushing = false;
-  });
-}
-
-export function recordOpened(workId, unit) {
-  if (!session.loggedIn) return;
-  api.post(`/api/me/opened/${workId}/${unit}`).catch(() => {});
-}
-
-/** Estado pessoal da obra: { units: { n: { t, d, pct, done, at } }, resumeUnit, ... } */
+/** Estado pessoal da obra (lista, alertas). As páginas do design não têm unidades reais: units = {}. */
 export function loadWork(workId) {
   if (!session.loggedIn) return Promise.resolve(null);
-  flushPending();
   return api.get(`/api/me/works/${workId}`).catch(() => null);
 }
-
-window.addEventListener("online", () => flushPending());

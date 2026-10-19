@@ -7,7 +7,7 @@ Plataforma de animes e leituras construída a partir do protótipo do Claude Des
 | Frontend | React 18 + Vite + React Router                     | `frontend/` |
 | Backend  | Java 17 + Spring Boot 3 (Web, Security, JDBC, Flyway) | `backend/` |
 | Banco    | PostgreSQL 16                                      | (Docker)    |
-| Infra    | Docker Compose (Postgres, API, nginx)              | raiz        |
+| Infra    | Docker Compose (Postgres, API, nginx e Mailpit local) | raiz        |
 | Design   | Arquivos originais exportados do Claude Design     | `design/`   |
 
 ## Subir tudo com Docker
@@ -19,6 +19,7 @@ docker compose up -d --build
 - App: http://localhost:3000
 - API: http://localhost:8080
 - Postgres: localhost:5432 (usuário/senha `nekoflow`, veja `.env.example`)
+- E-mails locais: http://localhost:8025 (Mailpit; não envia mensagens para a internet)
 
 Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
 padrão `nekoflow2026`):
@@ -39,29 +40,37 @@ cd backend && mvn spring-boot:run           # API em :8080
 cd frontend && npm install && npm run dev   # app em :5173 (proxy de /api para :8080)
 ```
 
-Testes do backend: `cd backend && mvn test`.
+Verificações locais:
+
+```bash
+cd frontend && npm test && npm run build
+cd backend && mvn test
+```
 
 ## Telas e rotas
 
 | Tela                       | Rota                        | Arquivo                               |
 |----------------------------|-----------------------------|---------------------------------------|
 | Home                       | `/`                         | `frontend/src/pages/Home.jsx`         |
+| Animes                     | `/animes`                   | `pages/Explorar.jsx` (catálogo filtrado) |
 | Calendário                 | `/calendario`               | `pages/Calendario.jsx`                |
 | Explorar                   | `/explorar`                 | `pages/Explorar.jsx`                  |
 | Leituras                   | `/leituras`                 | `pages/Leituras.jsx`                  |
-| Obra (anime)               | `/obra`                     | `pages/Obra.jsx`                      |
-| Obra (leitura)             | `/obra-leitura`             | `pages/ObraLeitura.jsx`               |
-| Leitor                     | `/leitor?cap=N`             | `pages/Leitor.jsx`                    |
-| Player                     | `/player?ep=N`              | `pages/Player.jsx`                    |
+| Obra (anime)               | `/animes/:slug`             | `pages/WorkRoute.jsx`                 |
+| Obra (leitura)             | `/leituras/:slug`           | `pages/WorkRoute.jsx`                 |
+| Leitor demonstrativo       | `/leitor?obra=ID&cap=N`     | `pages/Leitor.jsx`                    |
+| Player demonstrativo       | `/player?obra=ID&ep=N`      | `pages/Player.jsx`                    |
 | Conta / Minha biblioteca   | `/conta?aba=...` (privada)  | `pages/Conta.jsx`                     |
-| Entrar / Criar conta       | `/entrar` (`?next=` volta à origem) | `pages/Entrar.jsx`            |
+| Entrar / Criar conta       | `/entrar` e `/criar-conta` (`?next=` volta à origem) | `pages/Entrar.jsx` |
 | Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
 | Painel administrativo      | `/admin` (equipe)           | `pages/Admin.jsx`                     |
 | Estudo das 3 direções da Home | `/estudos/home-direcoes` | `pages/HomeDirecoes.jsx`              |
+| Página inexistente            | qualquer rota desconhecida | `pages/NotFound.jsx`                |
 
 Atalhos: `/biblioteca`, `/continuar-assistindo`, `/continuar-lendo`, `/historico`,
 `/solicitacoes`, `/notificacoes`, `/configuracoes` (levam às abas da Conta).
 A Conta aceita filtros por link: `/conta?aba=lista&midia=anime&situacao=pausado`.
+As rotas antigas `/obra` e `/obra-leitura` redirecionam para as fichas canônicas de Solo Leveling.
 
 ## Como as partes se integram
 
@@ -85,6 +94,9 @@ Uma única fonte para cada informação (detalhes em `docs/matriz-integracao.md`
   preferências de notificação da conta.
 - **Permissões** (validadas no servidor): moderador = solicitações; editor = + publicações e
   catálogo; administrador = + usuários e auditoria (`admin_audit`).
+- **Autenticação**: Spring Security + Spring Session JDBC, cookie `HttpOnly`, CSRF, Argon2id,
+  confirmação de e-mail e recuperação com tokens temporários de uso único. O React nunca guarda
+  JWT ou senha no `localStorage`.
 
 ## Mobile
 
@@ -93,16 +105,31 @@ cheia), header compacto com busca em largura total, menus do sininho, da conta e
 como painel inferior, abas da Conta roláveis e filtros do Explorar recolhidos. O desktop continua
 igual ao design. As regras ficam em `frontend/src/styles/mobile.css`.
 
-## Origem do código
+## Organização e origem do código
 
 As telas foram convertidas dos `.dc.html` do Claude Design (`design/claude-design/`) e agora são
-mantidas direto no código. O conversor usado na importação ficou em
-`frontend/scripts/dc-to-react.legacy.mjs` só como referência — rodá-lo de novo sobrescreveria
-as telas.
+mantidas diretamente no código. O conversor legado gera somente uma prévia isolada em
+`frontend/design-generated/`; ele recusa gravar em `src`, `public`, `backend` ou `design`.
+
+```bash
+cd frontend
+npm run design:preview
+```
+
+Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
+
+- `docs/architecture.md` — responsabilidades e dependências;
+- `docs/design-workflow.md` — atualização segura do design;
+- `docs/api-conventions.md` — cliente HTTP e contrato de erros;
+- `docs/navigation-audit.md` — auditoria anterior às correções do Protocolo 02;
+- `docs/protocol-02-integration.md` — rotas, limites e integração da navegação real;
+- `docs/protocol-03-auth-audit.md` — linha de base anterior à autenticação completa;
+- `docs/protocol-03-authentication.md` — contrato, segurança, configuração e resultados;
+- `docs/visual-baseline.md` — rotas e viewports usados na verificação visual.
 
 ## O que ainda não existe
 
-- Envio de e-mail (confirmação de conta, recuperação de senha) e login com Google: as telas
-  existem, mas não há serviço de e-mail/OAuth configurado.
+- Login com Google/OIDC, alteração de e-mail e MFA ainda não estão configurados; a interface os
+  apresenta como indisponíveis, sem simular sucesso.
 - Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
 - Acessibilidade (WCAG) ficou fora deste escopo.

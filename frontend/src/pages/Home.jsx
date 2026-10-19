@@ -6,19 +6,25 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { getWorkUrl } from "../features/catalog/workNavigation";
+import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { libraryApi } from "../features/library/libraryApi";
+import { progressApi } from "../features/progress/progressApi";
 
-/** Página de cada obra: as duas páginas individuais do design ou a busca do Explorar. */
-const hrefOf = (id, title) =>
-  id === 151807 ? "/obra" : id === 105398 ? "/obra-leitura" : `/explorar?q=${encodeURIComponent(title || "")}`;
+const hrefOf = (id, title) => getWorkUrl({ id, title, kind: "anime" });
 
 class HomeLogic extends DCLogic {
   state = { data: null, active: 0, t: 0, paused: false };
   rowRef = React.createRef();
   DUR = 9000;
   componentDidMount() {
-    fetch("/api/content/home")
-      .then((r) => r.json())
-      .then((data) => this.setState({ data }));
+    Promise.all([api.get("/api/content/home"), api.get("/api/catalog/all")])
+      .then(([data, catalog]) => this.setState({ data: {
+        ...data,
+        hero: mergeCatalogList(data.hero, catalog, () => false),
+        season: mergeCatalogList(data.season, catalog, () => false),
+        recent: mergeCatalogList(data.recent, catalog, () => false),
+      } }));
     this.loadMine();
     this.onPersonal = () => this.loadMine();
     window.addEventListener("nk:personal", this.onPersonal);
@@ -43,8 +49,8 @@ class HomeLogic extends DCLogic {
   /** Continuar assistindo e estado da lista vêm do progresso real da conta. */
   loadMine() {
     if (!session.loggedIn) return;
-    Promise.all([api.get("/api/me/continue?limit=4"), api.get("/api/me/library")])
-      .then(([cont, lib]) => this.setState({ cont, lib }))
+    Promise.all([progressApi.continueWatching(), libraryApi.list({ size: 100 })])
+      .then(([cont, lib]) => this.setState({ cont, lib: lib.items }))
       .catch(() => {});
   }
   componentWillUnmount() {
@@ -84,7 +90,8 @@ class HomeLogic extends DCLogic {
       pause: () => this.setState({ paused: true }),
       resume: () => this.setState({ paused: false }),
       hero: { ...h, epCount: h.lastEp ? `${h.lastEp} episódios` : "", href: hrefOf(h.id, h.title) },
-      ctaLabel: resumable ? `Continuar Ep. ${mine.ep}` : "Assistir Ep. 1",
+      ctaLabel: resumable ? `Continuar Ep. ${mine.ep}` : "Ver detalhes",
+      ctaPlayable: resumable,
       ctaHref: resumable ? mine.unitHref : hrefOf(h.id, h.title),
       showHeroProgress: resumable && mine.pct > 0,
       heroProgressLabel: resumable ? `Ep. ${mine.ep}${mine.left ? ` · faltam ${mine.left}` : ""}` : "",
@@ -93,11 +100,8 @@ class HomeLogic extends DCLogic {
       listTitle: mine ? "Na sua lista · abrir biblioteca" : "Adicionar à minha lista",
       addToList: () => {
         if (!loggedIn) return goLogin();
-        if (mine) return (location.href = "/conta?aba=lista");
-        api
-          .put(`/api/me/library/${h.id}`, { status: "planejado" })
-          .then(() => window.dispatchEvent(new Event("nk:personal")))
-          .catch(() => {});
+        if (mine) return (location.href = "/biblioteca");
+        libraryApi.setStatus(h.id, "planejado").catch(() => {});
       },
       slides: heroList.map((s, i) => ({
         ...s,
@@ -296,15 +300,17 @@ function render(v) {
                       fontWeight: "600",
                     }}
                   >
-                    <span
-                      style={{
-                        width: "0",
-                        height: "0",
-                        borderLeft: "10px solid #1A1714",
-                        borderTop: "6px solid transparent",
-                        borderBottom: "6px solid transparent",
-                      }}
-                    />
+                    {v.ctaPlayable ? (
+                      <span
+                        style={{
+                          width: "0",
+                          height: "0",
+                          borderLeft: "10px solid #1A1714",
+                          borderTop: "6px solid transparent",
+                          borderBottom: "6px solid transparent",
+                        }}
+                      />
+                    ) : null}
                     {txt(v.ctaLabel)}
                   </a>
                   <a
@@ -737,7 +743,7 @@ function render(v) {
                         >
                           Continuar assistindo
                         </h2>
-                        <a href="/conta?aba=historico" style={{ fontSize: "14px" }}>
+                        <a href="/historico" style={{ fontSize: "14px" }}>
                           Ver histórico →
                         </a>
                       </div>

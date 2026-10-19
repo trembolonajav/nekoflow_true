@@ -1,6 +1,8 @@
 package com.nekoflow.catalog;
 
+import java.text.Normalizer;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public record Work(
@@ -35,25 +37,36 @@ public record Work(
         };
     }
 
-    /** Página da obra no site (as duas páginas individuais que existem no design). */
+    public String section() {
+        return isAnimation() ? "animes" : "leituras";
+    }
+
+    public String titleSlug() {
+        String normalized = Normalizer.normalize(title, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+        return normalized.isBlank() ? "obra" : normalized;
+    }
+
+    /** O ID torna o slug único mesmo quando anime e leitura, ou duas obras, têm o mesmo título. */
+    public String slug() {
+        return titleSlug() + "-" + id;
+    }
+
+    /** Página canônica de qualquer obra cadastrada. */
     public String href() {
-        if (id == 151807) {
-            return "/obra";
-        }
-        if (id == 105398) {
-            return "/obra-leitura";
-        }
-        return "/explorar?q=" + java.net.URLEncoder.encode(title, java.nio.charset.StandardCharsets.UTF_8)
-                .replace("+", "%20");
+        return "/" + section() + "/" + slug();
     }
 
     /** Link para abrir uma unidade (episódio ou capítulo), quando a obra tem player/leitor. */
     public String unitHref(int unit) {
         if (id == 151807) {
-            return "/player?ep=" + unit;
+            return "/player?obra=" + id + "&ep=" + unit;
         }
         if (id == 105398) {
-            return "/leitor?cap=" + unit;
+            return "/leitor?obra=" + id + "&cap=" + unit;
         }
         return href();
     }
@@ -68,6 +81,8 @@ public record Work(
         m.put("banner", banner);
         m.put("webtoon", webtoon);
         m.put("year", year);
+        m.put("slug", slug());
+        m.put("section", section());
         m.put("typeLabel", typeLabel());
         m.put("totalUnits", totalUnits);
         m.put("availableUnits", released());

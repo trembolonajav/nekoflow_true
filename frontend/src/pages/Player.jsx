@@ -1,12 +1,14 @@
 // Origem: design/claude-design/Player.dc.html (Claude Design).
 /* eslint-disable */
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { progressApi } from "../features/progress/progressApi";
 import { saveUnit, recordOpened, loadWork } from "../lib/progress";
+import { canonicalWorks } from "../features/catalog/workNavigation";
 
 const WORK_ID = 151807;
 
@@ -106,8 +108,7 @@ class PlayerLogic extends DCLogic {
       });
       this.enter(ep, prog, false);
     });
-    fetch("/api/content/obra")
-      .then((r) => r.json())
+    api.get("/api/content/obra")
       .then((w) => this.setState({ w }));
     this.tick = setInterval(this.step, 250);
     document.addEventListener("keydown", this.onKey);
@@ -808,7 +809,7 @@ class PlayerLogic extends DCLogic {
             countPct: "0%",
             cta: "Continuar na obra original",
             go: () => {
-              location.href = "/obra?aba=uni";
+              location.href = `${canonicalWorks.soloLevelingAnime}?aba=uni`;
             },
             dismissLabel: "Fechar",
           },
@@ -1032,8 +1033,28 @@ function render(v) {
           __hostStyle={{ position: "absolute", top: "0", left: "0", right: "0", height: "0", zIndex: "50" }}
         />
         <div
+          role="status"
           style={{
-            padding: "84px clamp(16px,3.3vw,48px) 0",
+            position: "fixed",
+            top: "68px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 55,
+            padding: "6px 12px",
+            borderRadius: "999px",
+            background: "rgba(23,20,17,.94)",
+            border: "1px solid rgba(219,175,87,.45)",
+            color: "#D9D5CC",
+            fontSize: "11px",
+            maxWidth: "calc(100vw - 32px)",
+            textAlign: "center",
+          }}
+        >
+          Demonstração de interface · nenhuma fonte oficial de vídeo integrada
+        </div>
+        <div
+          style={{
+            padding: "132px clamp(16px,3.3vw,48px) 0",
             display: "flex",
             flexDirection: "column",
             gap: "14px",
@@ -1053,7 +1074,7 @@ function render(v) {
           >
             <a
               className="nk-hover-1d5grei"
-              href="/obra"
+              href={canonicalWorks.soloLevelingAnime}
               style={{ display: "flex", alignItems: "center", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
             >
               <svg
@@ -1288,7 +1309,7 @@ function render(v) {
                         Tentar novamente
                       </button>
                       <a
-                        href="/obra"
+                        href={canonicalWorks.soloLevelingAnime}
                         style={{
                           height: "42px",
                           display: "flex",
@@ -2814,7 +2835,7 @@ function render(v) {
               >
                 {txt(v.seasonLabel)}
               </h2>
-              <a href="/obra" style={{ fontSize: "14px" }}>
+              <a href={canonicalWorks.soloLevelingAnime} style={{ fontSize: "14px" }}>
                 Ver todas as temporadas →
               </a>
             </div>
@@ -3757,7 +3778,7 @@ function render(v) {
           </section>
           <a
             className="nk-hover-1ifysxm"
-            href="/obra-leitura?aba=adapt"
+            href={`${canonicalWorks.soloLevelingReading}?aba=adapt`}
             style={{
               display: "flex",
               flexWrap: "wrap",
@@ -3956,4 +3977,63 @@ function render(v) {
 
 export const defaults = { loggedIn: true, simularErro: false };
 
-export default defineDC("Player", PlayerLogic, render, { helmet });
+const LegacyPlayer = defineDC("Player", PlayerLogic, render, { helmet });
+
+function ExternalEpisodePlayer({ episodeId, loggedIn }) {
+  const [state, setState] = useState({ loading: true, source: null, episode: null, error: null });
+  const [mine, setMine] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState(null);
+  useEffect(() => {
+    if (!loggedIn) return undefined;
+    const load = () => progressApi.episode(episodeId).then(setMine).catch(() => {});
+    load();
+    window.addEventListener("nk:personal", load);
+    return () => window.removeEventListener("nk:personal", load);
+  }, [episodeId, loggedIn]);
+  const toggleWatched = async () => {
+    setSaving(true);
+    setNote(null);
+    try {
+      const next = await progressApi.setEpisodeCompleted(episodeId, !mine?.completed);
+      setMine(next);
+      setNote(next.completed ? "Marcado como assistido na sua conta." : "Marcação removida.");
+    } catch (error) {
+      setNote(error?.body?.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api.get(`/api/v1/episodes/${episodeId}/source`),
+      api.get(`/api/v1/episodes/${episodeId}`),
+    ]).then(([source, episode]) => active && setState({ loading: false, source, episode, error: null }))
+      .catch((error) => active && setState({ loading: false, source: null, episode: null, error }));
+    return () => { active = false; };
+  }, [episodeId]);
+  return <div style={{ minHeight: "100vh", background: "#171411", color: "#F0EEE9", fontFamily: "Inter,system-ui,sans-serif" }}>
+    <Header active="animes" loggedIn={loggedIn} solid />
+    <main style={{ padding: "104px clamp(16px,4vw,56px) 56px", minHeight: "76vh" }}>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+        <p style={{ color: "#DBAF57", textTransform: "uppercase", letterSpacing: ".18em", fontSize: "11px" }}>Player externo autorizado</p>
+        <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 500 }}>{state.episode?.work_title || "Episódio"} · {state.episode?.title || state.episode?.display_number || ""}</h1>
+        {state.loading && <div style={{ aspectRatio: "16/9", display: "grid", placeItems: "center", background: "#0D0C0B", borderRadius: "12px" }}>Carregando fonte verificada…</div>}
+        {state.error && <div style={{ padding: "40px", background: "#221F1B", borderRadius: "12px" }}>Esta fonte está indisponível no momento.</div>}
+        {state.source?.source_type === "EMBED" && state.source?.embed_allowed && <iframe title="Reprodução do episódio" src={state.source.source_url} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="origin" style={{ width: "100%", aspectRatio: "16/9", border: 0, borderRadius: "12px", background: "#000" }} />}
+        <p style={{ color: "#B7B1A4", lineHeight: 1.6 }}>Fonte: {state.source?.provider || "—"}. O vídeo permanece hospedado no provedor autorizado. Como este embed não fornece telemetria confiável, o NekoFlow não fabrica posição, duração assistida ou conclusão automática.</p>
+        {state.source?.source_type === "EXTERNAL_LINK" && <a href={state.source.source_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", padding: "12px 18px", borderRadius: "999px", background: "#DBAF57", color: "#1A1714", fontWeight: 600, marginRight: "10px" }}>Assistir no provedor ↗</a>}
+        {loggedIn && mine && <button disabled={saving} onClick={toggleWatched} style={{ padding: "12px 18px", borderRadius: "999px", border: "1px solid rgba(219,175,87,.5)", background: mine.completed ? "rgba(219,175,87,.14)" : "transparent", color: "#DBAF57", cursor: "pointer" }}>{saving ? "Salvando…" : mine.completed ? "Assistido · desfazer" : "Marcar como assistido"}</button>}
+        {note && <p style={{ color: "#DBAF57", fontSize: "13px" }}>{note}</p>}
+        {state.episode?.slug && <p><a href={`/animes/${state.episode.slug}`}>← Voltar para a obra</a></p>}
+      </div>
+    </main>
+    <Footer />
+  </div>;
+}
+
+export default function Player(props) {
+  const episodeId = new URLSearchParams(location.search).get("episode");
+  return episodeId ? <ExternalEpisodePlayer episodeId={episodeId} {...props} /> : <LegacyPlayer {...props} />;
+}

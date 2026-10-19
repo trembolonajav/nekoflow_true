@@ -4,10 +4,11 @@
 // inline, a classe de lógica é copiada como está e os `style-hover` viram
 // classes CSS com !important (igual ao runtime original).
 //
-// Uso: node scripts/dc-to-react.mjs <pasta-do-design>
-//   - gera src/pages/*.jsx, src/components/*.jsx, src/styles/pseudo.generated.css
-//   - copia assets/ para public/assets/
-//   - copia data/*.json (com links reescritos) para ../backend/src/main/resources/seed/
+// Uso seguro: node scripts/dc-to-react.legacy.mjs [pasta-do-design] [pasta-de-saida]
+//
+// Este conversor é somente uma ferramenta de comparação. Ele nunca grava em
+// src/, public/ ou backend/. A saída padrão fica em frontend/design-generated/.
+// A promoção de uma alteração visual para produção é manual e revisada.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,23 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const FRONT = path.resolve(here, "..");
 const ROOT = path.resolve(FRONT, "..");
 const SRC_DIR = path.resolve(process.argv[2] || path.join(ROOT, "design", "claude-design"));
+const OUTPUT_DIR = path.resolve(process.argv[3] || path.join(FRONT, "design-generated"));
+
+const PROTECTED_DIRS = [
+  path.join(FRONT, "src"),
+  path.join(FRONT, "public"),
+  path.join(ROOT, "backend"),
+  path.join(ROOT, "design"),
+];
+
+function inside(child, parent) {
+  const rel = path.relative(parent, child);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+if (PROTECTED_DIRS.some((dir) => inside(OUTPUT_DIR, dir))) {
+  throw new Error(`Saída protegida: ${OUTPUT_DIR}. Use uma pasta isolada, como frontend/design-generated.`);
+}
 
 // ---- mapa de telas -------------------------------------------------------
 
@@ -517,17 +535,17 @@ async function convertFile(filePath) {
 
   const logicName = scr.name + "Logic";
   const logic = convertLogic(js, logicName);
-  const rel = scr.dir === "pages" ? ".." : "..";
+  const runtimeImport = "../../src/dc/runtime";
   const runtimeImports = ["DCLogic", "defineDC", "txt", "asList", "css", ...file.uses];
   const imports = [...file.imports]
     .map((s) => `import ${s.name} from "${scr.dir === s.dir ? "./" : "../" + s.dir + "/"}${s.name}";`)
     .join("\n");
 
-  const code = `// Gerado a partir de design/claude-design/${base}.dc.html — não edite à mão.
-// Para re-sincronizar com o Claude Design: npm run sync-design
+  const code = `// Preview gerado de design/claude-design/${base}.dc.html — não importar em produção.
+// Compare manualmente com frontend/src; regras de negócio nunca são promovidas automaticamente.
 /* eslint-disable */
 import React from "react";
-import { ${runtimeImports.join(", ")} } from "${rel}/dc/runtime";
+import { ${runtimeImports.join(", ")} } from "${runtimeImport}";
 ${imports}
 
 ${logic || `class ${logicName} extends DCLogic {}`}
@@ -543,10 +561,10 @@ export const defaults = ${JSON.stringify(defaults)};
 export default defineDC(${JSON.stringify(base)}, ${logicName}, render, { helmet });
 `;
   const pretty = await prettier.format(code, { parser: "babel", printWidth: 120 });
-  const outDir = path.join(FRONT, "src", scr.dir);
+  const outDir = path.join(OUTPUT_DIR, scr.dir);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, scr.name + ".jsx"), pretty);
-  console.log("  ✓", base, "->", path.join("src", scr.dir, scr.name + ".jsx"));
+  console.log("  ✓", base, "->", path.relative(FRONT, path.join(outDir, scr.name + ".jsx")));
 }
 
 function findScript(node) {
@@ -570,17 +588,19 @@ function copyDir(from, to) {
 // ---- main -----------------------------------------------------------------------
 
 console.log("Design:", SRC_DIR);
+console.log("Saída isolada:", OUTPUT_DIR);
 const files = fs.readdirSync(SRC_DIR).filter((f) => f.endsWith(".dc.html") && !SKIP.has(f.replace(/\.dc\.html$/, "")));
 for (const f of files) await convertFile(path.join(SRC_DIR, f));
 
 const rules = [...pseudoRules.values()].map((r) => r.rule).join("\n");
-fs.writeFileSync(path.join(FRONT, "src", "styles", "pseudo.generated.css"), "/* Gerado por scripts/dc-to-react.mjs (style-hover do design). */\n" + rules + "\n");
-console.log("  ✓", pseudoRules.size, "regras de hover -> src/styles/pseudo.generated.css");
+fs.mkdirSync(path.join(OUTPUT_DIR, "styles"), { recursive: true });
+fs.writeFileSync(path.join(OUTPUT_DIR, "styles", "pseudo.generated.css"), "/* Preview gerado do Claude Design. */\n" + rules + "\n");
+console.log("  ✓", pseudoRules.size, "regras de hover -> design-generated/styles/pseudo.generated.css");
 
-copyDir(path.join(SRC_DIR, "assets"), path.join(FRONT, "public", "assets"));
-console.log("  ✓ assets -> public/assets");
+copyDir(path.join(SRC_DIR, "assets"), path.join(OUTPUT_DIR, "assets"));
+console.log("  ✓ assets -> design-generated/assets");
 
-const seedDir = path.join(ROOT, "backend", "src", "main", "resources", "seed");
+const seedDir = path.join(OUTPUT_DIR, "data");
 fs.mkdirSync(seedDir, { recursive: true });
 for (const f of fs.readdirSync(path.join(SRC_DIR, "data"))) {
   if (!f.endsWith(".json")) continue;
@@ -588,5 +608,11 @@ for (const f of fs.readdirSync(path.join(SRC_DIR, "data"))) {
   JSON.parse(txt); // valida
   fs.writeFileSync(path.join(seedDir, f), rewriteUrls(txt));
 }
-console.log("  ✓ data/*.json -> backend/src/main/resources/seed/");
+console.log("  ✓ data/*.json -> design-generated/data/");
+
+fs.writeFileSync(path.join(OUTPUT_DIR, "README.md"), `# Preview gerado do Claude Design
+
+Esta pasta é descartável e não participa do build de produção. Compare seus arquivos com
+\`frontend/src\` e promova mudanças manualmente, preservando hooks, serviços e regras de negócio.
+`);
 
