@@ -4,12 +4,14 @@ server:
     include-message: always
   servlet:
     session:
-      timeout: 30d
+      timeout: 7d
       cookie:
         http-only: true
         same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 nekoflow:
+  public-url: ${NEKOFLOW_PUBLIC_URL:http://localhost:3000}
   demo:
     enabled: ${NEKOFLOW_DEMO:true}
     password: ${NEKOFLOW_DEMO_PASSWORD:nekoflow2026}
@@ -27,6 +29,18 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  session:
+    jdbc:
+      initialize-schema: never
+    timeout: 7d
+  mail:
+    host: ${MAIL_HOST:mailpit}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
 
 management:
   endpoints:
