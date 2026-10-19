@@ -39,7 +39,12 @@ cd backend && mvn spring-boot:run           # API em :8080
 cd frontend && npm install && npm run dev   # app em :5173 (proxy de /api para :8080)
 ```
 
-Testes do backend: `cd backend && mvn test`.
+Verificações locais:
+
+```bash
+cd frontend && npm test && npm run build
+cd backend && mvn test
+```
 
 ## Telas e rotas
 
@@ -58,6 +63,7 @@ Testes do backend: `cd backend && mvn test`.
 | Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
 | Painel administrativo      | `/admin` (equipe)           | `pages/Admin.jsx`                     |
 | Estudo das 3 direções da Home | `/estudos/home-direcoes` | `pages/HomeDirecoes.jsx`              |
+| Página inexistente            | qualquer rota desconhecida | `pages/NotFound.jsx`                |
 
 Atalhos: `/biblioteca`, `/continuar-assistindo`, `/continuar-lendo`, `/historico`,
 `/solicitacoes`, `/notificacoes`, `/configuracoes` (levam às abas da Conta).
@@ -93,12 +99,24 @@ cheia), header compacto com busca em largura total, menus do sininho, da conta e
 como painel inferior, abas da Conta roláveis e filtros do Explorar recolhidos. O desktop continua
 igual ao design. As regras ficam em `frontend/src/styles/mobile.css`.
 
-## Origem do código
+## Organização e origem do código
 
 As telas foram convertidas dos `.dc.html` do Claude Design (`design/claude-design/`) e agora são
-mantidas direto no código. O conversor usado na importação ficou em
-`frontend/scripts/dc-to-react.legacy.mjs` só como referência — rodá-lo de novo sobrescreveria
-as telas.
+mantidas diretamente no código. O conversor legado gera somente uma prévia isolada em
+`frontend/design-generated/`; ele recusa gravar em `src`, `public`, `backend` ou `design`.
+
+```bash
+cd frontend
+npm run design:preview
+```
+
+Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
+
+- `docs/architecture.md` — responsabilidades e dependências;
+- `docs/design-workflow.md` — atualização segura do design;
+- `docs/api-conventions.md` — cliente HTTP e contrato de erros;
+- `docs/links-pendentes.md` — links deliberadamente preservados para o Protocolo 02.
+- `docs/visual-baseline.md` — rotas e viewports usados na verificação visual.
 
 ## O que ainda não existe
 
