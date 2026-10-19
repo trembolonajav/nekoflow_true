@@ -1053,7 +1053,7 @@ function render(v) {
         </div>
         <div
           style={{
-            padding: "108px clamp(16px,3.3vw,48px) 0",
+            padding: "132px clamp(16px,3.3vw,48px) 0",
             display: "flex",
             flexDirection: "column",
             gap: "14px",
