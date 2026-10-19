@@ -153,9 +153,15 @@ export default function BasicWorkDetail({ work, section, loading = false, missin
                       </span>
                     ))}
                 </div>
-                <p style={{ margin: 0, color: "#B7B1A4", lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: "#B7B1A4", lineHeight: 1.7, whiteSpace: "pre-line" }}>
                   {synopsis || "A sinopse desta obra ainda não foi cadastrada."}
                 </p>
+                {synopsis && work?.synopsisSource && (
+                  <p style={{ margin: 0, color: "#827B70", fontSize: "12px" }}>
+                    Sinopse: {work.synopsisSource}
+                    {work.synopsisLanguage === "en" ? " · texto original em inglês" : ""}
+                  </p>
+                )}
               </>
             )}
             {missing && (
@@ -388,12 +394,21 @@ function CatalogUnits({ work, catalog, loggedIn }) {
       })
       .catch(() => {});
   }, [work?.id, loggedIn]);
-  const open = async (kind, id) => {
+  const open = async (kind, x) => {
+    const id = x.id;
+    // Player e leitor do NekoFlow quando há mídia própria; senão, o site do provedor.
+    if (kind === "episodes") {
+      location.href = `/player?episode=${id}`;
+      return;
+    }
+    if (x.readable) {
+      location.href = `/leitor?chapter=${id}&edition=${x.edition_id}`;
+      return;
+    }
     setOpening(id);
     try {
       const source = await api.get(`/api/v1/${kind}/${id}/source`);
-      if (source.source_type === "EMBED" && source.embed_allowed) location.href = `/player?episode=${id}`;
-      else window.open(source.source_url, "_blank", "noopener,noreferrer");
+      window.open(source.source_url, "_blank", "noopener,noreferrer");
     } catch {
       setMessage("Esta fonte está indisponível no momento.");
     } finally {
@@ -466,7 +481,15 @@ function CatalogUnits({ work, catalog, loggedIn }) {
                 {x.title && <span style={{ color: "#B7B1A4" }}> · {x.title}</span>}
                 {!animation && x.edition_name && <span style={{ color: "#827B70" }}> · {x.edition_name}</span>}
                 <div style={{ color: available ? "#8BCB88" : "#827B70", fontSize: "12px", marginTop: "4px" }}>
-                  {available ? "Fonte verificada" : "Indisponível"}
+                  {!available
+                    ? "Indisponível"
+                    : animation
+                      ? x.playable
+                        ? "Reprodução no NekoFlow"
+                        : "Abre no site do provedor"
+                      : x.readable
+                        ? "Páginas no NekoFlow"
+                        : "Abre no site do provedor"}
                   {status && <span style={{ color: "#DBAF57" }}> · {status}</span>}
                 </div>
               </div>
@@ -474,7 +497,7 @@ function CatalogUnits({ work, catalog, loggedIn }) {
                 {available && (
                   <button
                     disabled={opening === x.id}
-                    onClick={() => open(animation ? "episodes" : "chapters", x.id)}
+                    onClick={() => open(animation ? "episodes" : "chapters", x)}
                     style={{
                       border: 0,
                       borderRadius: "8px",
@@ -485,7 +508,15 @@ function CatalogUnits({ work, catalog, loggedIn }) {
                       fontWeight: 600,
                     }}
                   >
-                    {opening === x.id ? "Abrindo…" : animation ? "Assistir" : "Ler no provedor"}
+                    {opening === x.id
+                      ? "Abrindo…"
+                      : animation
+                        ? x.playable
+                          ? "Assistir"
+                          : "Assistir no provedor"
+                        : x.readable
+                          ? "Ler agora"
+                          : "Ler no provedor"}
                   </button>
                 )}
                 {loggedIn && (
@@ -512,8 +543,12 @@ function CatalogUnits({ work, catalog, loggedIn }) {
       {message && <p style={{ color: "#DBAF57", fontSize: "13px" }}>{message}</p>}
       <p style={{ color: "#827B70", fontSize: "12px" }}>
         {animation
-          ? "Estas fontes abrem fora do NekoFlow e não informam o tempo assistido. Marque o episódio quando terminar; nenhum tempo é inventado."
-          : "A leitura externa não informa a página lida. Marque o capítulo quando terminar."}
+          ? rows.some((x) => x.playable)
+            ? "No player do NekoFlow o progresso é salvo pela reprodução real. Fontes que abrem no provedor não informam o tempo: marque o episódio quando terminar."
+            : "Estas fontes abrem fora do NekoFlow e não informam o tempo assistido. Marque o episódio quando terminar; nenhum tempo é inventado."
+          : rows.some((x) => x.readable)
+            ? "No leitor do NekoFlow a página lida é salva na sua conta. Leituras no provedor não informam a página: marque o capítulo quando terminar."
+            : "A leitura externa não informa a página lida. Marque o capítulo quando terminar."}
       </p>
       {!loggedIn && (
         <p style={{ color: "#827B70", fontSize: "12px" }}>Entre na conta para sincronizar biblioteca e progresso.</p>
