@@ -24,6 +24,30 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(status).body(ApiErrors.body(status, ApiErrors.code(status), message, request));
     }
 
+    @ExceptionHandler(com.nekoflow.progress.ProgressException.class)
+    ResponseEntity<Map<String, Object>> progress(com.nekoflow.progress.ProgressException exception,
+                                                 HttpServletRequest request) {
+        Map<String, Object> body = ApiErrors.body(exception.status(), exception.code(), exception.getMessage(), request);
+        if (exception.current() != null) {
+            body.put("current", exception.current());
+        }
+        return ResponseEntity.status(exception.status()).body(body);
+    }
+
+    /** Corpo ilegível, UUID/número inválido na URL ou parâmetro obrigatório ausente: 400, nunca 500. */
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    ResponseEntity<Map<String, Object>> badInput(Exception exception, HttpServletRequest request) {
+        String message = exception instanceof org.springframework.web.bind.MissingServletRequestParameterException m
+                ? "Parâmetro obrigatório ausente: " + m.getParameterName() + "."
+                : exception instanceof org.springframework.web.method.annotation.MethodArgumentTypeMismatchException t
+                ? "Valor inválido para " + t.getName() + "."
+                : "Os dados enviados são inválidos.";
+        return ResponseEntity.badRequest()
+                .body(ApiErrors.body(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", message, request));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException exception,
                                                     HttpServletRequest request) {

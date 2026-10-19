@@ -34,6 +34,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    # Permite aplicar migrações de correção numeradas abaixo da versão atual
+    # (ex.: V5_1, que conserta instalações novas sem alterar a V6 já aplicada).
+    out-of-order: true
   session:
     jdbc:
       initialize-schema: never
