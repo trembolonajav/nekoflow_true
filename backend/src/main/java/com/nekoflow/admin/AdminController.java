@@ -103,9 +103,11 @@ public class AdminController {
         works.insertIfAbsent(new Work(id, body.kind(), body.title().trim(), body.alt() == null ? "" : body.alt(),
                 body.cover(), body.banner(), Boolean.TRUE.equals(body.webtoon()), body.year(), body.totalUnits(),
                 0, "Em lançamento", null));
+        works.setVisibility(id, "DRAFT");
         audit.record(CurrentUser.id(), "CADASTRAR_OBRA", body.title().trim() + " (#" + id + ")", body.kind());
         return works.require(id).view();
     }
+
 
     @PostMapping("/releases")
     public Map<String, Object> publish(@RequestBody NewRelease body) {

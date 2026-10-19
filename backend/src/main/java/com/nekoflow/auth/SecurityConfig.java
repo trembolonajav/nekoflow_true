@@ -49,10 +49,14 @@ public class SecurityConfig {
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class)
                 .securityContext(c -> c.securityContextRepository(securityContextRepository()))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/**", "/api/calendar",
+                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/works/**",
+                                "/api/v1/genres", "/api/v1/franchises/**", "/api/v1/seasons/**",
+                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/calendar",
                                 "/actuator/health").permitAll()
+                        .requestMatchers("/api/v1/me/**").authenticated()
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**").hasRole("EDITOR")
+                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**", "/api/admin/catalog/**")
+                        .hasRole("EDITOR")
                         .requestMatchers("/api/admin/**").hasRole("MODERATOR")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())

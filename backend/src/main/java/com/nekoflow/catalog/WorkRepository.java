@@ -92,6 +92,11 @@ public class WorkRepository {
                 .params(unit, id).update();
     }
 
+    public void setVisibility(long id, String visibility) {
+        jdbc.sql("UPDATE work SET visibility = ?, updated_at = now() WHERE id = ?")
+                .params(visibility, id).update();
+    }
+
     public long nextLocalId() {
         // Obras cadastradas pela equipe sem id externo recebem ids altos, fora da faixa da AniList.
         return jdbc.sql("SELECT GREATEST(COALESCE(MAX(id), 0) + 1, 900000000) FROM work WHERE id >= 900000000")
