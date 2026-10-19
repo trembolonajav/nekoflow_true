@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class WorkRepository {
@@ -52,18 +53,32 @@ public class WorkRepository {
     }
 
     /** Insere a obra se ainda não existir (o catálogo nunca duplica uma obra). */
+    @Transactional
     public boolean insertIfAbsent(Work w) {
-        return jdbc.sql("""
+        boolean inserted = jdbc.sql("""
                 INSERT INTO work (id, kind, title, alt_titles, cover, banner, webtoon, year, total_units,
-                                  available_units, airing_status, popularity)
-                VALUES (:id, :kind, :title, :alt, :cover, :banner, :webtoon, :year, :total, :avail, :status, :pop)
+                                  available_units, airing_status, popularity, slug, media_family, work_format,
+                                  reading_category, presentation_format)
+                VALUES (:id, :kind, :title, :alt, :cover, :banner, :webtoon, :year, :total, :avail, :status, :pop,
+                        :slug, :family, :format, :category, :presentation)
                 ON CONFLICT (id) DO NOTHING""")
                 .param("id", w.id()).param("kind", w.kind()).param("title", w.title())
                 .param("alt", w.altTitles() == null ? "" : w.altTitles()).param("cover", w.cover())
                 .param("banner", w.banner()).param("webtoon", w.webtoon()).param("year", w.year())
                 .param("total", w.totalUnits()).param("avail", w.availableUnits())
                 .param("status", w.airingStatus()).param("pop", w.popularity())
+                .param("slug", w.slug()).param("family", w.isAnimation() ? "ANIMATION" : "READING")
+                .param("format", "filme".equals(w.kind()) ? "MOVIE" : w.isAnimation() ? "SERIES" : "COMIC")
+                .param("category", "manga".equals(w.kind()) ? "MANGA" : "manhwa".equals(w.kind()) ? "MANHWA" : null)
+                .param("presentation", w.isAnimation() ? null : w.webtoon() ? "VERTICAL" : "PAGED")
                 .update() > 0;
+        if (inserted) {
+            jdbc.sql("INSERT INTO work_title(work_id,title,title_norm,title_type) VALUES (?,?,lower(?),'PRIMARY') ON CONFLICT DO NOTHING")
+                    .params(w.id(), w.title(), w.title()).update();
+            if (w.id() < 900000000) jdbc.sql("INSERT INTO external_identifier(work_id,provider,external_id) VALUES (?,'ANILIST',?) ON CONFLICT DO NOTHING")
+                    .params(w.id(), Long.toString(w.id())).update();
+        }
+        return inserted;
     }
 
     /** Define as unidades conhecidas só quando ainda não foram definidas/publicadas. */
