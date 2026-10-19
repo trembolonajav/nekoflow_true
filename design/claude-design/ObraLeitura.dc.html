@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#171411;color:#F0EEE9;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#DBAF57;text-decoration:none}a:hover{color:#F0EEE9}
+*{box-sizing:border-box}
+input::placeholder{color:#8F897D}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#171411;display:flex;flex-direction:column">
+  <dc-import name="Header" active="leituras" logged-in="{{ loggedIn }}" hint-size="100%,0px" style="position:absolute;top:0;left:0;right:0;height:0;z-index:50"></dc-import>
+
+  <header style="position:relative;min-height:600px;display:flex;flex-direction:column;justify-content:flex-end;padding:140px 48px 44px;overflow:hidden;background:#0F0D0B">
+    <span style="position:absolute;inset:0;background-image:{{ bannerBg }};background-size:cover;background-position:center 30%;filter:saturate(.85)"></span>
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg,#171411 0%,rgba(23,20,17,.92) 36%,rgba(23,20,17,.45) 70%,rgba(23,20,17,.2) 100%)"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(0deg,#171411 0%,rgba(23,20,17,.4) 35%,rgba(23,20,17,0) 60%,rgba(23,20,17,.6) 100%)"></div>
+
+    <div style="position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;gap:28px 40px;max-width:1120px">
+      <span role="img" aria-label="Capa do manhwa Solo Leveling" style="width:clamp(170px,17vw,250px);aspect-ratio:2/3;background-color:#221F1B;background-image:{{ coverBg }};background-size:cover;background-position:center;border-radius:12px;border:1px solid rgba(219,175,87,.4);box-shadow:0 30px 60px rgba(0,0,0,.6);flex-shrink:0;display:block"></span>
+      <div style="display:flex;flex-direction:column;gap:16px;flex:1 1 420px;min-width:0">
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="height:26px;display:flex;align-items:center;padding:0 10px;border-radius:999px;white-space:nowrap;flex-shrink:0;background:#DBAF57;color:#1A1714;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">Manhwa</span>
+          <span style="height:26px;display:flex;align-items:center;padding:0 10px;border-radius:999px;white-space:nowrap;flex-shrink:0;border:1px solid rgba(219,175,87,.5);color:#DBAF57;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Webtoon · vertical</span>
+          <span style="height:26px;display:flex;align-items:center;padding:0 10px;border-radius:999px;white-space:nowrap;flex-shrink:0;border:1px solid rgba(240,238,233,.25);color:#D9D5CC;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase">Concluído</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h1 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(46px,5.4vw,76px);line-height:.98;letter-spacing:-.01em">Solo Leveling</h1>
+          <span style="font-size:15px;color:rgba(240,238,233,.7)">{{ d.native }}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;font-size:13px;color:rgba(240,238,233,.88)">
+          <span style="font-family:'JetBrains Mono',monospace;color:#DBAF57">★ {{ d.score }} <span style="color:#B7B1A4">no AniList</span></span>
+          <span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span>
+          <span>{{ genresText }}</span>
+          <span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span>
+          <span>Chugong · Jang Seong-rak</span>
+          <span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span>
+          <span>201 capítulos</span>
+        </div>
+        <p style="margin:0;max-width:640px;font-size:16px;line-height:1.6;color:rgba(240,238,233,.88);text-wrap:pretty">{{ d.synopsisShort }}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:4px">
+          <a href="{{ ctaHref }}" style="height:50px;display:flex;align-items:center;gap:10px;padding:0 26px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:15px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"></path></svg>{{ ctaLabel }}
+          </a>
+          <div data-nk-menu="1" style="position:relative">
+            <button onClick="{{ toggleList }}" style="all:unset;cursor:pointer;height:50px;display:flex;align-items:center;gap:10px;padding:0 20px;border-radius:999px;border:1px solid {{ listBorder }};background:rgba(23,20,17,.45);font-size:15px;color:#F0EEE9" style-hover="border-color:#DBAF57">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="{{ listFill }}" stroke="#DBAF57" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>{{ listLabel }}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <sc-if value="{{ listOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:0;top:calc(100% + 10px);z-index:20;width:240px;background:#1A1714;border:1px solid rgba(219,175,87,.25);border-radius:12px;padding:8px;box-shadow:0 20px 44px rgba(0,0,0,.55);display:flex;flex-direction:column">
+                <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8F897D;padding:8px 10px 4px">Situação na sua lista</span>
+                <sc-for list="{{ statusOpts }}" as="o" hint-placeholder-count="5">
+                  <button onClick="{{ o.pick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:8px;font-size:14px;color:{{ o.color }}" style-hover="background:#221F1B">{{ o.label }}<sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DBAF57" stroke-width="2.6"><path d="M5 12l5 5 9-10"></path></svg></sc-if></button>
+                </sc-for>
+                <sc-if value="{{ inList }}" hint-placeholder-val="{{ false }}">
+                  <span style="height:1px;background:rgba(240,238,233,.08);margin:6px 4px"></span>
+                  <button onClick="{{ removeList }}" style="all:unset;cursor:pointer;padding:9px 10px;border-radius:8px;font-size:14px;color:#E08A7A" style-hover="background:#221F1B">Remover da lista</button>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+          <button onClick="{{ toggleFollow }}" title="Avisos de novos capítulos" style="all:unset;cursor:pointer;height:50px;display:flex;align-items:center;gap:10px;padding:0 20px;border-radius:999px;border:1px solid {{ followBorder }};background:{{ followBg }};font-size:15px;color:{{ followColor }}" style-hover="border-color:#DBAF57">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="{{ followFill }}" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none"></path></svg>{{ followLabel }}
+          </button>
+          <button onClick="{{ share }}" aria-label="Compartilhar" title="Copiar link" style="all:unset;cursor:pointer;width:50px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid rgba(240,238,233,.25);background:rgba(23,20,17,.45);color:#F0EEE9" style-hover="border-color:#DBAF57;color:#DBAF57">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14"></path></svg>
+          </button>
+        </div>
+        <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#B7B1A4"><span style="width:180px;height:3px;border-radius:2px;background:rgba(240,238,233,.15);overflow:hidden;display:block"><span style="display:block;width:{{ overallPct }};height:100%;background:#DBAF57"></span></span>{{ progressText }}</div>
+        </sc-if>
+      </div>
+    </div>
+  </header>
+
+  <nav ref="{{ navRef }}" style="position:sticky;top:64px;z-index:30;background:rgba(23,20,17,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(219,175,87,.12)">
+    <div style="display:flex;align-items:center;gap:24px;padding:0 48px;height:56px">
+      <div role="tablist" style="display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+          <button onClick="{{ t.go }}" role="tab" aria-selected="{{ t.sel }}" style="all:unset;cursor:pointer;height:56px;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:14px;font-weight:500;white-space:nowrap;color:{{ t.color }};border-bottom:2px solid {{ t.line }};box-sizing:border-box" style-hover="color:#DBAF57">{{ t.label }}<sc-if value="{{ t.hasCount }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7">{{ t.count }}</span></sc-if></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ showMini }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+          <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500">Solo Leveling</span>
+          <a href="{{ ctaHref }}" style="height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:13px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">{{ ctaShort }}</a>
+        </div>
+      </sc-if>
+    </div>
+  </nav>
+
+  <main style="padding:36px 48px 88px;display:flex;flex-direction:column;gap:80px">
+    <div style="min-height:60vh;display:flex;flex-direction:column">
+
+    <sc-if value="{{ p.caps }}" hint-placeholder-val="{{ true }}">
+      <section style="display:flex;flex-direction:column;gap:20px">
+        <sc-if value="{{ showContinue }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px;padding:20px 24px;border-radius:16px;background:linear-gradient(90deg,rgba(219,175,87,.1),rgba(219,175,87,.02));border:1px solid rgba(219,175,87,.35)">
+            <span style="display:flex;flex-direction:column;gap:6px;flex:1 1 280px">
+              <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">Sua última leitura</span>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;line-height:1">Capítulo 111</span>
+              <span style="display:flex;align-items:center;gap:12px;font-size:13px;color:#B7B1A4"><span style="width:140px;height:3px;border-radius:2px;background:rgba(240,238,233,.15);overflow:hidden;display:block"><span style="display:block;width:40%;height:100%;background:#DBAF57"></span></span>40% lido · ontem · logo após o fim da 2ª temporada do anime</span>
+            </span>
+            <a href="Leitor.dc.html?cap=111" style="height:46px;display:flex;align-items:center;padding:0 22px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">Continuar capítulo 111</a>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;line-height:1">Capítulos</h2>
+            <span style="font-size:14px;color:#B7B1A4">{{ capsInfo }}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            <form onSubmit="{{ jump }}" style="height:44px;display:flex;align-items:center;gap:8px;padding:0 6px 0 14px;border-radius:999px;border:1px solid rgba(240,238,233,.14);background:#1A1714">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B7B1A4" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+              <input type="number" min="0" max="200" value="{{ jumpVal }}" onChange="{{ onJump }}" placeholder="Ir para o capítulo" style="width:136px;height:100%;background:transparent;border:0;outline:none;color:#F0EEE9;font-family:Inter,sans-serif;font-size:13px">
+              <button type="submit" style="all:unset;cursor:pointer;height:32px;display:flex;align-items:center;padding:0 12px;border-radius:999px;background:{{ jumpBg }};color:#1A1714;font-size:12px;font-weight:600">Ir</button>
+            </form>
+            <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:#1A1714;border:1px solid rgba(240,238,233,.08)">
+              <sc-for list="{{ langTabs }}" as="s" hint-placeholder-count="2"><button onClick="{{ s.pick }}" style="all:unset;cursor:pointer;height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;background:{{ s.bg }};color:{{ s.color }}">{{ s.label }}</button></sc-for>
+            </div>
+            <button onClick="{{ toggleSort }}" style="all:unset;cursor:pointer;height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:999px;border:1px solid rgba(240,238,233,.12);font-size:13px;color:#B7B1A4" style-hover="color:#F0EEE9;border-color:rgba(240,238,233,.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"></path></svg>{{ sortLabel }}</button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <sc-for list="{{ ranges }}" as="r" hint-placeholder-count="6"><button onClick="{{ r.pick }}" style="all:unset;cursor:pointer;height:32px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:8px;font-size:13px;border:1px solid {{ r.border }};background:{{ r.bg }};color:{{ r.color }}">{{ r.label }}<span style="font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7">{{ r.sub }}</span></button></sc-for>
+          </div>
+          <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ toggleHideRead }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;color:#D9D5CC">
+              <span style="width:36px;height:20px;border-radius:999px;background:{{ hrTrack }};position:relative"><span style="position:absolute;top:3px;left:{{ hrX }};width:14px;height:14px;border-radius:50%;background:{{ hrKnob }};transition:left .2s"></span></span>Ocultar lidos
+            </button>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ langNote }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;background:#1A1714;border:1px solid rgba(219,175,87,.2);font-size:13px;color:#D9D5CC"><span style="width:7px;height:7px;transform:rotate(45deg);background:#DBAF57;flex-shrink:0"></span>Em português faltam 5 capítulos das histórias paralelas (196 a 200). Eles já estão disponíveis em inglês.</div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:8px">
+          <sc-for list="{{ chapters }}" as="c" hint-placeholder-count="12">
+            <div ref="{{ c.ref }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:12px;background:{{ c.bg }};border:1px solid {{ c.border }};opacity:{{ c.opacity }}">
+              <span style="width:52px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:18px;color:{{ c.numColor }};text-align:center">{{ c.numLabel }}</span>
+              <span style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+                <span style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.title }}</span><sc-if value="{{ c.isSide }}" hint-placeholder-val="{{ false }}"><span style="flex-shrink:0;font-size:9px;font-weight:700;letter-spacing:.12em;padding:2px 6px;border-radius:3px;border:1px solid rgba(219,175,87,.5);color:#DBAF57">PARALELA</span></sc-if></span>
+                <span style="font-size:12px;color:#B7B1A4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.meta }}</span>
+                <sc-if value="{{ c.hasPct }}" hint-placeholder-val="{{ false }}"><span style="display:block;width:120px;height:3px;border-radius:2px;background:rgba(240,238,233,.15);overflow:hidden"><span style="display:block;width:{{ c.pctW }};height:100%;background:#DBAF57"></span></span></sc-if>
+              </span>
+              <sc-if value="{{ c.available }}" hint-placeholder-val="{{ true }}">
+                <a href="{{ c.href }}" aria-label="{{ c.aria }}" style="height:34px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid {{ c.ctaBorder }};background:{{ c.ctaBg }};color:{{ c.ctaColor }};white-space:nowrap;flex-shrink:0">
+                  <sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"></path></svg></sc-if>{{ c.cta }}
+                </a>
+              </sc-if>
+              <sc-if value="{{ c.unavailable }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:11px;font-weight:500;padding:5px 10px;border-radius:999px;border:1px solid rgba(240,238,233,.15);color:#B7B1A4;white-space:nowrap;flex-shrink:0">Em tradução</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasMore }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ more }}" style="all:unset;cursor:pointer;align-self:center;margin-top:8px;height:44px;display:flex;align-items:center;padding:0 24px;border-radius:999px;border:1px solid rgba(219,175,87,.4);font-size:14px;font-weight:500" style-hover="border-color:#DBAF57;color:#DBAF57">Carregar mais · {{ remaining }} restantes</button>
+        </sc-if>
+        <sc-if value="{{ capsEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:40px;text-align:center;border-radius:14px;border:1px dashed rgba(219,175,87,.25);font-size:14px;color:#B7B1A4">Nenhum capítulo neste filtro. <button onClick="{{ clearCapFilters }}" style="all:unset;cursor:pointer;color:#DBAF57;font-weight:600">Mostrar todos</button></div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ p.sobre }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-wrap:wrap;gap:40px 56px;align-items:flex-start">
+        <div style="display:flex;flex-direction:column;gap:24px;flex:999 1 520px;min-width:0">
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;line-height:1">Sobre a história</h2>
+          <div style="display:flex;flex-direction:column;gap:14px;max-width:760px">
+            <sc-for list="{{ synopsis }}" as="t" hint-placeholder-count="1"><p style="margin:0;font-size:16px;line-height:1.75;color:#D9D5CC;text-wrap:pretty">{{ t }}</p></sc-for>
+            <button onClick="{{ toggleSyn }}" style="all:unset;cursor:pointer;align-self:flex-start;font-size:14px;font-weight:600;color:#DBAF57" style-hover="color:#F0EEE9">{{ synLabel }}</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">Autores</span>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">
+              <sc-for list="{{ people }}" as="a" hint-placeholder-count="4">
+                <a href="Explorar.dc.html" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#1A1714;border:1px solid rgba(240,238,233,.07);color:#F0EEE9" style-hover="border-color:rgba(219,175,87,.5);color:#F0EEE9">
+                  <span style="width:38px;height:38px;border-radius:50%;flex-shrink:0;background:#2D2924;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:17px;color:#DBAF57">{{ a.initial }}</span>
+                  <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;font-weight:500">{{ a.name }}</span><span style="font-size:12px;color:#B7B1A4">{{ a.role }}</span></span>
+                </a>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">Gêneros e temas</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ genreTags }}" as="g" hint-placeholder-count="3"><a href="Explorar.dc.html?tipo=manhwas" style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;font-size:13px;border:1px solid rgba(219,175,87,.4);color:#F0EEE9" style-hover="color:#DBAF57;border-color:#DBAF57">{{ g }}</a></sc-for>
+              <sc-for list="{{ themeTags }}" as="g" hint-placeholder-count="5"><a href="Explorar.dc.html?tipo=manhwas" style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;font-size:13px;border:1px solid rgba(240,238,233,.12);color:#B7B1A4" style-hover="color:#DBAF57;border-color:rgba(219,175,87,.5)">{{ g }}</a></sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">Também conhecido como</span>
+            <span style="font-size:14px;color:#B7B1A4">{{ altText }}</span>
+          </div>
+        </div>
+        <aside style="flex:1 1 340px;max-width:460px;padding:24px;border-radius:16px;background:#1A1714;border:1px solid rgba(219,175,87,.14);display:flex;flex-direction:column">
+          <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;padding-bottom:12px">Ficha técnica</span>
+          <sc-for list="{{ ficha }}" as="f" hint-placeholder-count="10">
+            <div style="display:grid;grid-template-columns:130px minmax(0,1fr);gap:16px;padding:11px 0;border-top:1px solid rgba(240,238,233,.07);font-size:14px">
+              <span style="color:#B7B1A4">{{ f.k }}</span><span style="color:#F0EEE9">{{ f.v }}</span>
+            </div>
+          </sc-for>
+        </aside>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ p.adapt }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:36px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;line-height:1">Adaptações e obras relacionadas</h2>
+          <span style="font-size:14px;color:#B7B1A4">Versões desta mesma história. Para obras parecidas, veja as recomendações abaixo.</span>
+        </div>
+
+        <div style="position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(219,175,87,.25);background:#1A1714">
+          <span style="position:absolute;inset:0;background-image:{{ animeBannerBg }};background-size:cover;background-position:center 30%;opacity:.28"></span>
+          <span style="position:absolute;inset:0;background:linear-gradient(90deg,#1A1714 20%,rgba(26,23,20,.6))"></span>
+          <div style="position:relative;display:flex;flex-wrap:wrap;gap:28px 40px;padding:32px">
+            <span role="img" aria-label="Capa do anime Solo Leveling" style="width:clamp(130px,13vw,180px);aspect-ratio:2/3;background-color:#221F1B;background-image:{{ animeCoverBg }};background-size:cover;background-position:center;border-radius:10px;display:block;flex-shrink:0;border:1px solid rgba(240,238,233,.1)"></span>
+            <div style="display:flex;flex-direction:column;gap:12px;flex:1 1 320px;min-width:0">
+              <span style="font-size:11px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:#DBAF57">Adaptação em anime</span>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:500;line-height:1">Solo Leveling</span>
+              <span style="font-size:14px;color:#D9D5CC">{{ animeMeta }}</span>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">
+                <a href="Obra.dc.html" style="height:44px;display:flex;align-items:center;padding:0 20px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">Ver página do anime</a>
+                <a href="Player.dc.html?ep=1" style="height:44px;display:flex;align-items:center;gap:8px;padding:0 18px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px;color:#F0EEE9" style-hover="border-color:#DBAF57;color:#F0EEE9"><span style="width:0;height:0;border-left:8px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent"></span>Assistir episódio 1</a>
+              </div>
+            </div>
+            <div style="flex:1 1 280px;max-width:400px;display:flex;flex-direction:column;gap:10px;padding-left:28px;border-left:1px solid rgba(240,238,233,.1)">
+              <span style="font-size:15px;font-weight:500">Já assistiu ao anime?</span>
+              <span style="font-size:13px;line-height:1.55;color:#B7B1A4">Veja até onde cada temporada chegou no manhwa. Os números revelam o ponto da história, por isso ficam ocultos.</span>
+              <sc-if value="{{ mapHidden }}" hint-placeholder-val="{{ true }}"><button onClick="{{ showMap }}" style="all:unset;cursor:pointer;align-self:flex-start;height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;border:1px solid rgba(219,175,87,.5);font-size:13px;font-weight:600;color:#DBAF57" style-hover="background:rgba(219,175,87,.08)">Mostrar correspondência</button></sc-if>
+              <sc-if value="{{ mapShown }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column">
+                  <sc-for list="{{ animeMap }}" as="m" hint-placeholder-count="2"><div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(240,238,233,.07)"><span style="font-size:14px">{{ m.season }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#DBAF57">{{ m.range }}</span></div></sc-for>
+                  <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#B7B1A4;padding:10px 0;border-top:1px solid rgba(240,238,233,.07)"><span style="width:6px;height:6px;transform:rotate(45deg);background:#9FC79A"></span>Verificado pela equipe · aproximado</span>
+                  <a href="Leitor.dc.html?cap=111" style="align-self:flex-start;height:38px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:13px;font-weight:600">Continuar após o anime · cap. 111</a>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <span style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500">Da mesma franquia</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+            <sc-for list="{{ related }}" as="r" hint-placeholder-count="4">
+              <a href="{{ r.href }}" style="display:flex;gap:14px;align-items:center;padding:14px;border-radius:14px;background:#1A1714;border:1px solid rgba(240,238,233,.07);color:#F0EEE9" style-hover="border-color:rgba(219,175,87,.5);color:#F0EEE9">
+                <sc-if value="{{ r.hasCover }}" hint-placeholder-val="{{ true }}"><span style="width:52px;height:76px;border-radius:5px;flex-shrink:0;background-color:#221F1B;background-image:{{ r.bg }};background-size:cover;background-position:center"></span></sc-if>
+                <sc-if value="{{ r.noCover }}" hint-placeholder-val="{{ false }}"><span style="width:52px;height:76px;border-radius:5px;flex-shrink:0;background:#2D2924;border:1px solid rgba(219,175,87,.25);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:22px;color:#DBAF57">SL</span></sc-if>
+                <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#DBAF57">{{ r.type }}</span>
+                  <span style="font-size:15px;font-weight:500">{{ r.title }}</span>
+                  <span style="font-size:12px;color:#B7B1A4">{{ r.rel }}</span>
+                </span>
+              </a>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ p.chars }}" hint-placeholder-val="{{ false }}">
+      <section style="display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;line-height:1">Personagens</h2>
+          <span style="font-size:14px;color:#B7B1A4">Personagens do início da história. Quem aparece mais adiante fica oculto para não revelar acontecimentos.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px 16px">
+          <sc-for list="{{ chars }}" as="c" hint-placeholder-count="8">
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+              <span style="display:block;aspect-ratio:3/4;border-radius:12px;background-color:#221F1B;background-image:{{ c.bg }};background-size:cover;background-position:center top;border:1px solid {{ c.border }}"></span>
+              <span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</span><span style="font-size:12px;color:{{ c.roleColor }}">{{ c.role }}</span></span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+    </div>
+
+    <section style="display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;line-height:1">Você também pode gostar</h2>
+        <span style="font-size:14px;color:#B7B1A4">Outras leituras, fora desta franquia, com o motivo de cada sugestão.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:24px 16px">
+        <sc-for list="{{ recs }}" as="r" hint-placeholder-count="6">
+          <a href="#" style="display:flex;flex-direction:column;gap:10px;color:#F0EEE9;min-width:0" style-hover="color:#DBAF57">
+            <span style="display:block;aspect-ratio:2/3;border-radius:10px;background-color:#221F1B;background-image:{{ r.bg }};background-size:cover;background-position:center;border:1px solid rgba(240,238,233,.06)"></span>
+            <span style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:14px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px">{{ r.title }}</span>
+              <span style="align-self:flex-start;font-size:11px;padding:3px 8px;border-radius:999px;background:rgba(219,175,87,.1);color:#DBAF57">{{ r.reason }}</span>
+            </span>
+          </a>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+
+  <sc-if value="{{ narrow }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(23,20,17,.96);border-top:1px solid rgba(219,175,87,.18);display:flex;gap:10px">
+      <a href="{{ ctaHref }}" style="flex:1;height:48px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:15px;font-weight:600">{{ ctaLabel }}</a>
+      <button onClick="{{ toggleFollow }}" aria-label="{{ followLabel }}" style="all:unset;cursor:pointer;width:48px;height:48px;border-radius:50%;border:1px solid rgba(219,175,87,.4);display:flex;align-items:center;justify-content:center;color:#DBAF57"><svg width="17" height="17" viewBox="0 0 24 24" fill="{{ followFill }}" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path></svg></button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:{{ toastBottom }};transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;height:44px;padding:0 18px;border-radius:999px;background:#2D2924;border:1px solid rgba(219,175,87,.4);font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.5)"><span style="width:7px;height:7px;transform:rotate(45deg);background:#DBAF57"></span>{{ toastText }}</div>
+  </sc-if>
+
+  <dc-import name="Footer" hint-size="100%,320px" style="margin-top:auto"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;loggedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado&quot;}}">
+class Component extends DCLogic {
+  state = { d: null, active: 'caps', lang: 'pt', asc: false, range: 'all', hideRead: false, limit: 30, jump: '', hl: null, status: 'Lendo', follow: true, listOpen: false, synOpen: false, mapOpen: false, mini: false, narrow: false, toast: null };
+  navRef = React.createRef(); chRefs = {};
+  TOTAL = 200; MAIN_END = 179; READ_TO = 110; CUR = 111; CUR_PCT = 40;
+  scrollY() { return Math.max(window.scrollY || 0, (document.scrollingElement || {}).scrollTop || 0); }
+  scrollTo(y) { const se = document.scrollingElement || document.documentElement; try { window.scrollTo({ top: y, behavior: 'smooth' }); se.scrollTo({ top: y, behavior: 'smooth' }); } catch (e) { se.scrollTop = y; } }
+  onScroll = () => { const n = this.navRef.current; const mini = n ? n.getBoundingClientRect().top <= 66 : false; if (mini !== this.state.mini) this.setState({ mini }); };
+  onResize = () => { const n = window.innerWidth < 760; if (n !== this.state.narrow) this.setState({ narrow: n }); };
+  onDown = e => { if (this.state.listOpen && !(e.target.closest && e.target.closest('[data-nk-menu]'))) this.setState({ listOpen: false }); };
+  componentDidMount() {
+    const a = new URLSearchParams(location.search).get('aba');
+    if (['caps', 'sobre', 'adapt', 'chars'].includes(a)) this.setState({ active: a });
+    fetch('data/leitura-obra.json').then(r => r.json()).then(d => this.setState({ d }));
+    document.addEventListener('scroll', this.onScroll, { passive: true, capture: true });
+    window.addEventListener('resize', this.onResize); document.addEventListener('mousedown', this.onDown); this.onResize();
+  }
+  componentWillUnmount() { document.removeEventListener('scroll', this.onScroll, { capture: true }); window.removeEventListener('resize', this.onResize); document.removeEventListener('mousedown', this.onDown); }
+  setTab(k) {
+    this.setState({ active: k });
+    try { history.replaceState(null, '', k === 'caps' ? location.pathname : `?aba=${k}`); } catch (e) {}
+    const n = this.navRef.current;
+    if (n && n.getBoundingClientRect().top <= 66 && n.previousElementSibling) this.scrollTo(n.previousElementSibling.getBoundingClientRect().bottom + this.scrollY() - 64);
+  }
+  flash(t) { clearTimeout(this.tt); this.setState({ toast: t }); this.tt = setTimeout(() => this.setState({ toast: null }), 2200); }
+  ref(n) { if (!this.chRefs[n]) this.chRefs[n] = React.createRef(); return this.chRefs[n]; }
+  renderVals() {
+    const s = this.state; const d = s.d;
+    let guest = false; try { guest = localStorage.getItem('nk-guest') === '1'; } catch (e) {}
+    const loggedIn = (this.props.loggedIn ?? true) && !guest;
+    const bg = u => u ? `url("${u}")` : 'none';
+    const RANGES = [['all', 'Todos', '201'], ['0-49', '0–49', ''], ['50-99', '50–99', ''], ['100-149', '100–149', ''], ['150-179', '150–179', ''], ['side', 'Histórias paralelas', '21']];
+    const inRange = n => { if (s.range === 'all') return true; if (s.range === 'side') return n > this.MAIN_END; const [a, b] = s.range.split('-').map(Number); return n >= a && n <= b; };
+    const pt = s.lang === 'pt';
+    const all = [];
+    for (let n = 0; n <= this.TOTAL; n++) all.push(n);
+    let list = all.filter(n => inRange(n) && !(loggedIn && s.hideRead && n <= this.READ_TO));
+    if (!s.asc) list.reverse();
+    const filtered = list.length;
+    list = list.slice(0, s.limit);
+    const chapters = list.map(n => {
+      const side = n > this.MAIN_END; const available = !(pt && n >= 196);
+      const done = loggedIn && n <= this.READ_TO; const cur = loggedIn && n === this.CUR;
+      const label = n === 0 ? 'Prólogo' : side ? `História paralela ${n - this.MAIN_END}` : `Capítulo ${n}`;
+      const hl = s.hl === n;
+      return { n, ref: this.ref(n), href: `Leitor.dc.html?cap=${n}`, numLabel: n === 0 ? '0' : String(n), title: label, isSide: side,
+        meta: available ? `${side ? `Cap. ${n} · ` : ''}${pt ? 'Português' : 'Inglês'} · vertical${n === this.TOTAL ? ' · capítulo final' : ''}` : 'Disponível em inglês',
+        available, unavailable: !available, done, hasPct: cur && available, pctW: `${this.CUR_PCT}%`,
+        cta: cur ? 'Continuar' : done ? 'Lido' : 'Ler', aria: `${label}: ${cur ? 'continuar' : done ? 'reler' : 'ler'}`,
+        ctaBg: cur ? '#DBAF57' : 'transparent', ctaColor: cur ? '#1A1714' : done ? '#B7B1A4' : '#F0EEE9', ctaBorder: cur ? '#DBAF57' : done ? 'rgba(240,238,233,.1)' : 'rgba(240,238,233,.22)',
+        bg: hl ? 'rgba(219,175,87,.14)' : cur ? 'rgba(219,175,87,.07)' : '#1A1714', border: hl || cur ? 'rgba(219,175,87,.5)' : 'rgba(240,238,233,.06)',
+        numColor: cur ? '#DBAF57' : done ? '#8F897D' : '#F0EEE9', opacity: available ? (done ? 0.78 : 1) : 0.5 };
+    });
+    const chip = on => ({ bg: on ? 'rgba(219,175,87,.14)' : 'transparent', border: on ? '#DBAF57' : 'rgba(240,238,233,.14)', color: on ? '#DBAF57' : '#F0EEE9' });
+    const pill = on => ({ bg: on ? '#DBAF57' : 'transparent', color: on ? '#1A1714' : '#F0EEE9' });
+    const STATUS = ['Lendo', 'Planejado', 'Concluído', 'Pausado', 'Abandonado'];
+    const inList = loggedIn && !!s.status;
+    const need = () => { if (!loggedIn) { location.href = 'Entrar.dc.html'; return true; } return false; };
+    const ctaLabel = loggedIn ? 'Continuar capítulo 111' : 'Começar leitura';
+    const jumpN = parseInt(s.jump, 10); const jumpOk = jumpN >= 0 && jumpN <= this.TOTAL;
+    const TABS = [['caps', 'Capítulos', 201], ['sobre', 'Sobre', null], ['adapt', 'Adaptações', d ? d.related.length + 1 : null], ['chars', 'Personagens', d ? d.chars.length : null]];
+    return {
+      loggedIn, narrow: s.narrow, d: d || { native: '', score: '', synopsisShort: '' },
+      bannerBg: bg(d && d.banner), coverBg: bg(d && d.cover), genresText: d ? d.genres.join(' · ') : '',
+      ctaHref: loggedIn ? 'Leitor.dc.html?cap=111' : 'Leitor.dc.html?cap=0', ctaLabel, ctaShort: loggedIn ? 'Continuar cap. 111' : 'Começar leitura',
+      overallPct: `${Math.round(this.READ_TO / 201 * 100)}%`, progressText: `${this.READ_TO + 1} de 201 capítulos lidos · no capítulo 111`,
+      listLabel: inList ? s.status : 'Minha lista', listFill: inList ? '#DBAF57' : 'none', listBorder: inList ? 'rgba(219,175,87,.6)' : 'rgba(240,238,233,.25)',
+      listOpen: s.listOpen && loggedIn, toggleList: () => { if (need()) return; this.setState({ listOpen: !s.listOpen }); },
+      statusOpts: STATUS.map(l => ({ label: l, on: s.status === l, color: s.status === l ? '#DBAF57' : '#F0EEE9', pick: () => { this.setState({ status: l, listOpen: false }); this.flash(`Salvo como ${l}`); } })),
+      inList, removeList: () => { this.setState({ status: null, listOpen: false }); this.flash('Removido da sua lista · avisos mantidos'); },
+      followLabel: loggedIn && s.follow ? 'Acompanhando' : 'Acompanhar', followFill: loggedIn && s.follow ? '#DBAF57' : 'none',
+      followColor: loggedIn && s.follow ? '#DBAF57' : '#F0EEE9', followBorder: loggedIn && s.follow ? 'rgba(219,175,87,.6)' : 'rgba(240,238,233,.25)', followBg: loggedIn && s.follow ? 'rgba(219,175,87,.08)' : 'rgba(23,20,17,.45)',
+      toggleFollow: () => { if (need()) return; this.setState({ follow: !s.follow }); this.flash(s.follow ? 'Avisos de novos capítulos desligados' : 'Você será avisado sobre novos capítulos e histórias paralelas'); },
+      share: () => { try { navigator.clipboard.writeText(location.href); } catch (e) {} this.flash('Link copiado'); },
+      navRef: this.navRef, showMini: s.mini && !s.narrow,
+      tabs: TABS.map(([k, label, count]) => ({ label, count, hasCount: count != null, sel: String(s.active === k), color: s.active === k ? '#DBAF57' : '#B7B1A4', line: s.active === k ? '#DBAF57' : 'transparent', go: () => this.setTab(k) })),
+      p: { caps: s.active === 'caps', sobre: s.active === 'sobre', adapt: s.active === 'adapt', chars: s.active === 'chars' },
+      showContinue: loggedIn && s.range === 'all' && !s.hl,
+      capsInfo: `${filtered} ${filtered === 1 ? 'capítulo' : 'capítulos'} · ${pt ? 'Português (Brasil)' : 'Inglês'} · rolagem vertical`,
+      jumpVal: s.jump, onJump: e => this.setState({ jump: e.target.value }), jumpBg: jumpOk ? '#DBAF57' : '#4A443D',
+      jump: e => {
+        e.preventDefault(); if (!jumpOk) return;
+        const n = jumpN; const r = n > this.MAIN_END ? 'side' : RANGES.slice(1, 5).find(([k]) => { const [a, b] = k.split('-').map(Number); return n >= a && n <= b; })[0];
+        this.setState({ range: r, hideRead: false, limit: 60, hl: n, jump: '' });
+        setTimeout(() => { const el = this.chRefs[n] && this.chRefs[n].current; if (el) this.scrollTo(el.getBoundingClientRect().top + this.scrollY() - 200); }, 60);
+        clearTimeout(this.ht); this.ht = setTimeout(() => this.setState({ hl: null }), 2600);
+      },
+      langTabs: [['pt', 'Português'], ['en', 'Inglês']].map(([k, l]) => ({ label: l, ...pill(s.lang === k), pick: () => this.setState({ lang: k }) })),
+      langNote: pt && (s.range === 'all' || s.range === 'side'),
+      toggleSort: () => this.setState({ asc: !s.asc, limit: 30 }), sortLabel: s.asc ? 'Do início' : 'Mais recentes',
+      ranges: RANGES.map(([k, l, sub]) => ({ label: l, sub, ...chip(s.range === k), pick: () => this.setState({ range: k, limit: 30, hl: null }) })),
+      toggleHideRead: () => this.setState({ hideRead: !s.hideRead, limit: 30 }),
+      hrTrack: s.hideRead ? '#DBAF57' : '#2D2924', hrKnob: s.hideRead ? '#1A1714' : '#B7B1A4', hrX: s.hideRead ? '19px' : '3px',
+      chapters, hasMore: filtered > s.limit, remaining: Math.max(0, filtered - s.limit), more: () => this.setState({ limit: s.limit + 30 }),
+      capsEmpty: filtered === 0, clearCapFilters: () => this.setState({ range: 'all', hideRead: false }),
+      synopsis: d ? (s.synOpen ? d.synopsis : [d.synopsis[0]]) : [], synLabel: s.synOpen ? 'Mostrar menos' : 'Ler mais', toggleSyn: () => this.setState({ synOpen: !s.synOpen }),
+      people: d ? d.people.map(([role, name]) => ({ role, name, initial: name[0] })) : [],
+      genreTags: d ? d.genres : [], themeTags: d ? d.themes : [], altText: d ? d.alt.join(' · ') : '',
+      ficha: d ? d.ficha.map(([k, v]) => ({ k, v })) : [],
+      animeBannerBg: bg(d && d.anime.banner), animeCoverBg: bg(d && d.anime.cover), animeMeta: d ? d.anime.meta : '',
+      mapHidden: !s.mapOpen, mapShown: s.mapOpen, showMap: () => this.setState({ mapOpen: true }), animeMap: d ? d.anime.map : [],
+      related: d ? d.related.map(r => ({ ...r, hasCover: !!r.cover, noCover: !r.cover, bg: bg(r.cover) })) : [],
+      chars: d ? d.chars.map(c => ({ ...c, bg: bg(c.img), border: c.role === 'Protagonista' ? 'rgba(219,175,87,.5)' : 'rgba(240,238,233,.06)', roleColor: c.role === 'Protagonista' ? '#DBAF57' : '#B7B1A4' })) : [],
+      recs: d ? d.recs.map(r => ({ ...r, bg: bg(r.cover) })) : [],
+      toast: !!s.toast, toastText: s.toast || '', toastBottom: s.narrow ? '92px' : '28px'
+    };
+  }
+}
+</script>
+</body>
+</html>

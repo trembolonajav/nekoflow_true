@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#171411;color:#F0EEE9;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#DBAF57;text-decoration:none}a:hover{color:#F0EEE9}
+*{box-sizing:border-box}
+input::placeholder{color:#8F897D}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#171411;display:flex;flex-direction:column">
+  <dc-import name="Header" active="explorar" logged-in="{{ loggedIn }}" solid="{{ true }}" hint-size="100%,0px" style="position:absolute;top:0;left:0;right:0;height:0;z-index:50"></dc-import>
+
+  <div style="padding:112px 48px 0;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h1 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:56px;line-height:1">Explorar</h1>
+      <p style="margin:0;font-size:15px;color:#B7B1A4">Todo o catálogo da Nekoflow: animes, filmes, mangás, manhwas e webtoons.</p>
+    </div>
+    <div style="height:56px;border-radius:14px;border:1px solid rgba(219,175,87,.3);background:#1A1714;display:flex;align-items:center;gap:14px;padding:0 20px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DBAF57" stroke-width="2" style="flex-shrink:0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input value="{{ q }}" onChange="{{ onQ }}" placeholder="Buscar por título, nome japonês, estúdio…" style="flex:1;min-width:0;height:100%;background:transparent;border:0;outline:none;color:#F0EEE9;font-family:Inter,sans-serif;font-size:16px">
+      <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearQ }}" style="all:unset;cursor:pointer;font-size:13px;color:#B7B1A4" style-hover="color:#DBAF57">Limpar</button></sc-if>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="6">
+        <button onClick="{{ k.pick }}" style="all:unset;cursor:pointer;height:38px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:500;border:1px solid {{ k.border }};background:{{ k.bg }};color:{{ k.color }}">{{ k.label }}<span style="font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7">{{ k.count }}</span></button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding:28px 48px 80px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;align-items:start">
+
+    <aside style="position:sticky;top:88px;display:flex;flex-direction:column;gap:26px;max-height:calc(100vh - 104px);overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#2D2924 transparent">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:15px;font-weight:600">Filtros</span>
+        <sc-if value="{{ hasFilters }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearAll }}" style="all:unset;cursor:pointer;font-size:13px;color:#DBAF57" style-hover="color:#F0EEE9">Limpar tudo</button></sc-if>
+      </div>
+      <sc-for list="{{ groups }}" as="g" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">{{ g.label }}</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <sc-for list="{{ g.opts }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.pick }}" style="all:unset;cursor:pointer;height:30px;display:flex;align-items:center;padding:0 11px;border-radius:7px;font-size:13px;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }}" style-hover="border-color:rgba(219,175,87,.6)">{{ o.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <section style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+          <span style="font-size:14px;font-weight:600;margin-right:6px">{{ countLabel }}</span>
+          <sc-for list="{{ applied }}" as="a" hint-placeholder-count="0">
+            <button onClick="{{ a.remove }}" style="all:unset;cursor:pointer;height:28px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:999px;font-size:12px;background:rgba(219,175,87,.12);border:1px solid rgba(219,175,87,.4);color:#DBAF57" style-hover="background:rgba(219,175,87,.2)">{{ a.label }}<span style="font-size:14px;line-height:1">×</span></button>
+          </sc-for>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#B7B1A4">Ordenar por
+          <select value="{{ sort }}" onChange="{{ onSort }}" style="height:36px;border-radius:8px;border:1px solid rgba(240,238,233,.15);background:#1A1714;color:#F0EEE9;font-family:Inter,sans-serif;font-size:13px;padding:0 10px">
+            <option value="pop">Popularidade</option>
+            <option value="score">Melhor nota</option>
+            <option value="recent">Mais recentes</option>
+            <option value="az">A–Z</option>
+          </select>
+        </label>
+      </div>
+
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:28px 16px">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="12">
+            <a href="{{ r.href }}" style="display:flex;flex-direction:column;gap:10px;color:#F0EEE9;min-width:0" style-hover="color:#DBAF57">
+              <span style="position:relative;display:block;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#221F1B;border:1px solid rgba(240,238,233,.06)">
+                <img src="{{ r.cover }}" alt="{{ r.title }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+                <sc-if value="{{ r.hasScore }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:8px;top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(23,20,17,.88);color:#DBAF57;padding:3px 7px;border-radius:4px">★ {{ r.scoreLabel }}</span></sc-if>
+                <span style="position:absolute;left:8px;bottom:8px;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;background:rgba(23,20,17,.88);color:#F0EEE9;padding:4px 7px;border-radius:4px">{{ r.typeLabel }}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:14px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px">{{ r.title }}</span>
+                <span style="font-size:12px;color:#B7B1A4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</span>
+              </span>
+            </a>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasMore }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ more }}" style="all:unset;cursor:pointer;align-self:center;margin-top:16px;height:44px;display:flex;align-items:center;padding:0 24px;border-radius:999px;border:1px solid rgba(219,175,87,.4);font-size:14px;font-weight:500;color:#F0EEE9" style-hover="border-color:#DBAF57;color:#DBAF57">Carregar mais · {{ remaining }} restantes</button>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:56px 24px;border-radius:16px;border:1px dashed rgba(219,175,87,.25)">
+          <img src="assets/nekoflow-mascot.png" alt="" style="width:120px;height:120px;object-fit:contain;opacity:.9">
+          <h3 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:32px">Nenhuma obra encontrada</h3>
+          <p style="margin:0;font-size:14px;color:#B7B1A4;max-width:420px">Tente remover alguns filtros ou buscar por outro nome. Se a obra ainda não está no catálogo, você pode pedir para incluirmos.</p>
+          <div style="display:flex;gap:10px;margin-top:6px">
+            <button onClick="{{ clearAll }}" style="all:unset;cursor:pointer;height:42px;display:flex;align-items:center;padding:0 20px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px;color:#F0EEE9" style-hover="border-color:#DBAF57">Limpar filtros</button>
+            <a href="#" style="height:42px;display:flex;align-items:center;padding:0 20px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">Solicitar obra</a>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </div>
+
+  <dc-import name="Footer" hint-size="100%,320px" style="margin-top:auto"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;loggedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado&quot;}}">
+class Component extends DCLogic {
+  state = { items: [], q: '', kind: 'todos', genres: [], themes: [], status: null, origin: null, decade: null, minScore: null, vertical: false, epRange: null, sort: 'pop', limit: 24 };
+  componentDidMount() {
+    const p = new URLSearchParams(location.search);
+    const k = p.get('tipo'); const q = p.get('q');
+    this.setState({ kind: k || 'todos', q: q || '' });
+    fetch('data/explorar.json').then(r => r.json()).then(items => this.setState({ items }));
+  }
+  sync() {
+    const s = this.state; const p = new URLSearchParams();
+    if (s.kind !== 'todos') p.set('tipo', s.kind);
+    if (s.q) p.set('q', s.q);
+    if (s.genres.length) p.set('genero', s.genres.join(','));
+    try { history.replaceState(null, '', p.toString() ? `?${p}` : location.pathname); } catch (e) {}
+  }
+  set(patch) { this.setState({ ...patch, limit: 24 }, () => this.sync()); }
+  toggleArr(key, v) { const a = this.state[key]; this.set({ [key]: a.includes(v) ? a.filter(x => x !== v) : [...a, v] }); }
+  toggleOne(key, v) { this.set({ [key]: this.state[key] === v ? null : v }); }
+  matchKind(x, k) {
+    if (k === 'todos') return true;
+    if (k === 'animes') return x.kind === 'anime';
+    if (k === 'filmes') return x.kind === 'filme';
+    if (k === 'mangas') return x.kind === 'manga';
+    if (k === 'manhwas') return x.kind === 'manhwa';
+    if (k === 'webtoons') return x.webtoon;
+    return true;
+  }
+  renderVals() {
+    const s = this.state;
+    const loggedIn = this.props.loggedIn ?? true;
+    const isAnim = s.kind === 'animes' || s.kind === 'filmes';
+    const isRead = ['mangas', 'manhwas', 'webtoons'].includes(s.kind);
+    const decades = { '2020s': [2020, 2099], '2010s': [2010, 2019], '2000s': [2000, 2009], 'Antes de 2000': [0, 1999] };
+    const eps = { 'Até 13': [0, 13], '14 a 26': [14, 26], 'Mais de 26': [27, 9999] };
+    const ql = s.q.trim().toLowerCase();
+    const base = s.items.filter(x => {
+      if (ql && !(x.title + ' ' + x.alt + ' ' + x.studio).toLowerCase().includes(ql)) return false;
+      if (s.genres.length && !s.genres.every(g => x.genres.includes(g))) return false;
+      if (s.themes.length && !s.themes.every(t => x.themes.includes(t))) return false;
+      if (s.status && x.status !== s.status) return false;
+      if (s.origin && x.origin !== { 'Japão': 'JP', 'Coreia do Sul': 'KR' }[s.origin]) return false;
+      if (s.decade) { const [a, b] = decades[s.decade]; if (!x.year || x.year < a || x.year > b) return false; }
+      if (s.minScore && !(x.score >= s.minScore * 10)) return false;
+      if (isRead && s.vertical && !x.webtoon) return false;
+      if (s.kind === 'animes' && s.epRange) { const [a, b] = eps[s.epRange]; if (!x.eps || x.eps < a || x.eps > b) return false; }
+      return true;
+    });
+    const list = base.filter(x => this.matchKind(x, s.kind));
+    const sorters = { pop: (a, b) => b.pop - a.pop, score: (a, b) => (b.score || 0) - (a.score || 0), recent: (a, b) => (b.year || 0) - (a.year || 0), az: (a, b) => a.title.localeCompare(b.title) };
+    list.sort(sorters[s.sort]);
+    const label = x => x.kind === 'anime' ? 'Anime' : x.kind === 'filme' ? 'Filme' : x.kind === 'manga' ? (x.webtoon ? 'Mangá · Webtoon' : 'Mangá') : (x.webtoon ? 'Manhwa · Webtoon' : 'Manhwa');
+    const meta = x => {
+      if (x.kind === 'anime') return [x.year, x.eps ? `${x.eps} eps` : null, x.status === 'Em lançamento' ? 'Em lançamento' : x.studio].filter(Boolean).join(' · ');
+      if (x.kind === 'filme') return [x.year, x.studio].filter(Boolean).join(' · ');
+      return [x.year, x.ch ? `${x.ch} caps` : null, x.status].filter(Boolean).join(' · ');
+    };
+    const results = list.slice(0, s.limit).map(x => ({ ...x, href: x.id === 151807 ? 'Obra.dc.html' : x.id === 105398 ? 'ObraLeitura.dc.html' : '#', typeLabel: label(x), meta: meta(x), hasScore: !!x.score, scoreLabel: x.score ? (x.score / 10).toFixed(1).replace('.', ',') : '' }));
+    const chip = (on) => ({ bg: on ? 'rgba(219,175,87,.14)' : 'transparent', border: on ? '#DBAF57' : 'rgba(240,238,233,.14)', color: on ? '#DBAF57' : '#F0EEE9' });
+    const G = ['Ação', 'Aventura', 'Comédia', 'Drama', 'Fantasia', 'Romance', 'Mistério', 'Terror', 'Ficção científica', 'Sobrenatural', 'Psicológico', 'Cotidiano', 'Esportes', 'Suspense'];
+    const TH = ['Isekai', 'Reencarnação', 'Viagem no tempo', 'Escola', 'Artes marciais', 'Dungeons', 'Vingança', 'Sobrevivência', 'Magia'];
+    const groups = [
+      { label: 'Gênero', opts: G.map(g => ({ label: g, ...chip(s.genres.includes(g)), pick: () => this.toggleArr('genres', g) })) },
+      { label: 'Temas', opts: TH.map(t => ({ label: t, ...chip(s.themes.includes(t)), pick: () => this.toggleArr('themes', t) })) },
+      { label: 'Situação', opts: ['Em lançamento', 'Concluído', 'Hiato', 'Anunciado'].map(v => ({ label: v, ...chip(s.status === v), pick: () => this.toggleOne('status', v) })) },
+      { label: 'Ano', opts: Object.keys(decades).map(v => ({ label: v, ...chip(s.decade === v), pick: () => this.toggleOne('decade', v) })) },
+      { label: 'Origem', opts: ['Japão', 'Coreia do Sul'].map(v => ({ label: v, ...chip(s.origin === v), pick: () => this.toggleOne('origin', v) })) },
+      { label: 'Nota mínima', opts: [7, 8, 9].map(v => ({ label: `★ ${v}+`, ...chip(s.minScore === v), pick: () => this.toggleOne('minScore', v) })) }
+    ];
+    if (s.kind === 'animes') groups.push({ label: 'Episódios', opts: Object.keys(eps).map(v => ({ label: v, ...chip(s.epRange === v), pick: () => this.toggleOne('epRange', v) })) });
+    if (isRead) groups.push({ label: 'Formato de leitura', opts: [{ label: 'Rolagem vertical', ...chip(s.vertical), pick: () => this.set({ vertical: !s.vertical }) }] });
+    const applied = [
+      ...s.genres.map(g => ({ label: g, remove: () => this.toggleArr('genres', g) })),
+      ...s.themes.map(t => ({ label: t, remove: () => this.toggleArr('themes', t) })),
+      ...[['status', s.status], ['decade', s.decade], ['origin', s.origin], ['epRange', s.kind === 'animes' ? s.epRange : null]].filter(([, v]) => v).map(([k, v]) => ({ label: v, remove: () => this.set({ [k]: null }) })),
+      ...(s.minScore ? [{ label: `★ ${s.minScore}+`, remove: () => this.set({ minScore: null }) }] : []),
+      ...(isRead && s.vertical ? [{ label: 'Rolagem vertical', remove: () => this.set({ vertical: false }) }] : [])
+    ];
+    const K = [['todos', 'Todos'], ['animes', 'Animes'], ['filmes', 'Filmes'], ['mangas', 'Mangás'], ['manhwas', 'Manhwas'], ['webtoons', 'Webtoons']];
+    const loaded = s.items.length > 0;
+    return {
+      loggedIn, q: s.q, hasQ: !!s.q, sort: s.sort,
+      onQ: e => this.set({ q: e.target.value }),
+      clearQ: () => this.set({ q: '' }),
+      onSort: e => this.set({ sort: e.target.value }),
+      kinds: K.map(([k, l]) => ({ label: l, count: loaded ? base.filter(x => this.matchKind(x, k)).length : '', pick: () => this.set({ kind: k }),
+        bg: k === s.kind ? '#DBAF57' : 'transparent', border: k === s.kind ? '#DBAF57' : 'rgba(240,238,233,.15)', color: k === s.kind ? '#1A1714' : '#F0EEE9' })),
+      groups, applied,
+      hasFilters: applied.length > 0 || !!s.q,
+      clearAll: () => this.set({ q: '', genres: [], themes: [], status: null, origin: null, decade: null, minScore: null, vertical: false, epRange: null }),
+      countLabel: loaded ? `${list.length} ${list.length === 1 ? 'obra' : 'obras'}` : 'Carregando…',
+      results, hasResults: list.length > 0, empty: loaded && list.length === 0,
+      hasMore: list.length > s.limit, remaining: Math.max(0, list.length - s.limit),
+      more: () => this.setState({ limit: s.limit + 24 })
+    };
+  }
+}
+</script>
+</body>
+</html>

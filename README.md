@@ -1,0 +1,108 @@
+# Nekoflow
+
+Plataforma de animes e leituras construída a partir do protótipo do Claude Design.
+
+| Camada   | Tecnologia                                         | Pasta       |
+|----------|----------------------------------------------------|-------------|
+| Frontend | React 18 + Vite + React Router                     | `frontend/` |
+| Backend  | Java 17 + Spring Boot 3 (Web, Security, JDBC, Flyway) | `backend/` |
+| Banco    | PostgreSQL 16                                      | (Docker)    |
+| Infra    | Docker Compose (Postgres, API, nginx)              | raiz        |
+| Design   | Arquivos originais exportados do Claude Design     | `design/`   |
+
+## Subir tudo com Docker
+
+```bash
+docker compose up -d --build
+```
+
+- App: http://localhost:3000
+- API: http://localhost:8080
+- Postgres: localhost:5432 (usuário/senha `nekoflow`, veja `.env.example`)
+
+Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
+padrão `nekoflow2026`):
+
+| Conta                  | Papel          | Para que serve                                         |
+|------------------------|----------------|--------------------------------------------------------|
+| `marina@nekoflow.local` | usuário        | biblioteca, histórico, avisos e pedidos do protótipo   |
+| `kenji@nekoflow.local`  | usuário        | segundo usuário (apoia o pedido #1042)                 |
+| `admin@nekoflow.local`  | administrador  | painel em `/admin`                                     |
+
+Desligue as contas de demonstração com `NEKOFLOW_DEMO=false`.
+
+## Desenvolvimento local
+
+```bash
+docker compose up -d postgres               # só o banco
+cd backend && mvn spring-boot:run           # API em :8080
+cd frontend && npm install && npm run dev   # app em :5173 (proxy de /api para :8080)
+```
+
+Testes do backend: `cd backend && mvn test`.
+
+## Telas e rotas
+
+| Tela                       | Rota                        | Arquivo                               |
+|----------------------------|-----------------------------|---------------------------------------|
+| Home                       | `/`                         | `frontend/src/pages/Home.jsx`         |
+| Calendário                 | `/calendario`               | `pages/Calendario.jsx`                |
+| Explorar                   | `/explorar`                 | `pages/Explorar.jsx`                  |
+| Leituras                   | `/leituras`                 | `pages/Leituras.jsx`                  |
+| Obra (anime)               | `/obra`                     | `pages/Obra.jsx`                      |
+| Obra (leitura)             | `/obra-leitura`             | `pages/ObraLeitura.jsx`               |
+| Leitor                     | `/leitor?cap=N`             | `pages/Leitor.jsx`                    |
+| Player                     | `/player?ep=N`              | `pages/Player.jsx`                    |
+| Conta / Minha biblioteca   | `/conta?aba=...` (privada)  | `pages/Conta.jsx`                     |
+| Entrar / Criar conta       | `/entrar` (`?next=` volta à origem) | `pages/Entrar.jsx`            |
+| Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
+| Painel administrativo      | `/admin` (equipe)           | `pages/Admin.jsx`                     |
+| Estudo das 3 direções da Home | `/estudos/home-direcoes` | `pages/HomeDirecoes.jsx`              |
+
+Atalhos: `/biblioteca`, `/continuar-assistindo`, `/continuar-lendo`, `/historico`,
+`/solicitacoes`, `/notificacoes`, `/configuracoes` (levam às abas da Conta).
+A Conta aceita filtros por link: `/conta?aba=lista&midia=anime&situacao=pausado`.
+
+## Como as partes se integram
+
+Uma única fonte para cada informação (detalhes em `docs/matriz-integracao.md`):
+
+- **Catálogo** (`work`): uma linha por obra, com o id da AniList; títulos alternativos
+  reconhecem pedidos e buscas da mesma obra. Obras cadastradas pela equipe recebem ids ≥ 900000000.
+- **Biblioteca** (`library_entry`, `favorite`, `work_follow`): um registro por usuário e obra;
+  situação, favorito e alertas são independentes. Remover da lista não apaga progresso nem histórico.
+- **Progresso** (`progress`): posição por episódio/capítulo. Player e Leitor gravam aqui; Home,
+  Conta, Leituras e as páginas das obras leem daqui. Gravações mais antigas que a última salva
+  (outro dispositivo) são ignoradas; sem conexão, a posição fica pendente no navegador e é reenviada.
+- **Histórico** (`activity`): o que aconteceu ("Aberto", "Assistido", "Lido"); abrir o player não
+  conta como assistido.
+- **Solicitações** (`content_request`, `request_supporter`, `request_history`): verificação de
+  duplicidade (obra existente ou pedido aberto → "Também quero esta obra"), limite de 5 por dia,
+  histórico auditável e aviso a solicitante e apoiadores a cada mudança.
+- **Publicações** (`release_event`): única por obra e unidade; publicar de novo não duplica
+  avisos. Atualiza o Calendário, avisa quem acompanha a obra e atende pedidos de "faltando".
+- **Avisos** (`notification`): chave de evento única por usuário (idempotente); respeitam as
+  preferências de notificação da conta.
+- **Permissões** (validadas no servidor): moderador = solicitações; editor = + publicações e
+  catálogo; administrador = + usuários e auditoria (`admin_audit`).
+
+## Mobile
+
+Abaixo de 768px: navegação inferior com as cinco seções (oculta no Leitor e no Player em tela
+cheia), header compacto com busca em largura total, menus do sininho, da conta e dos cards
+como painel inferior, abas da Conta roláveis e filtros do Explorar recolhidos. O desktop continua
+igual ao design. As regras ficam em `frontend/src/styles/mobile.css`.
+
+## Origem do código
+
+As telas foram convertidas dos `.dc.html` do Claude Design (`design/claude-design/`) e agora são
+mantidas direto no código. O conversor usado na importação ficou em
+`frontend/scripts/dc-to-react.legacy.mjs` só como referência — rodá-lo de novo sobrescreveria
+as telas.
+
+## O que ainda não existe
+
+- Envio de e-mail (confirmação de conta, recuperação de senha) e login com Google: as telas
+  existem, mas não há serviço de e-mail/OAuth configurado.
+- Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
+- Acessibilidade (WCAG) ficou fora deste escopo.

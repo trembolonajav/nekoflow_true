@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:fixed;left:0;right:0;top:0;height:{{ navH }};display:flex;align-items:center;gap:clamp(10px,1.6vw,24px);padding:0 clamp(16px,3.3vw,48px);z-index:50;background:{{ navBg }};border-bottom:1px solid {{ navBorder }};backdrop-filter:{{ navBlur }};-webkit-backdrop-filter:{{ navBlur }};transition:height .25s ease,background .25s ease,border-color .25s ease;font-family:Inter,system-ui,sans-serif;color:#F0EEE9">
+  <a href="Home%20Nekoflow%20v2.dc.html" style="width:150px;height:56px;overflow:hidden;flex-shrink:0;display:block"><img src="assets/nekoflow-logo.png" alt="Nekoflow" style="height:110px;margin:-27px 0 0 -32px"></a>
+  <nav style="display:flex;gap:2px;align-items:center">
+    <sc-for list="{{ links }}" as="l" hint-placeholder-count="5">
+      <div style="position:relative" onMouseEnter="{{ l.enter }}" onMouseLeave="{{ l.leave }}">
+        <a href="{{ l.href }}" style="padding:8px 12px;font-size:14px;font-weight:500;color:{{ l.color }};border-bottom:1px solid {{ l.line }};display:flex;align-items:center;gap:6px;white-space:nowrap" style-hover="color:#DBAF57">{{ l.label }}<sc-if value="{{ l.hasMenu }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"></path></svg></sc-if></a>
+        <sc-if value="{{ l.menuOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:0;top:100%;padding-top:10px">
+            <div style="width:250px;background:#1A1714;border:1px solid rgba(219,175,87,.18);border-radius:12px;padding:8px;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.45)">
+              <a href="Leituras.dc.html?tipo=mangas" style="padding:10px 12px;border-radius:8px;color:#F0EEE9;display:flex;flex-direction:column;gap:2px" style-hover="background:#221F1B;color:#DBAF57"><span style="font-size:14px;font-weight:500">Mangás</span><span style="font-size:12px;color:#B7B1A4">Japoneses · leitura por páginas</span></a>
+              <a href="Leituras.dc.html?tipo=manhwas" style="padding:10px 12px;border-radius:8px;color:#F0EEE9;display:flex;flex-direction:column;gap:2px" style-hover="background:#221F1B;color:#DBAF57"><span style="font-size:14px;font-weight:500">Manhwas</span><span style="font-size:12px;color:#B7B1A4">Coreanos · regressão, murim, dungeons</span></a>
+              <a href="Leituras.dc.html?tipo=webtoons" style="padding:10px 12px;border-radius:8px;color:#F0EEE9;display:flex;flex-direction:column;gap:2px" style-hover="background:#221F1B;color:#DBAF57"><span style="font-size:14px;font-weight:500">Webtoons</span><span style="font-size:12px;color:#B7B1A4">Rolagem vertical · atualização semanal</span></a>
+              <span style="height:1px;background:rgba(240,238,233,.08);margin:6px 4px"></span>
+              <a href="Leituras.dc.html" style="padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;color:#DBAF57" style-hover="background:#221F1B;color:#DBAF57">Todas as leituras →</a>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </nav>
+  <div ref="{{ boxRef }}" style="margin-left:auto;flex:0 1 380px;min-width:42px;position:relative">
+    <div style="height:40px;overflow:hidden;border-radius:999px;border:1px solid {{ searchBorder }};background:{{ searchBg }};display:flex;align-items:center;gap:10px;padding:0 16px;font-size:13px;color:#B7B1A4;transition:border-color .2s,background .2s">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ searchIcon }}" stroke-width="2" style="flex-shrink:0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input ref="{{ inputRef }}" value="{{ q }}" onChange="{{ onQ }}" onFocus="{{ onFocus }}" onKeyDown="{{ onKey }}" placeholder="Buscar animes, mangás, webtoons…" style="flex:1;min-width:0;height:100%;background:transparent;border:0;outline:none;color:#F0EEE9;font-family:Inter,sans-serif;font-size:13px">
+      <sc-if value="{{ showSlash }}" hint-placeholder-val="{{ true }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid rgba(240,238,233,.15);border-radius:4px;padding:1px 6px;flex-shrink:0">/</span></sc-if>
+      <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}"><button onClick="{{ clearQ }}" aria-label="Limpar busca" style="all:unset;cursor:pointer;font-size:16px;line-height:1;color:#B7B1A4;flex-shrink:0" style-hover="color:#DBAF57">×</button></sc-if>
+    </div>
+
+    <sc-if value="{{ open }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:0;top:calc(100% + 10px);width:min(560px,92vw);max-height:calc(100vh - 110px);overflow-y:auto;background:#1A1714;border:1px solid rgba(219,175,87,.2);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:10px;display:flex;flex-direction:column;gap:6px">
+
+        <sc-if value="{{ hasTop }}" hint-placeholder-val="{{ false }}">
+          <a href="{{ top.href }}" onMouseEnter="{{ top.hover }}" style="position:relative;display:block;height:132px;border-radius:10px;overflow:hidden;border:1px solid {{ top.border }};color:#F0EEE9">
+            <img src="{{ top.img }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%">
+            <span style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(26,23,20,.95) 0%,rgba(26,23,20,.7) 50%,rgba(26,23,20,.2) 100%)"></span>
+            <span style="position:absolute;left:18px;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">Melhor resultado · {{ top.typeLabel }}</span>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;line-height:1.05"><span>{{ top.pre }}</span><span style="color:#DBAF57">{{ top.mid }}</span><span>{{ top.post }}</span></span>
+              <span style="font-size:12px;color:rgba(240,238,233,.8)">{{ top.meta }}</span>
+            </span>
+          </a>
+        </sc-if>
+
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="0">
+          <div style="display:flex;flex-direction:column">
+            <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#B7B1A4;padding:10px 10px 6px">{{ g.label }}</span>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+              <a href="{{ r.href }}" onMouseEnter="{{ r.hover }}" style="display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;background:{{ r.bg }};color:#F0EEE9">
+                <img src="{{ r.cover }}" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex-shrink:0;display:block">
+                <span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1">
+                  <span style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span>{{ r.pre }}</span><span style="color:#DBAF57;font-weight:600">{{ r.mid }}</span><span>{{ r.post }}</span></span>
+                  <span style="font-size:12px;color:#B7B1A4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</span>
+                </span>
+                <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#B7B1A4;border:1px solid rgba(240,238,233,.12);border-radius:4px;padding:3px 6px;flex-shrink:0">{{ r.typeLabel }}</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:16px;padding:16px 10px">
+            <img src="assets/nekoflow-mascot.png" alt="" style="width:64px;height:64px;object-fit:contain;flex-shrink:0">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:14px;font-weight:500">Nada encontrado para “{{ q }}”</span>
+              <span style="font-size:13px;color:#B7B1A4">Confira a grafia ou tente o nome japonês. Se a obra não estiver no catálogo, peça para incluirmos.</span>
+              <a href="#" style="font-size:13px;font-weight:600">Solicitar obra →</a>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hasQ }}" hint-placeholder-val="{{ false }}">
+          <a href="{{ allHref }}" style="display:flex;align-items:center;justify-content:space-between;padding:12px 10px 6px;margin-top:4px;border-top:1px solid rgba(240,238,233,.08);font-size:13px;font-weight:500">Ver todos os resultados no Explorar<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#B7B1A4">↑↓ navegar · Enter abrir</span></a>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+  <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div data-nk-menu="1" style="position:relative">
+        <button onClick="{{ toggleNotif }}" aria-label="Notificações" style="all:unset;cursor:pointer;position:relative;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:{{ bellColor }};background:{{ bellBg }}" style-hover="background:rgba(240,238,233,.06);color:#DBAF57">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;right:3px;top:4px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #171411">{{ unreadLabel }}</span></sc-if>
+        </button>
+        <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;right:-56px;top:calc(100% + 12px);width:400px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;background:#1A1714;border:1px solid rgba(219,175,87,.2);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);overflow:hidden">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:18px 18px 12px">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;line-height:1">Notificações</span>
+                <span style="font-size:12px;color:#B7B1A4">{{ unreadText }}</span>
+              </div>
+              <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}"><button onClick="{{ markAll }}" style="all:unset;cursor:pointer;font-size:12px;font-weight:500;color:#DBAF57" style-hover="color:#F0EEE9">Marcar todas como lidas</button></sc-if>
+            </div>
+            <div style="display:flex;gap:4px;padding:0 14px 10px;border-bottom:1px solid rgba(240,238,233,.07)">
+              <sc-for list="{{ notifTabs }}" as="t" hint-placeholder-count="4">
+                <button onClick="{{ t.pick }}" style="all:unset;cursor:pointer;height:30px;display:flex;align-items:center;padding:0 12px;border-radius:999px;font-size:12px;font-weight:500;background:{{ t.bg }};color:{{ t.color }}">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div style="overflow-y:auto;display:flex;flex-direction:column;padding:6px">
+              <sc-for list="{{ notifList }}" as="n" hint-placeholder-count="4">
+                <a href="{{ n.href }}" onClick="{{ n.open }}" style="display:flex;gap:12px;padding:12px 10px;border-radius:10px;background:{{ n.bg }};color:#F0EEE9" style-hover="background:#221F1B;color:#F0EEE9">
+                  <sc-if value="{{ n.hasCover }}" hint-placeholder-val="{{ true }}"><img src="{{ n.cover }}" alt="" style="width:36px;height:52px;object-fit:cover;border-radius:4px;flex-shrink:0;display:block"></sc-if>
+                  <sc-if value="{{ n.hasIcon }}" hint-placeholder-val="{{ false }}"><span style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#2D2924;color:#DBAF57"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.iconPath }}"></path></svg></span></sc-if>
+                  <span style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1">
+                    <span style="font-size:13px;font-weight:{{ n.weight }}">{{ n.title }}</span>
+                    <span style="font-size:12px;line-height:1.45;color:#B7B1A4">{{ n.sub }}</span>
+                    <span style="font-size:11px;color:#8F897D">{{ n.when }}</span>
+                  </span>
+                  <span style="width:7px;height:7px;transform:rotate(45deg);background:{{ n.dot }};flex-shrink:0;margin-top:6px"></span>
+                </a>
+              </sc-for>
+              <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}"><span style="padding:28px 12px;text-align:center;font-size:13px;color:#B7B1A4">Nada por aqui nesta categoria.</span></sc-if>
+            </div>
+            <a href="Conta.dc.html?aba=notificacoes" style="display:flex;align-items:center;justify-content:center;height:46px;border-top:1px solid rgba(240,238,233,.07);font-size:13px;font-weight:500" style-hover="background:#221F1B">Ver todas as notificações</a>
+          </div>
+        </sc-if>
+      </div>
+      <div data-nk-menu="1" style="position:relative">
+        <button onClick="{{ toggleUser }}" aria-label="Menu da conta" style="all:unset;cursor:pointer;width:38px;height:38px;border-radius:50%;border:1px solid {{ avatarBorder }};background:#2D2924;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:18px;color:#DBAF57">M</button>
+        <sc-if value="{{ userOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;right:0;top:calc(100% + 12px);width:270px;max-height:calc(100vh - 100px);overflow-y:auto;background:#1A1714;border:1px solid rgba(219,175,87,.2);border-radius:14px;padding:8px;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.55)">
+            <a href="Conta.dc.html?aba=perfil" style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;color:#F0EEE9" style-hover="background:#221F1B;color:#F0EEE9">
+              <span style="width:42px;height:42px;border-radius:50%;border:1px solid rgba(219,175,87,.45);background:#2D2924;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;color:#DBAF57;flex-shrink:0">M</span>
+              <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">Marina</span><span style="font-size:12px;color:#DBAF57">Ver meu perfil →</span></span>
+            </a>
+            <sc-for list="{{ userGroups }}" as="g" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;border-top:1px solid rgba(240,238,233,.07);margin-top:6px;padding-top:6px">
+                <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8F897D;padding:8px 10px 4px">{{ g.label }}</span>
+                <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="3">
+                  <a href="{{ i.href }}" style="display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:8px;font-size:14px;color:#F0EEE9" style-hover="background:#221F1B;color:#DBAF57">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.8"><path d="{{ i.icon }}"></path></svg>
+                    <span style="flex:1">{{ i.label }}</span>
+                    <sc-if value="{{ i.hasCount }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#B7B1A4">{{ i.count }}</span></sc-if>
+                  </a>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="border-top:1px solid rgba(240,238,233,.07);margin-top:6px;padding-top:6px">
+              <button onClick="{{ logout }}" style="all:unset;cursor:pointer;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:8px;font-size:14px;color:#B7B1A4" style-hover="background:#221F1B;color:#F0EEE9">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Sair
+              </button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ guest }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:8px">
+      <a href="Entrar.dc.html" style="height:40px;display:flex;align-items:center;padding:0 14px;border-radius:8px;font-size:14px;font-weight:500;color:#F0EEE9;white-space:nowrap" style-hover="color:#DBAF57">Entrar</a>
+      <a href="Entrar.dc.html?modo=criar" style="height:40px;display:flex;align-items:center;padding:0 18px;border-radius:8px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600;white-space:nowrap" style-hover="background:#E6C27A;color:#1A1714">Criar conta</a>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;1280px&quot;,&quot;height&quot;:&quot;360px&quot;},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;inicio&quot;,&quot;animes&quot;,&quot;leituras&quot;,&quot;explorar&quot;,&quot;calendario&quot;],&quot;default&quot;:&quot;inicio&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;loggedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;solid&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { scrolled: false, menu: false, userOpen: false, notifOpen: false, ntab: 'todas', notifs: [], read: [], guest: false };
+  saveRead(read) { try { localStorage.setItem('nk-read', JSON.stringify(read)); } catch (e) {} this.setState({ read }); }
+  closeMenus() { if (this.state.userOpen || this.state.notifOpen) this.setState({ userOpen: false, notifOpen: false }); }
+  onScroll = (e) => {
+    const t = e && e.target && e.target.scrollTop;
+    const y = Math.max(window.scrollY || 0, (document.scrollingElement || {}).scrollTop || 0, document.body.scrollTop || 0, typeof t === 'number' ? t : 0);
+    const s = y > 24;
+    if (s !== this.state.scrolled) this.setState({ scrolled: s });
+  };
+  boxRef = React.createRef();
+  inputRef = React.createRef();
+  norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af ]/g, ' ').replace(/\s+/g, ' ').trim();
+  loadCatalog() {
+    if (this.catalogLoading) return; this.catalogLoading = true;
+    fetch('data/explorar.json').then(r => r.json()).then(items => {
+      this.catalog = items.map(x => ({ ...x, _t: this.norm(x.title), _a: this.norm(x.alt) }));
+      this.forceUpdate();
+    });
+  }
+  onDocDown = e => {
+    if (this.boxRef.current && !this.boxRef.current.contains(e.target) && this.state.open) this.setState({ open: false });
+    if (!(e.target.closest && e.target.closest('[data-nk-menu]'))) this.closeMenus();
+  };
+  onDocKey = e => {
+    if (e.key === 'Escape') this.closeMenus();
+    if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement.tagName)) { e.preventDefault(); this.inputRef.current && this.inputRef.current.focus(); }
+  };
+  search(q) {
+    const nq = this.norm(q); if (!nq || !this.catalog) return [];
+    const out = [];
+    for (const x of this.catalog) {
+      let s = 0;
+      if (x._t.startsWith(nq)) s = 100;
+      else if ((' ' + x._t).includes(' ' + nq)) s = 70;
+      else if (x._a.split(' | ').some(a => this.norm(a).startsWith(nq))) s = 55;
+      else if ((' ' + x._a).includes(' ' + nq)) s = 40;
+      else if (x._t.includes(nq)) s = 25;
+      if (s) out.push({ x, s: s + Math.log10(x.pop || 1) });
+    }
+    return out.sort((a, b) => b.s - a.s).map(o => o.x);
+  }
+  hl(title, q) {
+    const nq = this.norm(q); const nt = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    let i = nt.startsWith(nq) ? 0 : nt.indexOf(' ' + nq); if (i > 0) i += 1;
+    if (i < 0) i = nt.indexOf(nq);
+    if (!nq || i < 0) return { pre: title, mid: '', post: '' };
+    return { pre: title.slice(0, i), mid: title.slice(i, i + nq.length), post: title.slice(i + nq.length) };
+  }
+  componentDidMount() {
+    let read = [], guest = false;
+    try { read = JSON.parse(localStorage.getItem('nk-read') || '[]'); guest = localStorage.getItem('nk-guest') === '1'; } catch (e) {}
+    this.setState({ read, guest });
+    fetch('data/conta.json').then(r => r.json()).then(d => this.setState({ notifs: d.notifs, libCounts: { lista: d.library.length, assistindo: d.library.filter(x => x.status === 'andamento' && (x.kind === 'anime' || x.kind === 'filme') && !x.done).length, lendo: d.library.filter(x => x.status === 'andamento' && (x.kind === 'manga' || x.kind === 'manhwa')).length } }));
+    document.addEventListener('mousedown', this.onDocDown);
+    document.addEventListener('keydown', this.onDocKey);
+    document.addEventListener('scroll', this.onScroll, { passive: true, capture: true });
+    this.poll = setInterval(() => this.onScroll(), 250);
+    this.onScroll();
+  }
+  componentWillUnmount() { document.removeEventListener('scroll', this.onScroll, { capture: true }); document.removeEventListener('mousedown', this.onDocDown); document.removeEventListener('keydown', this.onDocKey); clearInterval(this.poll); }
+  renderVals() {
+    const active = this.props.active ?? 'inicio';
+    const loggedIn = (this.props.loggedIn ?? true) && !this.state.guest;
+    const readSet = new Set(this.state.read);
+    const isRead = n => n.read || readSet.has(n.id);
+    const unread = this.state.notifs.filter(n => !isRead(n)).length;
+    const ntab = this.state.ntab;
+    const NT = [['todas', 'Todas'], ['lanc', 'Lançamentos'], ['com', 'Comunidade'], ['sis', 'Sistema']];
+    const ICON = { chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', req: 'M12 8v8M8 12h8M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' };
+    const notifList = this.state.notifs.filter(n => ntab === 'todas' || n.cat === ntab).map(n => {
+      const r = isRead(n);
+      return { ...n, hasCover: !!n.cover, hasIcon: !n.cover, iconPath: ICON[n.icon] || ICON.req, weight: r ? 400 : 600,
+        bg: r ? 'transparent' : 'rgba(219,175,87,.06)', dot: r ? 'transparent' : '#DBAF57',
+        open: e => { if (n.href === '#') e.preventDefault(); if (!r) this.saveRead([...this.state.read, n.id]); } };
+    });
+    const lc = this.state.libCounts || {};
+    const I = {
+      list: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z', play: 'M7 4l13 8-13 8z', book: 'M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z',
+      clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z', req: ICON.req, gear: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4'
+    };
+    const userGroups = [
+      { label: 'Minha biblioteca', items: [
+        { label: 'Minha lista', icon: I.list, href: 'Conta.dc.html?aba=lista', count: lc.lista },
+        { label: 'Continuar assistindo', icon: I.play, href: 'Conta.dc.html?aba=assistindo', count: lc.assistindo },
+        { label: 'Continuar lendo', icon: I.book, href: 'Conta.dc.html?aba=lendo', count: lc.lendo },
+        { label: 'Histórico', icon: I.clock, href: 'Conta.dc.html?aba=historico' }] },
+      { label: 'Conta e plataforma', items: [
+        { label: 'Solicitar obra', icon: I.req, href: 'Conta.dc.html?aba=solicitacoes' },
+        { label: 'Configurações', icon: I.gear, href: 'Conta.dc.html?aba=configuracoes' }] }
+    ].map(g => ({ ...g, items: g.items.map(i => ({ ...i, hasCount: i.count != null && i.count > 0 })) }));
+    const sc = this.state.scrolled || (this.props.solid ?? false);
+    const defs = [
+      ['inicio', 'Início', 'Home%20Nekoflow%20v2.dc.html'],
+      ['animes', 'Animes', '#'],
+      ['leituras', 'Leituras', 'Leituras.dc.html'],
+      ['explorar', 'Explorar', 'Explorar.dc.html'],
+      ['calendario', 'Calendário', 'Calendario.dc.html']
+    ];
+    const q = this.state.q || '';
+    const open = !!this.state.open;
+    const hasQ = q.trim().length > 0;
+    const kindLabel = x => x.kind === 'anime' ? 'Anime' : x.kind === 'filme' ? 'Filme' : x.kind === 'manga' ? 'Mangá' : 'Manhwa';
+    const metaOf = x => [kindLabel(x) + (x.webtoon ? ' · Webtoon' : ''), x.year, x.kind === 'anime' && x.eps ? `${x.eps} eps` : x.kind === 'filme' ? x.studio : x.ch ? `${x.ch} caps` : x.status].filter(Boolean).join(' · ');
+    const hrefOf = x => x.id === 151807 ? 'Obra.dc.html' : x.id === 105398 ? 'ObraLeitura.dc.html' : `Explorar.dc.html?q=${encodeURIComponent(x.title)}`;
+    let found = [], trending = false;
+    if (open && this.catalog) {
+      if (hasQ) found = this.search(q);
+      else { found = [...this.catalog].sort((a, b) => b.pop - a.pop).slice(0, 5); trending = true; }
+    }
+    const sel = this.state.sel || 0;
+    const topX = hasQ && found[0] ? found[0] : null;
+    const restX = hasQ ? found.slice(1) : found;
+    const anim = restX.filter(x => x.kind === 'anime' || x.kind === 'filme').slice(0, 4);
+    const read = restX.filter(x => x.kind === 'manga' || x.kind === 'manhwa').slice(0, 4);
+    const flat = [topX, ...(trending ? found : [...anim, ...read])].filter(Boolean);
+    this.flat = flat;
+    const rowOf = (x) => { const idx = flat.indexOf(x); return { ...x, ...this.hl(x.title, hasQ ? q : ''), meta: metaOf(x), typeLabel: kindLabel(x), href: hrefOf(x), bg: idx === sel ? '#221F1B' : 'transparent', hover: () => this.setState({ sel: idx }) }; };
+    const groups = trending ? [{ label: 'Em alta agora', rows: found.map(rowOf) }]
+      : [anim.length ? { label: 'Animes e filmes', rows: anim.map(rowOf) } : null, read.length ? { label: 'Leituras', rows: read.map(rowOf) } : null].filter(Boolean);
+    const allHref = `Explorar.dc.html?q=${encodeURIComponent(q.trim())}`;
+    return {
+      boxRef: this.boxRef, inputRef: this.inputRef, q, hasQ, open, showSlash: !hasQ && !open,
+      searchBorder: open ? 'rgba(219,175,87,.6)' : 'rgba(240,238,233,.14)', searchBg: open ? '#1A1714' : 'rgba(23,20,17,.55)', searchIcon: open ? '#DBAF57' : '#B7B1A4',
+      onFocus: () => { this.loadCatalog(); this.setState({ open: true, userOpen: false }); },
+      onQ: e => this.setState({ q: e.target.value, open: true, sel: 0 }),
+      clearQ: () => { this.setState({ q: '', sel: 0 }); this.inputRef.current && this.inputRef.current.focus(); },
+      onKey: e => {
+        const n = (this.flat || []).length;
+        if (e.key === 'Escape') { this.setState({ open: false }); e.target.blur(); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ sel: Math.min(n - 1, sel + 1) }); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ sel: Math.max(0, sel - 1) }); }
+        else if (e.key === 'Enter') { const x = (this.flat || [])[sel]; location.href = hasQ && sel === 0 && !x ? allHref : x ? hrefOf(x) : allHref; }
+      },
+      hasTop: !!topX, top: topX ? { ...rowOf(topX), img: topX.banner || topX.cover, border: sel === 0 ? '#DBAF57' : 'rgba(219,175,87,.25)' } : {},
+      groups, noResults: open && hasQ && !!this.catalog && found.length === 0, allHref,
+      loggedIn, guest: !loggedIn,
+      navH: sc ? '64px' : '76px',
+      navBg: sc ? 'rgba(23,20,17,.92)' : 'linear-gradient(180deg,rgba(15,13,11,.7),rgba(15,13,11,0))',
+      navBorder: sc ? 'rgba(219,175,87,.12)' : 'transparent',
+      navBlur: sc ? 'blur(14px)' : 'none',
+      links: defs.map(([k, label, href]) => ({
+        label, href,
+        color: k === active ? '#DBAF57' : '#F0EEE9',
+        line: k === active ? '#DBAF57' : 'transparent',
+        hasMenu: k === 'leituras',
+        menuOpen: k === 'leituras' && this.state.menu,
+        enter: k === 'leituras' ? () => this.setState({ menu: true }) : undefined,
+        leave: k === 'leituras' ? () => this.setState({ menu: false }) : undefined
+      })),
+      userOpen: this.state.userOpen, notifOpen: this.state.notifOpen,
+      toggleUser: () => this.setState(s => ({ userOpen: !s.userOpen, notifOpen: false, open: false })),
+      toggleNotif: () => this.setState(s => ({ notifOpen: !s.notifOpen, userOpen: false, open: false })),
+      avatarBorder: this.state.userOpen ? '#DBAF57' : 'rgba(219,175,87,.45)',
+      bellColor: this.state.notifOpen ? '#DBAF57' : '#F0EEE9', bellBg: this.state.notifOpen ? 'rgba(240,238,233,.06)' : 'transparent',
+      hasUnread: unread > 0, unreadLabel: unread > 9 ? '9+' : String(unread),
+      unreadText: unread ? `${unread} não ${unread === 1 ? 'lida' : 'lidas'}` : 'Tudo em dia',
+      markAll: () => this.saveRead(this.state.notifs.map(n => n.id)),
+      notifTabs: NT.map(([k, label]) => ({ label, pick: () => this.setState({ ntab: k }), bg: k === ntab ? '#DBAF57' : 'transparent', color: k === ntab ? '#1A1714' : '#B7B1A4' })),
+      notifList, notifEmpty: notifList.length === 0,
+      userGroups,
+      logout: () => { try { localStorage.setItem('nk-guest', '1'); } catch (e) {} this.setState({ guest: true, userOpen: false }); },
+      login: () => { try { localStorage.removeItem('nk-guest'); } catch (e) {} this.setState({ guest: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

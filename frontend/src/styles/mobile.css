@@ -1,0 +1,128 @@
+/* Layout de celular e tablet. O desktop (>= 768px) continua exatamente como no design.
+   Os estilos das telas são inline, por isso as regras abaixo usam !important. */
+
+.nk-mnav { display: none; }
+
+@media (max-width: 767px) {
+  /* ---- navegação inferior ---- */
+  .nk-mnav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: rgba(23, 20, 17, 0.96);
+    border-top: 1px solid rgba(219, 175, 87, 0.14);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .nk-mnav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 48px;
+    color: #b7b1a4;
+    font: 500 11px Inter, system-ui, sans-serif;
+    text-decoration: none;
+  }
+  .nk-mnav a.is-on { color: #dbaf57; }
+  /* ---- header: logo, busca (lupa que abre em largura total), sininho e avatar ---- */
+  .nk-hdr { height: 56px !important; padding: 0 12px !important; gap: 6px !important; }
+  .nk-hdr-nav { display: none !important; }
+  .nk-hdr-logo { width: 112px !important; height: 44px !important; }
+  .nk-hdr-logo img { height: 86px !important; margin: -21px 0 0 -25px !important; }
+  .nk-hdr-search { flex: 0 0 42px !important; }
+  .nk-hdr-search > div:first-child { padding: 0 !important; justify-content: center !important; }
+  .nk-hdr-search:not(.is-open) > div:first-child input { position: absolute !important; inset: 0 !important; opacity: 0 !important; }
+  .nk-hdr-search:not(.is-open) > div:first-child > span { display: none !important; }
+  .nk-hdr-search.is-open {
+    position: fixed !important; left: 8px !important; right: 8px !important; top: 8px !important;
+    z-index: 70 !important; flex: none !important;
+  }
+  .nk-hdr-search.is-open > div:first-child { padding: 0 14px !important; justify-content: flex-start !important; }
+  .nk-hdr-results {
+    position: fixed !important; left: 8px !important; right: 8px !important; top: 56px !important;
+    width: auto !important; max-height: calc(100vh - 140px) !important;
+  }
+  .nk-hdr a[href="/entrar?modo=criar"] { display: none !important; }
+
+  /* menus suspensos viram painel inferior com opções grandes */
+  .nk-sheet {
+    position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+    width: auto !important; max-height: 82vh !important; overflow-y: auto !important;
+    border-radius: 18px 18px 0 0 !important; z-index: 90 !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.6) !important;
+  }
+  .nk-sheet a, .nk-sheet button { min-height: 44px; }
+
+  /* ---- utilitários de layout das telas ---- */
+  .nk-main { padding-left: 16px !important; padding-right: 16px !important; padding-top: 16px !important; gap: 44px !important; }
+  .nk-grid-1 { grid-template-columns: minmax(0, 1fr) !important; }
+  .nk-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .nk-grid-1 > *, .nk-grid-2 > * { min-width: 0 !important; }
+  .nk-row { grid-auto-columns: 42% !important; }
+  .nk-stack { flex-direction: column !important; align-items: stretch !important; }
+  .nk-wrap { flex-wrap: wrap !important; }
+  .nk-hide-m { display: none !important; }
+  .nk-full { width: 100% !important; max-width: 100% !important; min-width: 0 !important; flex-basis: auto !important; }
+  .nk-scroll-x { overflow-x: auto !important; flex-wrap: nowrap !important; scrollbar-width: none; }
+  .nk-scroll-x::-webkit-scrollbar { display: none; }
+  .nk-scroll-x > * { flex-shrink: 0 !important; }
+
+  /* ---- Home ---- */
+  .nk-home-hero { padding: 92px 16px 18px !important; min-height: 0 !important; }
+  .nk-home-strip { gap: 8px !important; padding-top: 28px !important; }
+  .nk-home-strip > button > span:last-child { display: none !important; }
+
+  /* ---- Conta / Minha biblioteca: menu lateral vira abas roláveis ---- */
+  .nk-conta { grid-template-columns: minmax(0, 1fr) !important; padding: 72px 16px 32px !important; gap: 18px !important; }
+  .nk-conta-nav {
+    position: sticky !important; top: 56px !important; z-index: 20 !important;
+    flex-direction: row !important; gap: 6px !important; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -16px !important; padding: 8px 16px !important; background: rgba(23, 20, 17, 0.96);
+    border-bottom: 1px solid rgba(240, 238, 233, 0.06);
+  }
+  .nk-conta-nav::-webkit-scrollbar { display: none; }
+  .nk-conta-nav > div:first-child { display: none !important; }
+  .nk-conta-group { display: contents !important; }
+  .nk-conta-group > span { display: none !important; }
+  .nk-conta-link {
+    flex-shrink: 0; white-space: nowrap; height: 38px !important; border-left: 0 !important;
+    border-radius: 999px !important; border: 1px solid rgba(240, 238, 233, 0.12) !important;
+  }
+  .nk-conta h1 { font-size: 36px !important; }
+
+  /* ---- páginas com cabeçalho próprio (Calendário, Explorar, Leituras) ---- */
+  .nk-page { padding: 76px 16px 32px !important; gap: 22px !important; }
+  .nk-page-top { padding: 76px 16px 0 !important; }
+  .nk-page h1, .nk-page-top h1 { font-size: 40px !important; }
+  .nk-show-m { display: flex !important; }
+
+  /* Explorar: filtros recolhidos atrás do botão "Filtros" */
+  .nk-explorar { grid-template-columns: minmax(0, 1fr) !important; padding: 16px 16px 40px !important; gap: 16px !important; }
+  .nk-filters { display: none !important; position: static !important; max-height: none !important; }
+  .nk-filters.is-open { display: flex !important; padding: 16px !important; border-radius: 14px; background: #1a1714; border: 1px solid rgba(219, 175, 87, 0.18); }
+
+  /* a barra nunca cobre conteúdo nem botões */
+  html.nk-has-mnav body { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  html.nk-has-mnav .nk-toast { bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+  /* barra de ação própria da página da obra fica logo acima da navegação */
+  html.nk-has-mnav .nk-above-nav { bottom: calc(60px + env(safe-area-inset-bottom)) !important; padding-bottom: 12px !important; }
+  html.nk-has-mnav .nk-toast-hi { bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+  html.nk-has-mnav body:has(.nk-above-nav) { padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
+}
+
+/* tablet: o header de visitante não comporta os dois botões ao lado da navegação */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nk-hdr a[href="/entrar?modo=criar"] { display: none !important; }
+}
+
+/* modo imersivo: player em tela cheia */
+:fullscreen ~ .nk-mnav, body:has(:fullscreen) .nk-mnav { display: none !important; }

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#0B0A09;color:#F0EEE9;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#DBAF57;text-decoration:none}a:hover{color:#F0EEE9}
+*{box-sizing:border-box}
+input::placeholder{color:#8F897D}
+input[type=range]{accent-color:#DBAF57}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+</style>
+</helmet>
+<div ref="{{ rootRef }}" onMouseMove="{{ wake }}" style="position:fixed;inset:0;background:{{ readerBg }};transition:background .25s;overflow:hidden">
+
+  <sc-if value="{{ vertical }}" hint-placeholder-val="{{ true }}">
+    <div ref="{{ scrollRef }}" onScroll="{{ onScroll }}" style="position:absolute;inset:0;overflow-y:auto;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#3A342E transparent">
+      <div onClick="{{ tapToggle }}" style="width:{{ colW }};max-width:{{ colMax }};margin:0 auto;display:flex;flex-direction:column;padding-top:{{ topPad }}">
+        <sc-for list="{{ segs }}" as="g" hint-placeholder-count="4">
+          <div data-seg="{{ g.i }}" style="position:relative;width:100%;aspect-ratio:{{ g.ratio }};background-color:#1A1714;background-image:{{ g.bg }};background-size:{{ g.size }};background-position:{{ g.pos }}">
+            <span style="position:absolute;inset:0;background:{{ g.shade }}"></span>
+            <span style="position:absolute;right:8px;bottom:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(240,238,233,.45)">{{ g.label }}</span>
+          </div>
+        </sc-for>
+        <div ref="{{ endRef }}" style="padding:56px 24px 140px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;background:#0B0A09">
+          <span style="width:12px;height:12px;transform:rotate(45deg);background:#DBAF57"></span>
+          <span style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;line-height:1">{{ endTitle }}</span>
+          <span style="font-size:14px;color:#B7B1A4;max-width:360px">{{ endText }}</span>
+          <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:6px">
+            <sc-if value="{{ hasNextCh }}" hint-placeholder-val="{{ true }}"><button onClick="{{ goNextCh }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 22px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A">{{ nextChLabel }}</button></sc-if>
+            <a href="ObraLeitura.dc.html" style="height:46px;display:flex;align-items:center;padding:0 20px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px;color:#F0EEE9">Voltar à obra</a>
+            <button onClick="{{ showDiscussion }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 16px;font-size:14px;color:#B7B1A4" style-hover="color:#F0EEE9">Ver discussão do capítulo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ paged }}" hint-placeholder-val="{{ false }}">
+    <div ref="{{ pagedRef }}" style="position:absolute;inset:0;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;padding:{{ pagedPad }}">
+      <div style="display:flex;flex-direction:{{ spreadDir }};gap:0;flex-shrink:0;margin:auto">
+        <sc-for list="{{ spread }}" as="g" hint-placeholder-count="1">
+          <div style="position:relative;height:{{ pageH }};aspect-ratio:2/3;background-color:#1A1714;background-image:{{ g.bg }};background-size:cover;background-position:{{ g.pos }};box-shadow:0 10px 40px rgba(0,0,0,.4)">
+            <span style="position:absolute;inset:0;background:{{ g.shade }}"></span>
+            <span style="position:absolute;right:8px;bottom:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(240,238,233,.5)">{{ g.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <button onClick="{{ zoneLeft }}" aria-label="{{ leftLabel }}" style="all:unset;position:absolute;left:0;top:0;bottom:0;width:30%;cursor:{{ zoneCursorL }}"></button>
+    <button onClick="{{ tapToggle }}" aria-label="Mostrar controles" style="all:unset;position:absolute;left:30%;right:30%;top:0;bottom:0;cursor:default"></button>
+    <button onClick="{{ zoneRight }}" aria-label="{{ rightLabel }}" style="all:unset;position:absolute;right:0;top:0;bottom:0;width:30%;cursor:{{ zoneCursorR }}"></button>
+    <sc-if value="{{ pagedEnd }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(11,10,9,.92);padding:24px">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;max-width:420px">
+          <span style="width:12px;height:12px;transform:rotate(45deg);background:#DBAF57"></span>
+          <span style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;line-height:1">{{ endTitle }}</span>
+          <span style="font-size:14px;color:#B7B1A4">{{ endText }}</span>
+          <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:6px">
+            <sc-if value="{{ hasNextCh }}" hint-placeholder-val="{{ true }}"><button onClick="{{ goNextCh }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 22px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600">{{ nextChLabel }}</button></sc-if>
+            <a href="ObraLeitura.dc.html" style="height:46px;display:flex;align-items:center;padding:0 20px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px;color:#F0EEE9">Voltar à obra</a>
+            <button onClick="{{ backFromEnd }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 16px;font-size:14px;color:#B7B1A4">Rever última página</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ resumeAsk }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(11,10,9,.7);padding:24px">
+      <div style="width:min(400px,100%);padding:26px;border-radius:16px;background:#1A1714;border:1px solid rgba(219,175,87,.3);display:flex;flex-direction:column;gap:16px">
+        <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">Capítulo {{ ch }}</span>
+        <span style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;line-height:1.05">Continuar de onde parou?</span>
+        <span style="font-size:14px;color:#B7B1A4">{{ resumeText }}</span>
+        <span style="display:block;height:3px;border-radius:2px;background:rgba(240,238,233,.15);overflow:hidden"><span style="display:block;height:100%;width:{{ resumePct }};background:#DBAF57"></span></span>
+        <div style="display:flex;gap:10px">
+          <button onClick="{{ resumeYes }}" style="all:unset;cursor:pointer;flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600">Continuar</button>
+          <button onClick="{{ resumeNo }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 18px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px">Do início</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;left:0;right:0;top:0;z-index:20;transform:translateY({{ topY }});transition:transform .25s ease;background:rgba(18,16,14,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(219,175,87,.12);padding:env(safe-area-inset-top) 0 0">
+    <div style="height:60px;display:flex;align-items:center;gap:10px;padding:0 clamp(10px,2vw,20px)">
+      <a href="ObraLeitura.dc.html" aria-label="Voltar à obra" title="Voltar à obra" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:#F0EEE9;flex-shrink:0" style-hover="background:rgba(240,238,233,.06);color:#DBAF57"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg></a>
+      <div style="display:flex;flex-direction:column;min-width:0;flex:0 1 auto">
+        <span style="font-size:12px;color:#B7B1A4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Solo Leveling</span>
+        <button onClick="{{ openPicker }}" data-nk-rmenu="1" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;white-space:nowrap" style-hover="color:#DBAF57">{{ chTitle }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"></path></svg></button>
+      </div>
+      <span style="flex:1"></span>
+      <span style="font-size:12px;color:#8F897D;white-space:nowrap;display:{{ syncDisplay }}">{{ syncText }}</span>
+      <button onClick="{{ addBookmark }}" aria-label="Marcar esta posição" title="Marcar esta posição (B)" style="all:unset;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:{{ bmColor }}" style-hover="background:rgba(240,238,233,.06)"><svg width="18" height="18" viewBox="0 0 24 24" fill="{{ bmFill }}" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></button>
+      <button onClick="{{ toggleSettings }}" data-nk-rmenu="1" aria-label="Preferências de leitura" title="Preferências de leitura" style="all:unset;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:{{ setColor }}" style-hover="background:rgba(240,238,233,.06)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"></path></svg></button>
+      <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleFs }}" aria-label="{{ fsLabel }}" title="{{ fsLabel }} (F)" style="all:unset;cursor:pointer;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:#F0EEE9" style-hover="background:rgba(240,238,233,.06);color:#DBAF57"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="{{ fsPath }}"></path></svg></button></sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ showProgressLine }}" hint-placeholder-val="{{ true }}">
+    <span style="position:absolute;left:0;top:0;z-index:19;height:2px;width:{{ pctW }};background:#DBAF57;transition:width .15s;pointer-events:none"></span>
+  </sc-if>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;z-index:20;transform:translateY({{ botY }});transition:transform .25s ease;background:rgba(18,16,14,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(219,175,87,.12);padding:0 0 env(safe-area-inset-bottom)">
+    <div style="max-width:980px;margin:0 auto;display:flex;align-items:center;gap:clamp(6px,1.4vw,14px);padding:10px clamp(10px,2vw,20px)">
+      <button onClick="{{ goPrevCh }}" aria-label="Capítulo anterior" title="Capítulo anterior" style="all:unset;cursor:{{ prevCursor }};height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:10px;font-size:13px;color:#F0EEE9;opacity:{{ prevOpacity }};flex-shrink:0" style-hover="background:rgba(240,238,233,.06)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg><sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}"><span>Anterior</span></sc-if></button>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <input type="range" min="0" max="{{ sliderMax }}" value="{{ sliderVal }}" onChange="{{ onSlider }}" aria-label="Posição no capítulo" style="width:100%;direction:{{ sliderDir }}">
+        <span style="display:flex;justify-content:space-between;font-size:11px;color:#B7B1A4"><span style="font-family:'JetBrains Mono',monospace">{{ posText }}</span><span>{{ modeText }}</span></span>
+      </div>
+      <button onClick="{{ openPicker }}" data-nk-rmenu="1" style="all:unset;cursor:pointer;height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:10px;border:1px solid rgba(219,175,87,.3);font-size:13px;font-weight:500;color:#F0EEE9;flex-shrink:0" style-hover="border-color:#DBAF57"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Capítulos</button>
+      <button onClick="{{ goNextCh }}" aria-label="Próximo capítulo" title="Próximo capítulo" style="all:unset;cursor:{{ nextCursor }};height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:10px;font-size:13px;color:#F0EEE9;opacity:{{ nextOpacity }};flex-shrink:0" style-hover="background:rgba(240,238,233,.06)"><sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}"><span>Próximo</span></sc-if><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"></path></svg></button>
+    </div>
+  </div>
+
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePanels }}" style="position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.45)"></div>
+    <aside data-nk-rmenu="1" style="{{ panelStyle }};z-index:41;background:#141210;border:1px solid rgba(219,175,87,.2);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 18px 10px">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;line-height:1">Capítulos</span>
+        <button onClick="{{ closePanels }}" aria-label="Fechar" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:#B7B1A4" style-hover="background:#221F1B;color:#F0EEE9">×</button>
+      </div>
+      <div style="display:flex;gap:4px;margin:0 18px 12px;padding:4px;border-radius:999px;background:#1A1714;border:1px solid rgba(240,238,233,.08)">
+        <sc-for list="{{ pickTabs }}" as="t" hint-placeholder-count="2"><button onClick="{{ t.pick }}" style="all:unset;cursor:pointer;flex:1;height:34px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;font-size:13px;font-weight:500;background:{{ t.bg }};color:{{ t.color }}">{{ t.label }}<sc-if value="{{ t.hasCount }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7">{{ t.count }}</span></sc-if></button></sc-for>
+      </div>
+      <sc-if value="{{ pickChapters }}" hint-placeholder-val="{{ true }}">
+        <div style="margin:0 18px 10px;height:42px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:10px;border:1px solid rgba(240,238,233,.14);background:#1A1714">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B7B1A4" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input type="number" min="0" max="200" value="{{ pickQ }}" onChange="{{ onPickQ }}" placeholder="Número do capítulo" style="flex:1;min-width:0;height:100%;background:transparent;border:0;outline:none;color:#F0EEE9;font-family:Inter,sans-serif;font-size:14px">
+        </div>
+        <div ref="{{ pickListRef }}" style="flex:1;overflow-y:auto;padding:0 10px 14px;display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ pickList }}" as="c" hint-placeholder-count="8">
+            <button data-pick="{{ c.n }}" onClick="{{ c.go }}" style="all:unset;cursor:{{ c.cursor }};display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:{{ c.bg }};border:1px solid {{ c.border }};opacity:{{ c.opacity }}" style-hover="background:#1E1B18">
+              <span style="width:40px;font-family:'JetBrains Mono',monospace;font-size:15px;text-align:center;color:{{ c.numColor }}">{{ c.n }}</span>
+              <span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span style="font-size:14px;font-weight:500">{{ c.title }}</span><span style="font-size:12px;color:{{ c.stateColor }}">{{ c.state }}</span></span>
+              <sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8F897D" stroke-width="2.6"><path d="M5 12l5 5 9-10"></path></svg></sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ pickBookmarks }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow-y:auto;padding:0 10px 14px;display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:12px;line-height:1.5;color:#8F897D;padding:0 8px 8px">Marcadores ficam separados do progresso automático: abrir um deles não muda onde você parou.</span>
+          <sc-for list="{{ bookmarks }}" as="b" hint-placeholder-count="0">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:#1A1714">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#DBAF57" stroke="#DBAF57" stroke-width="1.8" style="flex-shrink:0"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+              <button onClick="{{ b.go }}" style="all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;flex:1;min-width:0"><span style="font-size:14px;font-weight:500">Capítulo {{ b.ch }} · {{ b.where }}</span><span style="font-size:12px;color:#B7B1A4">{{ b.when }}</span></button>
+              <button onClick="{{ b.remove }}" aria-label="Remover marcador" style="all:unset;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8F897D;font-size:18px" style-hover="background:#221F1B;color:#F0EEE9">×</button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noBookmarks }}" hint-placeholder-val="{{ false }}"><span style="padding:28px 12px;text-align:center;font-size:13px;color:#B7B1A4">Nenhum marcador ainda. Use o ícone de marcador no topo para salvar uma passagem.</span></sc-if>
+        </div>
+      </sc-if>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ setOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePanels }}" style="position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.35)"></div>
+    <aside data-nk-rmenu="1" style="{{ panelStyle }};z-index:41;background:#141210;border:1px solid rgba(219,175,87,.2);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 18px 6px">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:500;line-height:1">Preferências de leitura</span>
+        <button onClick="{{ closePanels }}" aria-label="Fechar" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:#B7B1A4" style-hover="background:#221F1B;color:#F0EEE9">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:8px 18px 20px;display:flex;flex-direction:column;gap:20px">
+        <sc-if value="{{ editionNote }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;line-height:1.5;color:#D9D5CC;padding:10px 12px;border-radius:10px;background:#1A1714;border:1px solid rgba(219,175,87,.2)">Esta edição foi feita para rolagem vertical. No modo paginado, cada segmento vira uma página.</span></sc-if>
+        <sc-for list="{{ prefGroups }}" as="g" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">{{ g.label }}</span>
+            <div style="display:grid;grid-template-columns:repeat({{ g.cols }},minmax(0,1fr));gap:6px">
+              <sc-for list="{{ g.opts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.pick }}" title="{{ o.hint }}" style="all:unset;cursor:{{ o.cursor }};min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 8px;border-radius:10px;text-align:center;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};opacity:{{ o.opacity }}">
+                  <span style="font-size:13px;font-weight:500">{{ o.label }}</span>
+                  <sc-if value="{{ o.hasSub }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;opacity:.75">{{ o.sub }}</span></sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">Zoom<span style="font-family:'JetBrains Mono',monospace;letter-spacing:0;color:#F0EEE9">{{ zoomText }}</span></span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button onClick="{{ zoomOut }}" aria-label="Diminuir zoom" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:8px;border:1px solid rgba(240,238,233,.15);display:flex;align-items:center;justify-content:center;font-size:18px">−</button>
+            <input type="range" min="50" max="200" step="10" value="{{ zoomVal }}" onChange="{{ onZoom }}" aria-label="Zoom" style="flex:1">
+            <button onClick="{{ zoomIn }}" aria-label="Aumentar zoom" style="all:unset;cursor:pointer;width:36px;height:36px;border-radius:8px;border:1px solid rgba(240,238,233,.15);display:flex;align-items:center;justify-content:center;font-size:18px">+</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;border-top:1px solid rgba(240,238,233,.08);padding-top:6px">
+          <sc-for list="{{ prefToggles }}" as="r" hint-placeholder-count="3">
+            <button onClick="{{ r.toggle }}" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0">
+              <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">{{ r.label }}</span><span style="font-size:12px;color:#8F897D">{{ r.desc }}</span></span>
+              <span style="width:42px;height:24px;border-radius:999px;background:{{ r.track }};position:relative;flex-shrink:0"><span style="position:absolute;top:3px;left:{{ r.x }};width:18px;height:18px;border-radius:50%;background:{{ r.knob }};transition:left .2s"></span></span>
+            </button>
+          </sc-for>
+        </div>
+        <span style="font-size:12px;line-height:1.6;color:#8F897D">{{ shortcutText }}</span>
+      </div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:10px;height:44px;padding:0 18px;border-radius:999px;background:#2D2924;border:1px solid rgba(219,175,87,.4);font-size:13px;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.5)"><span style="width:7px;height:7px;transform:rotate(45deg);background:#DBAF57"></span>{{ toastText }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  SEGS = 24; LAST = 200; READ_TO = 110;
+  RATIOS = ['720/1100', '720/900', '720/1400', '720/760', '720/1250', '720/980'];
+  state = { d: null, ch: 111, mode: 'vertical', dir: 'auto', fit: 'width', zoom: 100, theme: 'black', offerNext: true, showPct: true, autoNext: false,
+    pct: 0, seg: 0, off: 0, page: 0, prog: {}, bm: [], resume: false, ctrl: true, panel: null, pickTab: 'ch', pickQ: '', wide: true, fs: false, sync: 'idle', pagedEnd: false, toast: null };
+  rootRef = React.createRef(); scrollRef = React.createRef(); endRef = React.createRef(); pagedRef = React.createRef(); pickListRef = React.createRef();
+  load(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  componentDidMount() {
+    const prefs = this.load('nk-reader-prefs', {});
+    const def = {}; for (let n = 0; n <= this.READ_TO; n++) def[n] = { done: true, pct: 1 }; def[111] = { seg: 9, off: 0.3, page: 9, pct: 0.4 };
+    const prog = { ...def, ...this.load('nk-reader-progress', {}) };
+    const q = parseInt(new URLSearchParams(location.search).get('cap'), 10);
+    const ch = q >= 0 && q <= this.LAST ? q : 111;
+    this.setState({ ...prefs, prog, bm: this.load('nk-reader-bm', []) }, () => this.enter(ch, true));
+    fetch('data/leitura-obra.json').then(r => r.json()).then(d => this.setState({ d }));
+    document.addEventListener('keydown', this.onKey); document.addEventListener('fullscreenchange', this.onFs);
+    window.addEventListener('resize', this.onResize); this.onResize();
+    window.addEventListener('beforeunload', this.flush);
+    this.idle = setInterval(() => { const s = this.state; if (s.ctrl && !s.panel && !s.resume && Date.now() - (this.lastMove || 0) > 3000 && this.started) this.setState({ ctrl: false }); }, 500);
+  }
+  componentWillUnmount() { this.flush(); clearInterval(this.idle); document.removeEventListener('keydown', this.onKey); document.removeEventListener('fullscreenchange', this.onFs); window.removeEventListener('resize', this.onResize); window.removeEventListener('beforeunload', this.flush); }
+  onResize = () => { const w = window.innerWidth >= 760; if (w !== this.state.wide) this.setState({ wide: w, mode: !w && this.state.mode === 'double' ? 'single' : this.state.mode }); };
+  onFs = () => this.setState({ fs: !!document.fullscreenElement });
+  savePrefs(patch) { this.setState(patch, () => { const s = this.state; this.store('nk-reader-prefs', { mode: s.mode, dir: s.dir, fit: s.fit, zoom: s.zoom, theme: s.theme, offerNext: s.offerNext, showPct: s.showPct, autoNext: s.autoNext }); }); }
+  flash(t) { clearTimeout(this.tt); this.setState({ toast: t }); this.tt = setTimeout(() => this.setState({ toast: null }), 2200); }
+  flush = () => {
+    const s = this.state; if (s.ch == null || !this.started) return;
+    const cur = s.prog[s.ch] || {};
+    const prog = { ...s.prog, [s.ch]: { ...cur, seg: s.seg, off: s.off, page: s.page, pct: s.pct, at: Date.now() } };
+    this.store('nk-reader-progress', prog); this.setState({ prog, sync: 'saved', savedAt: Date.now() });
+  };
+  queueSave() { this.setState({ sync: 'pending' }); clearTimeout(this.sv); this.sv = setTimeout(this.flush, 1500); }
+  enter(ch, first) {
+    const p = this.state.prog[ch] || {};
+    const hasPos = !p.done && p.pct > 0.03;
+    this.started = false;
+    this.setState({ ch, pct: 0, seg: 0, off: 0, page: 0, pagedEnd: false, resume: hasPos, panel: null, pickQ: '', ctrl: true });
+    try { history.replaceState(null, '', `?cap=${ch}`); } catch (e) {}
+    setTimeout(() => { const el = this.scrollRef.current; if (el) el.scrollTop = 0; if (!hasPos) this.started = true; }, 30);
+  }
+  goCh(n) {
+    if (n < 0 || n > this.LAST || n === this.state.ch) return;
+    if (this.state.pt !== false && n >= 196 && n <= 200) { this.flash('Capítulo em tradução para português'); return; }
+    this.flush(); this.enter(n);
+  }
+  restore(p) {
+    const s = this.state;
+    if (s.mode === 'vertical') {
+      setTimeout(() => {
+        const box = this.scrollRef.current; if (!box) return;
+        const el = box.querySelector(`[data-seg="${p.seg || 0}"]`);
+        if (el) box.scrollTop = el.offsetTop + (p.off || 0) * el.offsetHeight - 70;
+        this.started = true; this.onScroll();
+      }, 40);
+    } else { this.setState({ page: Math.min(this.SEGS - 1, p.page || Math.round((p.pct || 0) * (this.SEGS - 1))) }); this.started = true; }
+  }
+  onScroll = () => {
+    const box = this.scrollRef.current; if (!box) return;
+    const st = box.scrollTop; const max = box.scrollHeight - box.clientHeight;
+    const endTop = this.endRef.current ? this.endRef.current.offsetTop : box.scrollHeight;
+    const pct = Math.max(0, Math.min(1, (st + box.clientHeight * 0.5) / endTop));
+    let seg = 0, off = 0; const probe = st + 70;
+    const els = box.querySelectorAll('[data-seg]');
+    for (const el of els) { if (el.offsetTop <= probe) { seg = +el.dataset.seg; off = (probe - el.offsetTop) / el.offsetHeight; } }
+    const dy = st - (this.lastSt || 0); this.lastSt = st;
+    const patch = { pct, seg, off: Math.min(1, off) };
+    if (this.started && Math.abs(dy) > 6 && !this.state.panel) patch.ctrl = dy < 0 && st > 40 ? this.state.ctrl : false;
+    if (st < 40) patch.ctrl = true;
+    this.setState(patch);
+    if (this.started) { this.queueSave(); if (st >= max - 4 || st + box.clientHeight >= endTop + 60) this.complete(); }
+  };
+  complete() {
+    const s = this.state; const cur = s.prog[s.ch] || {}; if (cur.done) return;
+    const prog = { ...s.prog, [s.ch]: { ...cur, done: true, pct: 1 } };
+    this.store('nk-reader-progress', prog); this.setState({ prog });
+    if (s.autoNext && s.ch < this.LAST) setTimeout(() => this.goCh(s.ch + 1), 1200);
+  }
+  wake = () => { this.lastMove = Date.now(); if (!this.state.ctrl && this.state.wide && this.state.mode !== 'vertical') this.setState({ ctrl: true }); };
+  fwd() { const s = this.state; const step = s.mode === 'double' ? 2 : 1; if (s.page + step > this.SEGS - 1) { this.setState({ pagedEnd: true }); this.complete(); return; } this.setPage(s.page + step); }
+  back() { const s = this.state; if (s.pagedEnd) { this.setState({ pagedEnd: false }); return; } const step = s.mode === 'double' ? 2 : 1; this.setPage(Math.max(0, s.page - step)); }
+  setPage(p) { this.setState({ page: p, pct: p / (this.SEGS - 1), pagedEnd: false }); this.started = true; this.queueSave(); }
+  rtl() { return this.state.dir === 'rtl'; }
+  setMode(m) {
+    const s = this.state; if (m === s.mode) return;
+    if (m === 'double' && !s.wide) return;
+    const pct = s.pct;
+    this.savePrefs({ mode: m, pagedEnd: false });
+    if (m === 'vertical') this.restore({ seg: Math.round(pct * (this.SEGS - 1)), off: 0 });
+    else { let page = Math.round(pct * (this.SEGS - 1)); if (m === 'double' && page % 2 === 1) page -= 1; this.setState({ page }); }
+  }
+  onKey = e => {
+    if (/input|textarea/i.test((document.activeElement || {}).tagName || '')) return;
+    const s = this.state; const k = e.key;
+    if (k === 'Escape') { this.setState({ panel: null }); return; }
+    if (k === 'f' || k === 'F') { this.toggleFs(); return; }
+    if (k === 'b' || k === 'B') { this.addBookmark(); return; }
+    if (s.mode !== 'vertical' && (k === 'ArrowRight' || k === 'ArrowLeft')) { e.preventDefault(); const forward = (k === 'ArrowRight') !== this.rtl(); forward ? this.fwd() : this.back(); }
+  };
+  toggleFs = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else this.rootRef.current.requestFullscreen(); } catch (e) {} };
+  addBookmark = () => {
+    const s = this.state; const where = s.mode === 'vertical' ? `${Math.round(s.pct * 100)}%` : `página ${s.page + 1}`;
+    const bm = [{ id: Date.now(), ch: s.ch, seg: s.seg, off: s.off, page: s.page, pct: s.pct, where, at: Date.now() }, ...s.bm];
+    this.store('nk-reader-bm', bm); this.setState({ bm }); this.flash(`Marcador salvo · capítulo ${s.ch}, ${where}`);
+  };
+  ago(t) { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`; }
+  renderVals() {
+    const s = this.state; const d = s.d;
+    const bg = u => u ? `url("${u}")` : 'none';
+    const pool = d ? [d.banner, d.anime.banner, d.cover, d.anime.cover, ...d.chars.map(c => c.img)] : [];
+    const P = ['center 20%', 'center 50%', 'center 80%', '30% 40%', '70% 30%', 'center top'];
+    const shades = ['linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.25))', 'linear-gradient(0deg,rgba(0,0,0,0),rgba(0,0,0,.2))', 'rgba(0,0,0,.08)', 'radial-gradient(circle at 50% 40%,rgba(0,0,0,0),rgba(0,0,0,.45))'];
+    const segs = pool.length ? Array.from({ length: this.SEGS }, (_, i) => ({ i, ratio: this.RATIOS[(i + s.ch) % this.RATIOS.length], bg: bg(pool[(s.ch * 3 + i * 5) % pool.length]), size: 'cover', pos: P[(i + s.ch) % P.length], shade: shades[i % shades.length], label: `seg. ${String(i + 1).padStart(2, '0')}` })) : [];
+    const vertical = s.mode === 'vertical'; const paged = !vertical; const dbl = s.mode === 'double';
+    const rtl = this.rtl();
+    const spreadIdx = dbl ? [s.page, s.page + 1].filter(i => i < this.SEGS) : [s.page];
+    const spread = segs.length ? spreadIdx.map(i => ({ ...segs[i], label: `p. ${i + 1}` })) : [];
+    const zoom = s.zoom / 100;
+    const panelWide = s.wide;
+    const pc = s.prog;
+    const isDone = n => !!(pc[n] && pc[n].done);
+    const nextLocked = n => n >= 196 && n <= 200;
+    const chName = n => n === 0 ? 'Prólogo' : n > 179 ? `História paralela ${n - 179}` : `Capítulo ${n}`;
+    const pq = parseInt(s.pickQ, 10);
+    const pickNums = []; for (let n = this.LAST; n >= 0; n--) pickNums.push(n);
+    const pickList = (isNaN(pq) ? pickNums : pickNums.filter(n => String(n).startsWith(String(pq)))).map(n => {
+      const cur = n === s.ch; const done = isDone(n); const locked = nextLocked(n); const p = pc[n] || {};
+      return { n, title: chName(n), done: done && !cur, go: () => this.goCh(n), cursor: locked ? 'not-allowed' : 'pointer',
+        state: cur ? 'Lendo agora' : locked ? 'Em tradução · disponível em inglês' : done ? 'Concluído' : p.pct > 0.03 ? `Parou em ${Math.round(p.pct * 100)}%` : 'Disponível',
+        stateColor: cur ? '#DBAF57' : '#B7B1A4', numColor: cur ? '#DBAF57' : done ? '#8F897D' : '#F0EEE9',
+        bg: cur ? 'rgba(219,175,87,.1)' : 'transparent', border: cur ? 'rgba(219,175,87,.45)' : 'transparent', opacity: locked ? 0.5 : 1 };
+    });
+    const choice = (on, dis) => ({ bg: on ? 'rgba(219,175,87,.14)' : '#1A1714', border: on ? '#DBAF57' : 'rgba(240,238,233,.1)', color: on ? '#DBAF57' : '#F0EEE9', opacity: dis ? 0.4 : 1, cursor: dis ? 'not-allowed' : 'pointer' });
+    const opt = (label, sub, on, pick, dis, hint) => ({ label, sub: sub || '', hasSub: !!sub, ...choice(on, dis), pick: dis ? () => {} : pick, hint: hint || '' });
+    const prefGroups = [
+      { label: 'Modo de leitura', cols: 3, opts: [opt('Vertical', 'contínuo', vertical, () => this.setMode('vertical')), opt('Página única', '', s.mode === 'single', () => this.setMode('single')), opt('Página dupla', s.wide ? '' : 'só no computador', dbl, () => this.setMode('double'), !s.wide)] },
+      { label: 'Direção das páginas', cols: 3, opts: [opt('Automática', 'esq. → dir.', s.dir === 'auto', () => this.savePrefs({ dir: 'auto' }), vertical), opt('Oriental', 'dir. → esq.', s.dir === 'rtl', () => this.savePrefs({ dir: 'rtl' }), vertical), opt('Ocidental', 'esq. → dir.', s.dir === 'ltr', () => this.savePrefs({ dir: 'ltr' }), vertical)] },
+      { label: 'Ajuste', cols: 2, opts: [opt('Largura', '', s.fit === 'width', () => this.savePrefs({ fit: 'width' })), opt('Altura', vertical ? 'só paginado' : '', s.fit === 'height', () => this.savePrefs({ fit: 'height' }), vertical)] },
+      { label: 'Fundo', cols: 3, opts: [opt('Preto', '', s.theme === 'black', () => this.savePrefs({ theme: 'black' })), opt('Cinza', '', s.theme === 'gray', () => this.savePrefs({ theme: 'gray' })), opt('Branco', '', s.theme === 'white', () => this.savePrefs({ theme: 'white' }))] }
+    ];
+    const tog = on => ({ track: on ? '#DBAF57' : '#2D2924', knob: on ? '#1A1714' : '#B7B1A4', x: on ? '21px' : '3px' });
+    const prefToggles = [
+      { label: 'Oferecer próximo capítulo ao terminar', desc: 'Mostra o resumo no fim do capítulo', on: s.offerNext, toggle: () => this.savePrefs({ offerNext: !s.offerNext }) },
+      { label: 'Avançar automaticamente', desc: 'Abre o próximo capítulo sozinho. Desligado por padrão', on: s.autoNext, toggle: () => this.savePrefs({ autoNext: !s.autoNext }) },
+      { label: 'Mostrar indicador de progresso', desc: 'Linha dourada fina no topo', on: s.showPct, toggle: () => this.savePrefs({ showPct: !s.showPct }) }
+    ].map(r => ({ ...r, ...tog(r.on) }));
+    const fitH = paged && s.fit === 'height';
+    const pageH = fitH ? `calc((100vh - ${s.ctrl ? 0 : 0}px) * ${zoom})` : dbl ? `calc(min(100vh, (100vw - 40px) * 0.75) * ${zoom})` : `calc(min(100vh * 1.4, (100vw - 40px) * 1.5) * ${zoom})`;
+    const p = pc[s.ch] || {};
+    const hasNext = s.ch < this.LAST;
+    const nextName = hasNext ? chName(s.ch + 1) : '';
+    const bmHere = s.bm.some(b => b.ch === s.ch && Math.abs(b.pct - s.pct) < 0.03);
+    const sinceSaved = s.savedAt ? Math.round((Date.now() - s.savedAt) / 1000) : null;
+    const leftIsForward = rtl;
+    return {
+      rootRef: this.rootRef, scrollRef: this.scrollRef, endRef: this.endRef, pagedRef: this.pagedRef, pickListRef: this.pickListRef,
+      readerBg: { black: '#0B0A09', gray: '#2A2826', white: '#EDEAE4' }[s.theme],
+      vertical, paged, segs, wide: s.wide, ch: s.ch,
+      colW: `calc(${s.wide ? 720 : 100 * 7.2}px * ${zoom})`, colMax: zoom > 1 ? 'none' : '100%', topPad: '0px',
+      onScroll: this.onScroll,
+      tapToggle: () => { if (s.panel) { this.setState({ panel: null }); return; } this.lastMove = Date.now(); this.setState({ ctrl: !s.ctrl }); },
+      spread, spreadDir: rtl ? 'row-reverse' : 'row', pageH, pagedAlign: fitH || zoom > 1 ? 'flex-start' : 'center', pagedPad: fitH ? '0' : '20px',
+      zoneLeft: () => leftIsForward ? this.fwd() : this.back(), zoneRight: () => leftIsForward ? this.back() : this.fwd(),
+      leftLabel: leftIsForward ? 'Próxima página' : 'Página anterior', rightLabel: leftIsForward ? 'Página anterior' : 'Próxima página',
+      zoneCursorL: leftIsForward ? 'e-resize' : 'w-resize', zoneCursorR: leftIsForward ? 'w-resize' : 'e-resize',
+      pagedEnd: s.pagedEnd, backFromEnd: () => this.setState({ pagedEnd: false }),
+      endTitle: hasNext ? 'Capítulo concluído' : 'Você chegou ao fim de Solo Leveling',
+      endText: hasNext ? (s.offerNext ? `Você terminou ${chName(s.ch).toLowerCase()}. ${nextLocked(s.ch + 1) ? 'O próximo ainda está em tradução para português.' : `A seguir: ${nextName}.`}` : `Você terminou ${chName(s.ch).toLowerCase()}.`) : 'A história continua em Solo Leveling: Ragnarok.',
+      hasNextCh: hasNext && s.offerNext && !nextLocked(s.ch + 1), nextChLabel: `Ler ${nextName.toLowerCase()}`,
+      goNextCh: () => this.goCh(s.ch + 1), goPrevCh: () => this.goCh(s.ch - 1),
+      prevCursor: s.ch > 0 ? 'pointer' : 'not-allowed', prevOpacity: s.ch > 0 ? 1 : 0.4,
+      nextCursor: hasNext ? 'pointer' : 'not-allowed', nextOpacity: hasNext && !nextLocked(s.ch + 1) ? 1 : 0.4,
+      showDiscussion: () => this.flash('A discussão do capítulo abre numa página própria, com aviso de spoilers'),
+      resumeAsk: s.resume, resumePct: `${Math.round((p.pct || 0) * 100)}%`,
+      resumeText: `Você parou em ${Math.round((p.pct || 0) * 100)}% deste capítulo${p.at ? `, ${this.ago(p.at)}` : ', ontem'}. A posição é a mesma em todos os seus dispositivos.`,
+      resumeYes: () => { this.setState({ resume: false }); this.restore(p); }, resumeNo: () => { this.setState({ resume: false }); this.started = true; },
+      topY: s.ctrl ? '0' : '-110%', botY: s.ctrl ? '0' : '110%',
+      chTitle: chName(s.ch),
+      syncDisplay: s.wide ? 'block' : 'none',
+      syncText: s.sync === 'pending' ? 'Salvando…' : s.sync === 'saved' ? (sinceSaved < 5 ? 'Progresso salvo' : `Salvo há ${sinceSaved} s`) : 'Sincronizado',
+      addBookmark: this.addBookmark, bmColor: bmHere ? '#DBAF57' : '#F0EEE9', bmFill: bmHere ? '#DBAF57' : 'none',
+      toggleSettings: () => this.setState({ panel: s.panel === 'set' ? null : 'set', ctrl: true }), setColor: s.panel === 'set' ? '#DBAF57' : '#F0EEE9',
+      toggleFs: this.toggleFs, fsLabel: s.fs ? 'Sair da tela cheia' : 'Tela cheia', fsPath: s.fs ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+      showProgressLine: s.showPct && !s.ctrl, pctW: `${Math.round(s.pct * 100)}%`,
+      sliderMax: vertical ? 100 : this.SEGS - 1, sliderVal: vertical ? Math.round(s.pct * 100) : s.page, sliderDir: paged && rtl ? 'rtl' : 'ltr',
+      onSlider: e => {
+        const v = +e.target.value;
+        if (vertical) { const box = this.scrollRef.current; const endTop = this.endRef.current ? this.endRef.current.offsetTop : box.scrollHeight; box.scrollTop = v / 100 * endTop - box.clientHeight * 0.5; }
+        else this.setPage(dbl && v % 2 ? v - 1 : v);
+      },
+      posText: vertical ? `${Math.round(s.pct * 100)}% · segmento ${s.seg + 1} de ${this.SEGS}` : dbl ? `Páginas ${s.page + 1}–${Math.min(this.SEGS, s.page + 2)} de ${this.SEGS}` : `Página ${s.page + 1} de ${this.SEGS}`,
+      modeText: vertical ? 'Rolagem vertical' : `${dbl ? 'Página dupla' : 'Página única'} · ${rtl ? 'dir. → esq.' : 'esq. → dir.'}`,
+      openPicker: () => { this.setState({ panel: 'pick', pickTab: 'ch', ctrl: true }); setTimeout(() => { const box = this.pickListRef.current; const el = box && box.querySelector(`[data-pick="${s.ch}"]`); if (el) box.scrollTop = el.offsetTop - box.clientHeight / 2; }, 50); },
+      closePanels: () => this.setState({ panel: null }),
+      pickerOpen: s.panel === 'pick', setOpen: s.panel === 'set',
+      panelStyle: panelWide ? 'position:absolute;top:0;right:0;bottom:0;width:min(380px,100vw);border-width:0 0 0 1px' : 'position:absolute;left:0;right:0;bottom:0;max-height:78vh;border-radius:18px 18px 0 0;border-width:1px 0 0 0',
+      pickTabs: [['ch', 'Capítulos', null], ['bm', 'Marcadores', s.bm.length]].map(([k, l, c]) => ({ label: l, count: c, hasCount: !!c, bg: s.pickTab === k ? '#DBAF57' : 'transparent', color: s.pickTab === k ? '#1A1714' : '#F0EEE9', pick: () => this.setState({ pickTab: k }) })),
+      pickChapters: s.pickTab === 'ch', pickBookmarks: s.pickTab === 'bm',
+      pickQ: s.pickQ, onPickQ: e => this.setState({ pickQ: e.target.value }), pickList,
+      bookmarks: s.bm.map(b => ({ ...b, when: this.ago(b.at), go: () => { this.setState({ panel: null }); if (b.ch !== s.ch) { this.flush(); this.enter(b.ch); setTimeout(() => { this.setState({ resume: false }); this.restore(b); }, 60); } else this.restore(b); },
+        remove: () => { const bm = s.bm.filter(x => x.id !== b.id); this.store('nk-reader-bm', bm); this.setState({ bm }); } })),
+      noBookmarks: s.bm.length === 0,
+      editionNote: paged, prefGroups, prefToggles,
+      zoomText: `${s.zoom}%`, zoomVal: s.zoom, onZoom: e => this.savePrefs({ zoom: +e.target.value }),
+      zoomIn: () => this.savePrefs({ zoom: Math.min(200, s.zoom + 10) }), zoomOut: () => this.savePrefs({ zoom: Math.max(50, s.zoom - 10) }),
+      shortcutText: vertical ? 'Atalhos: rolagem do mouse ou setas ↑ ↓ para ler · B marca a posição · F tela cheia · Esc fecha painéis.' : `Atalhos: ${rtl ? '← avança e → volta (leitura oriental)' : '→ avança e ← volta'} · B marca a posição · F tela cheia · Esc fecha painéis.`,
+      toast: !!s.toast, toastText: s.toast || ''
+    };
+  }
+}
+</script>
+</body>
+</html>

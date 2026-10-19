@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0F0D0B;color:#F0EEE9;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#DBAF57;text-decoration:none}a:hover{color:#F0EEE9}
+*{box-sizing:border-box}
+@keyframes nkspin{to{transform:rotate(360deg)}}
+input[type=range]{accent-color:#DBAF57}
+textarea::placeholder{color:#8F897D}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#0F0D0B;display:flex;flex-direction:column">
+  <dc-import name="Header" active="" solid="{{ true }}" hint-size="100%,0px" style="position:absolute;top:0;left:0;right:0;height:0;z-index:50"></dc-import>
+
+  <div style="padding:84px clamp(16px,3.3vw,48px) 0;display:flex;flex-direction:column;gap:14px;align-items:center">
+    <div style="width:100%;max-width:{{ stageMax }};display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:40px">
+      <a href="Obra.dc.html" style="display:flex;align-items:center;gap:10px;color:#F0EEE9;min-width:0" style-hover="color:#DBAF57">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="m15 18-6-6 6-6"></path></svg>
+        <span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Solo Leveling</span><span style="font-size:12px;color:#B7B1A4">{{ crumb }}</span></span>
+      </a>
+      <span style="font-size:12px;color:#8F897D;white-space:nowrap">{{ savedText }}</span>
+    </div>
+
+    <div ref="{{ stageRef }}" onMouseMove="{{ wake }}" onMouseLeave="{{ sleepNow }}" style="position:relative;width:100%;max-width:{{ stageMax }};aspect-ratio:16/9;max-height:{{ stageMaxH }};background:#000;border-radius:{{ stageRadius }};overflow:hidden;cursor:{{ stageCursor }};user-select:none">
+      <span style="position:absolute;inset:0;background-image:{{ frameBg }};background-size:cover;background-position:{{ framePos }};filter:brightness({{ frameDim }});transition:filter .3s"></span>
+      <span onClick="{{ stageClick }}" onDoubleClick="{{ toggleFs }}" style="position:absolute;inset:0"></span>
+
+      <sc-if value="{{ showSub }}" hint-placeholder-val="{{ false }}">
+        <span style="position:absolute;left:50%;bottom:{{ subBottom }};transform:translateX(-50%);max-width:80%;text-align:center;font-size:{{ subSize }};font-weight:500;line-height:1.35;color:#fff;background:rgba(0,0,0,.55);padding:4px 12px;border-radius:4px;transition:bottom .25s;pointer-events:none">{{ subText }}</span>
+      </sc-if>
+
+      <sc-if value="{{ showBigPlay }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ togglePlay }}" aria-label="Reproduzir" style="all:unset;cursor:pointer;position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:rgba(23,20,17,.72);border:1px solid rgba(219,175,87,.6);display:flex;align-items:center;justify-content:center" style-hover="background:rgba(219,175,87,.25)"><span style="width:0;height:0;margin-left:6px;border-left:24px solid #DBAF57;border-top:15px solid transparent;border-bottom:15px solid transparent"></span></button>
+      </sc-if>
+
+      <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(10,9,8,.55)">
+          <span style="width:44px;height:44px;border-radius:50%;border:3px solid rgba(219,175,87,.25);border-top-color:#DBAF57;animation:nkspin .8s linear infinite"></span>
+          <span style="font-size:13px;color:#D9D5CC">{{ loadingText }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ error }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,9,8,.88);padding:24px">
+          <div style="max-width:440px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px">
+            <img src="assets/nekoflow-mascot.png" alt="" style="width:84px;height:84px;object-fit:contain">
+            <span style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500">Não foi possível carregar o vídeo</span>
+            <span style="font-size:14px;color:#B7B1A4">{{ errorText }} Sua posição em {{ timeText }} está salva.</span>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:6px">
+              <button onClick="{{ tryOther }}" style="all:unset;cursor:pointer;height:42px;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600">Tentar outra fonte</button>
+              <button onClick="{{ retry }}" style="all:unset;cursor:pointer;height:42px;display:flex;align-items:center;padding:0 18px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px">Tentar novamente</button>
+              <a href="Obra.dc.html" style="height:42px;display:flex;align-items:center;padding:0 12px;font-size:14px;color:#B7B1A4">Voltar à obra</a>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ resumeAsk }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,9,8,.6);padding:24px">
+          <div style="width:min(420px,100%);padding:26px;border-radius:16px;background:rgba(26,23,20,.96);border:1px solid rgba(219,175,87,.3);display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#DBAF57">{{ crumbShort }}</span>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;line-height:1.05">Continuar de onde parou?</span>
+              <span style="font-size:14px;color:#B7B1A4">Você parou em {{ resumeText }}. O progresso é o mesmo em todos os seus dispositivos.</span>
+            </div>
+            <span style="display:block;height:3px;border-radius:2px;background:rgba(240,238,233,.15);overflow:hidden"><span style="display:block;height:100%;width:{{ resumePct }};background:#DBAF57"></span></span>
+            <div style="display:flex;gap:10px">
+              <button onClick="{{ resumeYes }}" style="all:unset;cursor:pointer;flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A"><span style="width:0;height:0;border-left:9px solid #1A1714;border-top:6px solid transparent;border-bottom:6px solid transparent"></span>Continuar de {{ resumeText }}</button>
+              <button onClick="{{ resumeNo }}" style="all:unset;cursor:pointer;height:46px;display:flex;align-items:center;padding:0 18px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px" style-hover="border-color:#DBAF57">Desde o início</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showTop }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;left:0;right:0;top:0;padding:18px 22px 40px;background:linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,0));display:flex;align-items:center;gap:14px;pointer-events:none">
+          <span style="font-size:14px;font-weight:600">Solo Leveling</span><span style="font-size:13px;color:#D9D5CC">{{ crumb }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showSkipOp }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ skipOp }}" style="all:unset;cursor:pointer;position:absolute;right:22px;bottom:{{ skipBottom }};height:44px;display:flex;align-items:center;gap:10px;padding:0 18px;border-radius:8px;background:rgba(23,20,17,.85);border:1px solid rgba(219,175,87,.6);font-size:14px;font-weight:600;color:#F0EEE9;transition:bottom .25s" style-hover="background:#DBAF57;color:#1A1714">Pular abertura<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8zM17 4h2v16h-2z"></path></svg></button>
+      </sc-if>
+
+      <sc-if value="{{ showNext }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;right:22px;bottom:{{ skipBottom }};width:min(380px,calc(100% - 44px));border-radius:14px;overflow:hidden;background:rgba(23,20,17,.96);border:1px solid rgba(219,175,87,.35);box-shadow:0 20px 40px rgba(0,0,0,.5);transition:bottom .25s">
+          <div style="display:flex;gap:14px;padding:14px">
+            <span style="width:120px;aspect-ratio:16/9;border-radius:8px;flex-shrink:0;background-image:{{ next.bg }};background-size:cover;background-position:{{ next.pos }}"></span>
+            <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">{{ next.label }}</span>
+              <span style="font-size:14px;font-weight:500;line-height:1.3">{{ next.title }}</span>
+              <span style="font-size:12px;color:#B7B1A4">{{ next.meta }}</span>
+            </span>
+          </div>
+          <sc-if value="{{ next.hasCount }}" hint-placeholder-val="{{ false }}"><span style="display:block;height:3px;background:rgba(240,238,233,.12)"><span style="display:block;height:100%;width:{{ next.countPct }};background:#DBAF57;transition:width .25s linear"></span></span></sc-if>
+          <div style="display:flex;gap:8px;padding:12px 14px;border-top:1px solid rgba(240,238,233,.07)">
+            <button onClick="{{ next.go }}" style="all:unset;cursor:pointer;flex:1;height:40px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:13px;font-weight:600">{{ next.cta }}</button>
+            <button onClick="{{ dismissNext }}" style="all:unset;cursor:pointer;height:40px;display:flex;align-items:center;padding:0 14px;border-radius:999px;border:1px solid rgba(240,238,233,.2);font-size:13px">{{ next.dismissLabel }}</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showControls }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:48px 18px 12px;background:linear-gradient(0deg,rgba(0,0,0,.85),rgba(0,0,0,0));display:flex;flex-direction:column;gap:6px">
+          <div ref="{{ barRef }}" onPointerDown="{{ barDown }}" onMouseMove="{{ barHover }}" onMouseLeave="{{ barLeave }}" style="position:relative;height:18px;display:flex;align-items:center;cursor:pointer;touch-action:none">
+            <span style="position:absolute;left:0;right:0;height:{{ barH }};border-radius:3px;background:rgba(240,238,233,.22);transition:height .15s"></span>
+            <span style="position:absolute;left:0;width:{{ bufPct }};height:{{ barH }};border-radius:3px;background:rgba(240,238,233,.35);transition:height .15s"></span>
+            <span style="position:absolute;left:{{ opLeft }};width:{{ opW }};height:{{ barH }};background:rgba(219,175,87,.25)"></span>
+            <span style="position:absolute;left:{{ edLeft }};width:{{ edW }};height:{{ barH }};background:rgba(219,175,87,.25)"></span>
+            <span style="position:absolute;left:0;width:{{ pct }};height:{{ barH }};border-radius:3px;background:#DBAF57;transition:height .15s"></span>
+            <span style="position:absolute;left:{{ pct }};width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#DBAF57;box-shadow:0 0 0 4px rgba(219,175,87,.25);transform:scale({{ knobScale }});transition:transform .15s"></span>
+            <sc-if value="{{ hoverOn }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;left:{{ hoverLeft }};bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none">
+                <span style="font-size:11px;font-weight:500;color:#DBAF57">{{ hoverChapter }}</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(23,20,17,.92);border:1px solid rgba(219,175,87,.3);padding:3px 8px;border-radius:4px">{{ hoverText }}</span>
+              </span>
+            </sc-if>
+          </div>
+          <div style="display:flex;align-items:center;gap:{{ ctrlGap }}">
+            <button onClick="{{ togglePlay }}" aria-label="{{ playLabel }}" title="{{ playLabel }} (espaço)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:#F0EEE9" style-hover="color:#DBAF57">
+              <sc-if value="{{ playing }}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg></sc-if>
+              <sc-if value="{{ paused }}" hint-placeholder-val="{{ true }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"></path></svg></sc-if>
+            </button>
+            <button onClick="{{ back10 }}" aria-label="Voltar 10 segundos" title="Voltar 10 s (←)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:#F0EEE9" style-hover="color:#DBAF57"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><text x="12" y="15.5" font-size="7" text-anchor="middle" fill="currentColor" stroke="none" font-family="Inter" font-weight="700">10</text></svg></button>
+            <button onClick="{{ fwd10 }}" aria-label="Avançar 10 segundos" title="Avançar 10 s (→)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:#F0EEE9" style-hover="color:#DBAF57"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path><text x="12" y="15.5" font-size="7" text-anchor="middle" fill="currentColor" stroke="none" font-family="Inter" font-weight="700">10</text></svg></button>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button onClick="{{ toggleMute }}" aria-label="{{ muteLabel }}" title="{{ muteLabel }} (M)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:#F0EEE9" style-hover="color:#DBAF57">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"></path><path d="{{ volPath }}"></path></svg>
+              </button>
+              <sc-if value="{{ wideCtrls }}" hint-placeholder-val="{{ true }}"><input type="range" min="0" max="100" value="{{ volVal }}" onChange="{{ onVol }}" aria-label="Volume" style="width:84px"></sc-if>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#F0EEE9;white-space:nowrap">{{ timeText }} <span style="color:#B7B1A4">/ 24:00</span></span>
+            <span style="flex:1"></span>
+            <sc-if value="{{ hasNextEp }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ goNextNow }}" aria-label="Próximo episódio" title="Próximo episódio (N)" style="all:unset;cursor:pointer;height:{{ btn }};display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:8px;font-size:13px;font-weight:500;color:#F0EEE9" style-hover="color:#DBAF57"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8zM17 4h2v16h-2z"></path></svg><sc-if value="{{ wideCtrls }}" hint-placeholder-val="{{ true }}"><span>Próximo</span></sc-if></button>
+            </sc-if>
+            <button onClick="{{ toggleCC }}" aria-label="Legendas" title="Legendas (C)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:{{ ccColor }}" style-hover="color:#DBAF57"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="3"></rect><path d="M10 10.5a2 2 0 1 0 0 3M17 10.5a2 2 0 1 0 0 3" stroke-linecap="round"></path></svg></button>
+            <div data-nk-pmenu="1" style="position:relative">
+              <button onClick="{{ toggleEps }}" aria-label="Episódios" title="Episódios" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:{{ epsColor }}" style-hover="color:#DBAF57"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg></button>
+            </div>
+            <div data-nk-pmenu="1" style="position:relative">
+              <button onClick="{{ toggleSource }}" aria-label="Fonte de reprodução" title="Fonte de reprodução" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:{{ srcColor }}" style-hover="color:#DBAF57"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="18" height="6" rx="2"></rect><path d="M7 7h.01M7 17h.01"></path></svg></button>
+              <sc-if value="{{ srcOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;right:0;bottom:calc(100% + 12px);width:300px;background:rgba(23,20,17,.97);border:1px solid rgba(219,175,87,.25);border-radius:12px;padding:8px;box-shadow:0 16px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;cursor:default">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8F897D;padding:8px 10px 6px">Fonte de reprodução</span>
+                  <sc-for list="{{ sources }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.pick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-radius:8px;background:{{ o.bg }}" style-hover="background:#221F1B">
+                      <span style="display:flex;flex-direction:column;gap:2px"><span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:{{ o.color }}">{{ o.label }}<sc-if value="{{ o.rec }}" hint-placeholder-val="{{ false }}"><span style="font-size:9px;font-weight:700;letter-spacing:.12em;padding:2px 5px;border-radius:3px;background:#DBAF57;color:#1A1714">RECOMENDADA</span></sc-if></span><span style="font-size:12px;color:#B7B1A4">{{ o.desc }}</span></span>
+                      <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DBAF57" stroke-width="2.6"><path d="M5 12l5 5 9-10"></path></svg></sc-if>
+                    </button>
+                  </sc-for>
+                  <span style="height:1px;background:rgba(240,238,233,.08);margin:6px 4px"></span>
+                  <span style="font-size:12px;line-height:1.5;color:#8F897D;padding:4px 10px">Ao trocar, a posição atual é mantida.</span>
+                  <button onClick="{{ openReport }}" style="all:unset;cursor:pointer;padding:8px 10px;border-radius:8px;font-size:13px;color:#DBAF57" style-hover="background:#221F1B">Reportar problema de reprodução</button>
+                </div>
+              </sc-if>
+            </div>
+            <div data-nk-pmenu="1" style="position:relative">
+              <button onClick="{{ toggleSettings }}" aria-label="Configurações do player" title="Configurações" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:{{ setColor }}" style-hover="color:#DBAF57"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate({{ gearRot }});transition:transform .3s"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+              <sc-if value="{{ setOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;right:0;bottom:calc(100% + 12px);width:310px;max-height:{{ menuMaxH }};overflow-y:auto;background:rgba(23,20,17,.97);border:1px solid rgba(219,175,87,.25);border-radius:12px;padding:8px;box-shadow:0 16px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;cursor:default">
+                  <sc-if value="{{ setMain }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column">
+                      <sc-for list="{{ setRows }}" as="r" hint-placeholder-count="4">
+                        <button onClick="{{ r.open }}" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 10px;border-radius:8px;font-size:14px" style-hover="background:#221F1B">
+                          <span style="color:#F0EEE9">{{ r.label }}</span>
+                          <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:#B7B1A4">{{ r.value }}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        </button>
+                      </sc-for>
+                      <span style="height:1px;background:rgba(240,238,233,.08);margin:6px 4px"></span>
+                      <sc-for list="{{ setToggles }}" as="r" hint-placeholder-count="2">
+                        <button onClick="{{ r.toggle }}" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border-radius:8px" style-hover="background:#221F1B">
+                          <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:#F0EEE9">{{ r.label }}</span><span style="font-size:12px;color:#8F897D">{{ r.desc }}</span></span>
+                          <span style="width:40px;height:22px;border-radius:999px;background:{{ r.track }};position:relative;flex-shrink:0"><span style="position:absolute;top:3px;left:{{ r.x }};width:16px;height:16px;border-radius:50%;background:{{ r.knob }};transition:left .2s"></span></span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ setSub }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column">
+                      <button onClick="{{ setBack }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px;font-size:14px;font-weight:600;color:#F0EEE9;border-bottom:1px solid rgba(240,238,233,.08);margin-bottom:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"></path></svg>{{ subTitle }}</button>
+                      <sc-for list="{{ subOpts }}" as="o" hint-placeholder-count="3">
+                        <button onClick="{{ o.pick }}" style="all:unset;cursor:{{ o.cursor }};display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-radius:8px;opacity:{{ o.opacity }}" style-hover="background:#221F1B">
+                          <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:{{ o.color }}">{{ o.label }}</span><sc-if value="{{ o.hasDesc }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#8F897D">{{ o.desc }}</span></sc-if></span>
+                          <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DBAF57" stroke-width="2.6"><path d="M5 12l5 5 9-10"></path></svg></sc-if>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+            <button onClick="{{ toggleFs }}" aria-label="{{ fsLabel }}" title="{{ fsLabel }} (F)" style="all:unset;cursor:pointer;width:{{ btn }};height:{{ btn }};display:flex;align-items:center;justify-content:center;border-radius:8px;color:#F0EEE9" style-hover="color:#DBAF57"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="{{ fsPath }}"></path></svg></button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ epsOpen }}" hint-placeholder-val="{{ false }}">
+        <div data-nk-pmenu="1" style="position:absolute;top:0;right:0;bottom:0;width:min(380px,90%);background:rgba(18,16,14,.97);border-left:1px solid rgba(219,175,87,.2);display:flex;flex-direction:column;cursor:default">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px">
+            <span style="display:flex;flex-direction:column;gap:2px"><span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;line-height:1">Episódios</span><span style="font-size:12px;color:#B7B1A4">{{ seasonLabel }}</span></span>
+            <button onClick="{{ toggleEps }}" aria-label="Fechar" style="all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:#B7B1A4" style-hover="background:#221F1B;color:#F0EEE9">×</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:0 10px 12px;display:flex;flex-direction:column;gap:4px">
+            <sc-for list="{{ epList }}" as="e" hint-placeholder-count="6">
+              <button onClick="{{ e.go }}" style="all:unset;cursor:pointer;display:flex;gap:12px;align-items:center;padding:8px;border-radius:10px;background:{{ e.bg }};border:1px solid {{ e.border }}" style-hover="background:#221F1B">
+                <span style="position:relative;width:112px;aspect-ratio:16/9;border-radius:6px;flex-shrink:0;background-image:{{ e.bgImg }};background-size:cover;background-position:{{ e.pos }};overflow:hidden">
+                  <sc-if value="{{ e.hasPct }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(240,238,233,.25)"><span style="display:block;height:100%;width:{{ e.pctW }};background:#DBAF57"></span></span></sc-if>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:{{ e.numColor }}">EP {{ e.n }} · {{ e.state }}</span>
+                  <span style="font-size:13px;font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.title }}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ osd }}" hint-placeholder-val="{{ false }}">
+        <span style="position:absolute;left:50%;top:22px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(23,20,17,.9);border:1px solid rgba(219,175,87,.35);font-size:13px;pointer-events:none">{{ osdText }}</span>
+      </sc-if>
+    </div>
+  </div>
+
+  <main style="width:100%;max-width:calc({{ stageMax }} + 2 * clamp(16px,3.3vw,48px));margin:0 auto;padding:28px clamp(16px,3.3vw,48px) 80px;display:flex;flex-direction:column;gap:44px">
+    <section style="display:flex;flex-wrap:wrap;gap:24px 40px;align-items:flex-start;justify-content:space-between">
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1 1 420px;min-width:0">
+        <span style="font-size:11px;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:#DBAF57">{{ crumbShort }}</span>
+        <h1 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(32px,3.4vw,44px);line-height:1.05">{{ ep.title }}</h1>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="4"><span style="height:28px;display:flex;align-items:center;padding:0 10px;border-radius:999px;white-space:nowrap;flex-shrink:0;font-size:12px;border:1px solid rgba(240,238,233,.14);color:#D9D5CC">{{ c }}</span></sc-for>
+        </div>
+        <sc-if value="{{ fallbackNote }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#1A1714;border:1px solid rgba(219,175,87,.25);font-size:13px;color:#D9D5CC;align-self:flex-start"><span style="width:7px;height:7px;transform:rotate(45deg);background:#DBAF57;flex-shrink:0"></span>Este episódio ainda não tem dublagem. Reproduzindo em japonês com legenda em português.</div>
+        </sc-if>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:720px">
+          <sc-if value="{{ synOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:15px;line-height:1.7;color:#D9D5CC">A sinopse do episódio, cadastrada pela equipe, aparece aqui. Ela fica recolhida por padrão para quem ainda não assistiu.</p></sc-if>
+          <button onClick="{{ toggleSyn }}" style="all:unset;cursor:pointer;align-self:flex-start;font-size:13px;font-weight:600;color:#DBAF57">{{ synLabel }}</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:0 1 340px;min-width:260px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onClick="{{ goPrev }}" style="all:unset;cursor:{{ prevCursor }};height:46px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;border:1px solid rgba(240,238,233,.18);font-size:14px;color:#F0EEE9;opacity:{{ prevOpacity }}" style-hover="border-color:#DBAF57"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>Anterior</button>
+          <button onClick="{{ goNextNow }}" style="all:unset;cursor:{{ nextCursor }};height:46px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:{{ nextBg }};color:{{ nextColor }};font-size:14px;font-weight:600">Próximo<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"></path></svg></button>
+        </div>
+        <button onClick="{{ toggleDone }}" style="all:unset;cursor:pointer;height:44px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:999px;border:1px solid {{ doneBorder }};font-size:14px;color:{{ doneColor }}" style-hover="border-color:#DBAF57">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5 9-10"></path></svg>{{ doneLabel }}
+        </button>
+        <button onClick="{{ openReport }}" style="all:unset;cursor:pointer;align-self:center;font-size:13px;color:#B7B1A4;padding:6px" style-hover="color:#F0EEE9">Reportar problema de reprodução</button>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+        <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:32px;line-height:1">{{ seasonLabel }}</h2>
+        <a href="Obra.dc.html" style="font-size:14px">Ver todas as temporadas →</a>
+      </div>
+      <div ref="{{ rowRef }}" style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,260px);gap:14px;overflow-x:auto;padding:4px 4px 8px;scrollbar-width:thin;scrollbar-color:#2D2924 transparent">
+        <sc-for list="{{ epList }}" as="e" hint-placeholder-count="5">
+          <button onClick="{{ e.go }}" style="all:unset;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0" style-hover="opacity:.9">
+            <span style="position:relative;display:block;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background-image:{{ e.bgImg }};background-size:cover;background-position:{{ e.pos }};outline:2px solid {{ e.ring }};outline-offset:2px">
+              <span style="position:absolute;left:8px;top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(23,20,17,.88);padding:3px 7px;border-radius:4px">EP {{ e.n }}</span>
+              <sc-if value="{{ e.isCur }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:8px;top:8px;font-size:10px;font-weight:700;letter-spacing:.12em;background:#DBAF57;color:#1A1714;padding:3px 7px;border-radius:4px">ASSISTINDO</span></sc-if>
+              <sc-if value="{{ e.done }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:8px;top:8px;width:22px;height:22px;border-radius:50%;background:#DBAF57;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A1714" stroke-width="3.4"><path d="M5 12l5 5 9-10"></path></svg></span></sc-if>
+              <sc-if value="{{ e.hasPct }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(240,238,233,.25)"><span style="display:block;height:100%;width:{{ e.pctW }};background:#DBAF57"></span></span></sc-if>
+            </span>
+            <span style="font-size:13px;font-weight:500;line-height:1.35;color:{{ e.titleColor }};display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.title }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:32px;line-height:1">Comentários do episódio</h2>
+          <span style="font-size:13px;color:#B7B1A4">{{ cCountText }} · só sobre o episódio {{ epN }}</span>
+        </div>
+        <sc-if value="{{ cOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:#1A1714;border:1px solid rgba(240,238,233,.08)">
+            <sc-for list="{{ cSorts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.pick }}" style="all:unset;cursor:pointer;height:32px;display:flex;align-items:center;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;background:{{ o.bg }};color:{{ o.color }}">{{ o.label }}</button></sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ cClosed }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ openComments }}" style="all:unset;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:18px 22px;border-radius:14px;background:#1A1714;border:1px dashed rgba(219,175,87,.3)" style-hover="border-color:#DBAF57">
+          <span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:15px;font-weight:500;color:#F0EEE9">Os comentários ficam fechados para evitar spoilers</span><span style="font-size:13px;color:#B7B1A4">Abra quando terminar o episódio ou se não se importar com revelações.</span></span>
+          <span style="font-size:14px;font-weight:600;color:#DBAF57">Mostrar comentários ({{ cCount }})</span>
+        </button>
+      </sc-if>
+
+      <sc-if value="{{ cOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:14px;padding:16px;border-radius:14px;background:#1A1714;border:1px solid {{ cBoxBorder }}">
+              <span style="width:40px;height:40px;border-radius:50%;flex-shrink:0;border:1px solid rgba(219,175,87,.45);background:#2D2924;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:18px;color:#DBAF57">M</span>
+              <div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0">
+                <textarea rows="{{ cRows }}" maxlength="500" value="{{ cText }}" onChange="{{ onCText }}" onFocus="{{ cFocus }}" placeholder="Comente sobre o episódio {{ epN }}…" style="width:100%;border:0;background:transparent;color:#F0EEE9;font-family:Inter,sans-serif;font-size:15px;line-height:1.55;outline:none;resize:vertical;padding:8px 0"></textarea>
+                <sc-if value="{{ cHasTs }}" hint-placeholder-val="{{ false }}">
+                  <span style="align-self:flex-start;display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:999px;background:rgba(219,175,87,.12);font-family:'JetBrains Mono',monospace;font-size:12px;color:#DBAF57">em {{ cTsLabel }}<button onClick="{{ cClearTs }}" aria-label="Remover minuto" style="all:unset;cursor:pointer;font-size:14px;line-height:1">×</button></span>
+                </sc-if>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <button onClick="{{ cAddTs }}" style="all:unset;cursor:pointer;height:32px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;border:1px solid rgba(240,238,233,.14);font-size:12px;color:#D9D5CC" style-hover="border-color:#DBAF57;color:#DBAF57"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Marcar minuto atual · {{ timeText }}</button>
+                    <button onClick="{{ cToggleSpoiler }}" style="all:unset;cursor:pointer;height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:999px;border:1px solid {{ cSpBorder }};background:{{ cSpBg }};font-size:12px;color:{{ cSpColor }}"><span style="width:14px;height:14px;border-radius:4px;border:1px solid {{ cSpBorder }};background:{{ cSpBox }};display:flex;align-items:center;justify-content:center"><sc-if value="{{ cSpoiler }}" hint-placeholder-val="{{ false }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#1A1714" stroke-width="4"><path d="M5 12l5 5 9-10"></path></svg></sc-if></span>Contém spoiler</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8F897D">{{ cLen }}/500</span>
+                    <button onClick="{{ cPost }}" style="all:unset;cursor:{{ cPostCursor }};height:38px;display:flex;align-items:center;padding:0 18px;border-radius:999px;background:{{ cPostBg }};color:#1A1714;font-size:13px;font-weight:600">Publicar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ guest }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:16px 18px;border-radius:14px;background:#1A1714;border:1px solid rgba(219,175,87,.2)">
+              <span style="display:flex;align-items:center;gap:14px"><img src="assets/nekoflow-mascot.png" alt="" style="width:44px;height:44px;object-fit:contain"><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:15px;font-weight:500">Entre para comentar</span><span style="font-size:13px;color:#B7B1A4">Qualquer pessoa pode ler. Para comentar, curtir e responder, é preciso ter uma conta.</span></span></span>
+              <span style="display:flex;gap:8px"><a href="Entrar.dc.html" style="height:40px;display:flex;align-items:center;padding:0 16px;border-radius:999px;border:1px solid rgba(240,238,233,.25);font-size:14px;color:#F0EEE9">Entrar</a><a href="Entrar.dc.html?modo=criar" style="height:40px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600">Criar conta</a></span>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ comments }}" as="c" hint-placeholder-count="3">
+              <div style="display:flex;gap:14px;padding:18px 0;border-top:1px solid rgba(240,238,233,.07)">
+                <span style="width:40px;height:40px;border-radius:50%;flex-shrink:0;background:{{ c.avBg }};display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:18px;color:{{ c.avColor }}">{{ c.initial }}</span>
+                <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0">
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px">
+                    <span style="font-size:14px;font-weight:600">{{ c.name }}</span>
+                    <sc-if value="{{ c.mine }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:3px;background:rgba(219,175,87,.15);color:#DBAF57">VOCÊ</span></sc-if>
+                    <span style="font-size:12px;color:#8F897D">@{{ c.handle }} · {{ c.when }}</span>
+                    <sc-if value="{{ c.hasTs }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.seekTs }}" title="Ir para este minuto" style="all:unset;cursor:pointer;height:22px;display:flex;align-items:center;padding:0 8px;border-radius:999px;background:rgba(219,175,87,.12);font-family:'JetBrains Mono',monospace;font-size:11px;color:#DBAF57" style-hover="background:rgba(219,175,87,.25)">▶ {{ c.tsLabel }}</button></sc-if>
+                  </div>
+                  <sc-if value="{{ c.showText }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:15px;line-height:1.6;color:#E6E2D9;text-wrap:pretty;white-space:pre-wrap">{{ c.text }}</p></sc-if>
+                  <sc-if value="{{ c.hidden }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ c.reveal }}" style="all:unset;cursor:pointer;align-self:flex-start;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#221F1B;border:1px dashed rgba(219,175,87,.35);font-size:13px;color:#D9D5CC" style-hover="border-color:#DBAF57"><span style="font-size:10px;font-weight:700;letter-spacing:.12em;padding:2px 6px;border-radius:3px;background:#DBAF57;color:#1A1714">SPOILER</span>Comentário oculto · toque para mostrar</button>
+                  </sc-if>
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;font-size:13px">
+                    <button onClick="{{ c.like }}" aria-pressed="{{ c.likedStr }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;color:{{ c.likeColor }}" style-hover="color:#DBAF57"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ c.likeFill }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"></path></svg>{{ c.likes }}</button>
+                    <button onClick="{{ c.reply }}" style="all:unset;cursor:pointer;color:#B7B1A4" style-hover="color:#F0EEE9">Responder</button>
+                    <sc-if value="{{ c.mine }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.remove }}" style="all:unset;cursor:pointer;color:#B7B1A4" style-hover="color:#E08A7A">Excluir</button></sc-if>
+                    <sc-if value="{{ c.notMine }}" hint-placeholder-val="{{ true }}"><button onClick="{{ c.report }}" style="all:unset;cursor:pointer;color:#8F897D" style-hover="color:#F0EEE9">Denunciar</button></sc-if>
+                  </div>
+
+                  <sc-if value="{{ c.replyOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:10px;align-items:flex-start;padding-top:4px">
+                      <span style="width:30px;height:30px;border-radius:50%;flex-shrink:0;border:1px solid rgba(219,175,87,.45);background:#2D2924;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:14px;color:#DBAF57">M</span>
+                      <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+                        <textarea rows="2" maxlength="500" value="{{ replyText }}" onChange="{{ onReplyText }}" placeholder="Responder a {{ c.name }}…" style="width:100%;border-radius:10px;border:1px solid rgba(240,238,233,.15);background:#141210;color:#F0EEE9;padding:10px 12px;font-family:Inter,sans-serif;font-size:14px;outline:none;resize:vertical"></textarea>
+                        <div style="display:flex;justify-content:flex-end;gap:8px"><button onClick="{{ cancelReply }}" style="all:unset;cursor:pointer;height:34px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:#B7B1A4">Cancelar</button><button onClick="{{ c.sendReply }}" style="all:unset;cursor:{{ replyCursor }};height:34px;display:flex;align-items:center;padding:0 16px;border-radius:999px;background:{{ replyBg }};color:#1A1714;font-size:13px;font-weight:600">Responder</button></div>
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ c.hasReplies }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ c.toggleReplies }}" style="all:unset;cursor:pointer;align-self:flex-start;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#DBAF57"><span style="width:20px;height:1px;background:rgba(219,175,87,.6)"></span>{{ c.repliesLabel }}</button>
+                  </sc-if>
+                  <sc-if value="{{ c.repliesOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:14px;padding-left:4px;border-left:1px solid rgba(240,238,233,.08)">
+                      <sc-for list="{{ c.replies }}" as="r" hint-placeholder-count="1">
+                        <div style="display:flex;gap:12px;padding-left:12px">
+                          <span style="width:30px;height:30px;border-radius:50%;flex-shrink:0;background:{{ r.avBg }};display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:14px;color:{{ r.avColor }}">{{ r.initial }}</span>
+                          <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+                            <span style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px"><span style="font-size:13px;font-weight:600">{{ r.name }}</span><span style="font-size:12px;color:#8F897D">@{{ r.handle }} · {{ r.when }}</span></span>
+                            <p style="margin:0;font-size:14px;line-height:1.55;color:#E6E2D9;white-space:pre-wrap">{{ r.text }}</p>
+                            <button onClick="{{ r.like }}" style="all:unset;cursor:pointer;align-self:flex-start;display:flex;align-items:center;gap:6px;font-size:12px;color:{{ r.likeColor }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="{{ r.likeFill }}" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"></path></svg>{{ r.likes }}</button>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ closeComments }}" style="all:unset;cursor:pointer;align-self:center;font-size:13px;color:#B7B1A4" style-hover="color:#F0EEE9">Fechar comentários</button>
+        </div>
+      </sc-if>
+    </section>
+
+    <a href="ObraLeitura.dc.html?aba=adapt" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:18px 22px;border-radius:14px;background:#1A1714;border:1px solid rgba(219,175,87,.18);color:#F0EEE9" style-hover="border-color:rgba(219,175,87,.5);color:#F0EEE9">
+      <span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">Obra original</span><span style="font-size:15px">{{ origText }}</span></span>
+      <span style="font-size:14px;font-weight:600;color:#DBAF57">Ver o manhwa →</span>
+    </a>
+  </main>
+
+  <sc-if value="{{ reportOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeReport }}" style="position:fixed;inset:0;z-index:80;background:rgba(10,9,8,.7)"></div>
+    <div role="dialog" aria-label="Reportar problema" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:81;width:min(460px,calc(100vw - 32px));padding:24px;border-radius:16px;background:#1A1714;border:1px solid rgba(219,175,87,.25);display:flex;flex-direction:column;gap:16px;box-shadow:0 30px 60px rgba(0,0,0,.6)">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500;line-height:1">Reportar problema</span>
+        <span style="font-size:13px;color:#B7B1A4">{{ reportCtx }}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ reportOpts }}" as="o" hint-placeholder-count="5">
+          <button onClick="{{ o.pick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;border:1px solid {{ o.border }};background:{{ o.bg }};font-size:14px">
+            <span style="width:16px;height:16px;border-radius:50%;border:1px solid {{ o.dotBorder }};display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:8px;height:8px;border-radius:50%;background:{{ o.dot }}"></span></span>{{ o.label }}
+          </button>
+        </sc-for>
+      </div>
+      <textarea rows="3" value="{{ reportText }}" onChange="{{ onReportText }}" placeholder="Detalhes opcionais, como o minuto em que acontece" style="border-radius:10px;border:1px solid rgba(240,238,233,.15);background:#141210;color:#F0EEE9;padding:12px 14px;font-family:Inter,sans-serif;font-size:14px;outline:none;resize:vertical"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button onClick="{{ closeReport }}" style="all:unset;cursor:pointer;height:42px;display:flex;align-items:center;padding:0 16px;font-size:14px;color:#B7B1A4">Cancelar</button>
+        <button onClick="{{ sendReport }}" style="all:unset;cursor:{{ reportCursor }};height:42px;display:flex;align-items:center;padding:0 20px;border-radius:999px;background:{{ reportBg }};color:#1A1714;font-size:14px;font-weight:600">Enviar</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;height:44px;padding:0 18px;border-radius:999px;background:#2D2924;border:1px solid rgba(219,175,87,.4);font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.5)"><span style="width:7px;height:7px;transform:rotate(45deg);background:#DBAF57"></span>{{ toastText }}</div>
+  </sc-if>
+
+  <dc-import name="Footer" hint-size="100%,320px" style="margin-top:auto"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;loggedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado&quot;},&quot;simularErro&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simulação&quot;}}">
+class Component extends DCLogic {
+  DUR = 1440; OP = [90, 180]; ED = [1300, 1390];
+  state = { w: null, ep: 16, t: 0, playing: false, played: 0, sinceSave: 0, savedAt: null, prog: {}, resume: false, vol: 80, muted: false, cc: true, audio: 'ja', subs: 'pt', quality: 'auto', speed: 1, autoNext: true, autoSkip: false, src: 'auto', loading: false, loadingText: '', error: false, menu: null, sub: null, eps: false, nextDismissed: false, countdown: 10, active: true, hover: null, dragging: false, fs: false, narrow: false, synOpen: false, report: false, reportReason: null, reportText: '', toast: null, osd: null };
+  stageRef = React.createRef(); barRef = React.createRef(); rowRef = React.createRef();
+  load(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  defaultProg() { const p = {}; for (let n = 1; n <= 15; n++) p[n] = { t: this.DUR, done: true }; p[16] = { t: 900, done: false }; return p; }
+  componentDidMount() {
+    const cfg = this.load('nk-cfg', {});
+    const prog = { ...this.defaultProg(), ...this.load('nk-progress', {}) };
+    const pp = this.load('nk-player', {});
+    const q = parseInt(new URLSearchParams(location.search).get('ep'), 10);
+    const ep = q >= 1 && q <= 25 ? q : 16;
+    this.setState({ prog, autoNext: cfg.autoplay ?? true, autoSkip: cfg.skip ?? false, audio: cfg.audio === 'Português' ? 'pt' : 'ja', subs: cfg.subs === 'Desligadas' ? 'off' : cfg.subs === 'Inglês' ? 'en' : 'pt', speed: pp.speed || 1, vol: pp.vol ?? 80, muted: !!pp.muted });
+    this.enter(ep, prog, false);
+    fetch('data/obra.json').then(r => r.json()).then(w => this.setState({ w }));
+    this.tick = setInterval(this.step, 250);
+    document.addEventListener('keydown', this.onKey);
+    document.addEventListener('mousedown', this.onDown);
+    document.addEventListener('fullscreenchange', this.onFs);
+    window.addEventListener('resize', this.onResize); this.onResize();
+    window.addEventListener('beforeunload', this.persist);
+  }
+  componentWillUnmount() { this.persist(); clearInterval(this.tick); document.removeEventListener('keydown', this.onKey); document.removeEventListener('mousedown', this.onDown); document.removeEventListener('fullscreenchange', this.onFs); window.removeEventListener('resize', this.onResize); window.removeEventListener('beforeunload', this.persist); }
+  onResize = () => { const n = window.innerWidth < 720; if (n !== this.state.narrow) this.setState({ narrow: n }); };
+  onFs = () => this.setState({ fs: !!document.fullscreenElement });
+  onDown = e => { if ((this.state.menu || this.state.eps) && !(e.target.closest && e.target.closest('[data-nk-pmenu]'))) this.setState({ menu: null, sub: null, eps: false }); };
+  persist = () => {
+    const s = this.state; if (!s.ep) return;
+    const prog = { ...s.prog, [s.ep]: { ...(s.prog[s.ep] || {}), t: Math.floor(s.t) } };
+    this.store('nk-progress', prog); this.setState({ prog, sinceSave: 0, savedAt: Date.now() });
+  };
+  enter(n, prog, autoplay) {
+    const p = (prog || this.state.prog)[n];
+    const resumeT = p && !p.done && p.t > 30 && p.t < this.ED[0] ? p.t : 0;
+    this.setState({ cOpen: false, cText: '', cTs: null, cSpoiler: false, cReplyTo: null, cRevealed: {}, cOpenReplies: {} });
+    this.setState({ ep: n, t: autoplay ? 0 : resumeT, played: 0, resume: !autoplay && resumeT > 0, playing: !!autoplay, nextDismissed: false, countdown: 10, error: !!this.props.simularErro && !autoplay, eps: false, menu: null, sub: null, synOpen: false });
+    try { history.replaceState(null, '', `?ep=${n}`); } catch (e) {}
+  }
+  goEp(n, autoplay) {
+    if (n < 1 || n > 25 || n === this.state.ep) return;
+    this.persist(); setTimeout(() => this.enter(n, null, autoplay), 0);
+    const el = document.scrollingElement || document.documentElement; try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {}
+  }
+  flash(t) { clearTimeout(this.tt); this.setState({ toast: t }); this.tt = setTimeout(() => this.setState({ toast: null }), 2200); }
+  showOsd(t) { clearTimeout(this.ot); this.setState({ osd: t }); this.ot = setTimeout(() => this.setState({ osd: null }), 900); }
+  seek(t, label) { const nt = Math.max(0, Math.min(this.DUR - 1, t)); this.setState({ t: nt, nextDismissed: nt < this.ED[0] ? false : this.state.nextDismissed, countdown: 10 }); setTimeout(this.persist, 0); if (label) this.showOsd(label); }
+  step = () => {
+    const s = this.state;
+    if (s.active && s.playing && !s.menu && !s.eps && !s.dragging && Date.now() - (this.lastMove || 0) > 2600) this.setState({ active: false });
+    if (!s.playing || s.loading || s.error || s.resume || s.dragging) return;
+    const dt = 0.25 * s.speed;
+    let t = s.t + dt; const played = s.played + dt; let sinceSave = s.sinceSave + dt;
+    const patch = { t, played, sinceSave };
+    if (s.autoSkip && t >= this.OP[0] && t < this.OP[1] && s.t < this.OP[0] + 1) { patch.t = t = this.OP[1]; this.showOsd('Abertura pulada'); }
+    const hasNext = s.ep < 25;
+    if (t >= this.ED[0] && hasNext && !s.nextDismissed && s.autoNext) {
+      const c = s.countdown - 0.25; patch.countdown = c;
+      if (c <= 0) { this.markDone(s.ep, played); this.goEp(s.ep + 1, true); return; }
+    }
+    if (t >= this.DUR) { patch.t = this.DUR; patch.playing = false; this.setState(patch); this.markDone(s.ep, played); return; }
+    this.setState(patch);
+    if (sinceSave >= 15) this.persist();
+  };
+  markDone(n, played) {
+    if (played < this.DUR * 0.5) { this.persist(); return; }
+    const prog = { ...this.state.prog, [n]: { t: this.DUR, done: true } };
+    this.store('nk-progress', prog); this.setState({ prog }); this.flash(`Episódio ${n} marcado como assistido`);
+  }
+  onKey = e => {
+    if (/input|textarea|select/i.test((document.activeElement || {}).tagName || '') || this.state.report) return;
+    const k = e.key.toLowerCase(); const s = this.state;
+    const map = {
+      ' ': () => this.togglePlay(), k: () => this.togglePlay(),
+      arrowleft: () => this.seek(s.t - 10, '−10 s'), arrowright: () => this.seek(s.t + 10, '+10 s'), j: () => this.seek(s.t - 10, '−10 s'), l: () => this.seek(s.t + 10, '+10 s'),
+      m: () => this.toggleMute(), f: () => this.toggleFs(), c: () => this.toggleCC(), n: () => this.goEp(s.ep + 1, true),
+      escape: () => this.setState({ menu: null, sub: null, eps: false })
+    };
+    if (map[k]) { e.preventDefault(); this.wake(); map[k](); }
+  };
+  wake = () => { this.lastMove = Date.now(); if (!this.state.active) this.setState({ active: true }); };
+  togglePlay = () => { const s = this.state; if (s.resume || s.error) return; if (s.t >= this.DUR) this.setState({ t: 0, played: 0 }); this.setState({ playing: !s.playing }); if (s.playing) setTimeout(this.persist, 0); this.wake(); };
+  toggleMute = () => { const muted = !this.state.muted; this.setState({ muted }); this.store('nk-player', { speed: this.state.speed, vol: this.state.vol, muted }); this.showOsd(muted ? 'Sem som' : `Volume ${this.state.vol}%`); };
+  toggleCC = () => { const s = this.state; const subs = s.subs === 'off' ? 'pt' : 'off'; this.setState({ subs }); this.showOsd(subs === 'off' ? 'Legendas desligadas' : 'Legendas: Português'); };
+  toggleFs = () => { const el = this.stageRef.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen(); } catch (e) {} };
+  barT(clientX) { const r = this.barRef.current.getBoundingClientRect(); return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * this.DUR; }
+  setSource(k) {
+    if (k === this.state.src && !this.state.error) { this.setState({ menu: null }); return; }
+    const was = this.state.playing; const t = this.state.t;
+    const names = { auto: 'Automática', f1: 'Fonte 1', f2: 'Fonte 2' };
+    this.setState({ src: k, menu: null, loading: true, error: false, loadingText: `Carregando ${names[k]}…`, playing: false });
+    setTimeout(() => { this.setState({ loading: false, t, playing: was || this.state.playing }); this.flash(`${names[k]} · posição mantida em ${this.fmt(t)}`); }, 1100);
+  }
+  BASE_C = [
+    { id: 'c1', name: 'Rafael', handle: 'rafa.k', mins: 120, likes: 128, text: 'A direção das cenas de luta neste episódio ficou absurda. Dá para sentir o cuidado em cada quadro.', replies: [{ id: 'c1r1', name: 'Beatriz', handle: 'biaw', mins: 70, likes: 14, text: 'Concordo! E a trilha sonora nessa parte ajudou demais.' }, { id: 'c1r2', name: 'Caio', handle: 'caiio', mins: 40, likes: 3, text: 'Assisti duas vezes só por causa disso.' }] },
+    { id: 'c2', name: 'Lucas', handle: 'lucasmt', mins: 180, likes: 64, ts: 924, text: 'Alguém mais voltou para rever esse trecho? O trabalho de som está muito bom.', replies: [] },
+    { id: 'c3', name: 'Juliana', handle: 'jujuh', mins: 300, likes: 41, spoiler: true, text: 'Quem leu o manhwa sabe o que vem nos próximos capítulos. Preparem o coração.', replies: [{ id: 'c3r1', name: 'Pedro', handle: 'pedroh', mins: 250, likes: 6, text: 'Sem spoilers aqui, por favor 😅' }] },
+    { id: 'c4', name: 'Thiago', handle: 'thi.go', mins: 1500, likes: 9, text: 'A legenda ficou fora de sincronia por alguns segundos na Fonte 2. Reportei, e na automática estava certa.', replies: [] }
+  ];
+  saveC(mine) { this.store('nk-comments', mine); this.setState({ myC: mine }); }
+  ago(m) { return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dia${Math.round(m / 1440) > 1 ? 's' : ''}`; }
+  commentVals(loggedIn) {
+    const s = this.state; const ep = s.ep;
+    const mine = (s.myC || this.load('nk-comments', {}))[ep] || [];
+    const likes = s.cLikes || {}; const revealed = s.cRevealed || {}; const openR = s.cOpenReplies || {};
+    const now = Date.now();
+    const myRepliesFor = id => mine.filter(m => m.parent === id);
+    const PAL = ['#3A3128', '#2F3530', '#33293A', '#2A3138'];
+    const need = () => { if (!loggedIn) { location.href = 'Entrar.dc.html'; return true; } return false; };
+    const likeOf = (id, base) => { const on = !!likes[id]; return { likes: base + (on ? 1 : 0), likedStr: String(on), likeColor: on ? '#DBAF57' : '#B7B1A4', likeFill: on ? '#DBAF57' : 'none', like: () => { if (need()) return; this.setState({ cLikes: { ...likes, [id]: !on } }); } }; };
+    const person = (c, i) => ({ initial: c.name[0], avBg: c.mine ? '#2D2924' : PAL[i % PAL.length], avColor: c.mine ? '#DBAF57' : '#F0EEE9' });
+    const toItem = (c, i) => {
+      const rep = [...(c.replies || []), ...myRepliesFor(c.id).map(r => ({ ...r, mins: Math.round((now - r.at) / 60000) }))];
+      const hidden = c.spoiler && !revealed[c.id] && !c.mine;
+      return { ...c, ...person(c, i), ...likeOf(c.id, c.likes || 0), when: this.ago(c.mins), hasTs: c.ts != null, tsLabel: c.ts != null ? this.fmt(c.ts) : '', seekTs: () => { this.seek(c.ts, `Indo para ${this.fmt(c.ts)}`); const el = document.scrollingElement || document.documentElement; try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} },
+        hidden, showText: !hidden, reveal: () => this.setState({ cRevealed: { ...revealed, [c.id]: true } }),
+        mine: !!c.mine, notMine: !c.mine,
+        remove: () => { const all = { ...(s.myC || this.load('nk-comments', {})) }; all[ep] = (all[ep] || []).filter(m => m.id !== c.id && m.parent !== c.id); this.saveC(all); this.flash('Comentário excluído'); },
+        report: () => { if (need()) return; this.flash('Denúncia enviada para a moderação'); },
+        reply: () => { if (need()) return; this.setState({ cReplyTo: s.cReplyTo === c.id ? null : c.id, cReplyText: '' }); },
+        replyOpen: s.cReplyTo === c.id,
+        sendReply: () => { const t = (s.cReplyText || '').trim(); if (!t) return; const all = { ...(s.myC || this.load('nk-comments', {})) }; all[ep] = [...(all[ep] || []), { id: `m${now}`, parent: c.id, name: 'Marina', handle: 'marina', mine: true, at: now, likes: 0, text: t }]; this.saveC(all); this.setState({ cReplyTo: null, cReplyText: '', cOpenReplies: { ...openR, [c.id]: true } }); },
+        replies: rep.map((r, j) => ({ ...r, ...person(r, j + 1), ...likeOf(r.id, r.likes || 0), when: this.ago(r.mins) })),
+        hasReplies: rep.length > 0, repliesOpen: !!openR[c.id] && rep.length > 0,
+        repliesLabel: openR[c.id] ? 'Ocultar respostas' : `Ver ${rep.length} ${rep.length === 1 ? 'resposta' : 'respostas'}`,
+        toggleReplies: () => this.setState({ cOpenReplies: { ...openR, [c.id]: !openR[c.id] } }) };
+    };
+    const tops = [...mine.filter(m => !m.parent).map(m => ({ ...m, mins: Math.round((now - m.at) / 60000), replies: [] })), ...this.BASE_C];
+    const sort = s.cSort || 'rel';
+    const sorted = sort === 'rel' ? [...tops].sort((a, b) => (b.mine ? 1e6 : b.likes) - (a.mine ? 1e6 : a.likes)) : [...tops].sort((a, b) => a.mins - b.mins);
+    const count = tops.length + tops.reduce((n, c) => n + (c.replies || []).length + myRepliesFor(c.id).length, 0);
+    const text = s.cText || ''; const can = text.trim().length > 0;
+    const pill = on => ({ bg: on ? '#DBAF57' : 'transparent', color: on ? '#1A1714' : '#F0EEE9' });
+    const sp = !!s.cSpoiler;
+    return {
+      epN: ep, cCount: count, cCountText: `${count} ${count === 1 ? 'comentário' : 'comentários'}`,
+      cOpen: !!s.cOpen, cClosed: !s.cOpen, openComments: () => this.setState({ cOpen: true }), closeComments: () => this.setState({ cOpen: false }),
+      cSorts: [['rel', 'Mais curtidos'], ['new', 'Mais recentes']].map(([k, l]) => ({ label: l, ...pill(sort === k), pick: () => this.setState({ cSort: k }) })),
+      comments: sorted.map(toItem),
+      cText: text, onCText: e => this.setState({ cText: e.target.value }), cLen: text.length, cFocus: () => this.setState({ cFocused: true }),
+      cRows: s.cFocused || text ? 3 : 1, cBoxBorder: s.cFocused ? 'rgba(219,175,87,.45)' : 'rgba(240,238,233,.08)',
+      cHasTs: s.cTs != null, cTsLabel: s.cTs != null ? this.fmt(s.cTs) : '', cAddTs: () => this.setState({ cTs: Math.floor(s.t), cFocused: true }), cClearTs: () => this.setState({ cTs: null }),
+      cSpoiler: sp, cToggleSpoiler: () => this.setState({ cSpoiler: !sp }), cSpBorder: sp ? '#DBAF57' : 'rgba(240,238,233,.14)', cSpBg: sp ? 'rgba(219,175,87,.1)' : 'transparent', cSpColor: sp ? '#DBAF57' : '#D9D5CC', cSpBox: sp ? '#DBAF57' : 'transparent',
+      cPostBg: can ? '#DBAF57' : '#4A443D', cPostCursor: can ? 'pointer' : 'not-allowed',
+      cPost: () => { if (!can) return; const all = { ...(s.myC || this.load('nk-comments', {})) }; all[ep] = [{ id: `m${now}`, name: 'Marina', handle: 'marina', mine: true, at: now, likes: 0, text: text.trim(), ts: s.cTs != null ? s.cTs : undefined, spoiler: sp }, ...(all[ep] || [])]; this.saveC(all); this.setState({ cText: '', cTs: null, cSpoiler: false, cFocused: false, cSort: 'new' }); this.flash('Comentário publicado'); },
+      replyText: s.cReplyText || '', onReplyText: e => this.setState({ cReplyText: e.target.value }), cancelReply: () => this.setState({ cReplyTo: null, cReplyText: '' }),
+      replyBg: (s.cReplyText || '').trim() ? '#DBAF57' : '#4A443D', replyCursor: (s.cReplyText || '').trim() ? 'pointer' : 'not-allowed'
+    };
+  }
+  fmt(x) { x = Math.max(0, Math.floor(x)); return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; }
+  renderVals() {
+    const s = this.state; const w = s.w;
+    const all = w ? [...w.seasons[0].eps, ...w.seasons[1].eps] : [];
+    const ep = all.find(e => e.n === s.ep) || { n: s.ep, title: '', thumb: '', pos: 'center', dub: true };
+    const seasonN = s.ep <= 12 ? 1 : 2;
+    const seasonEps = w ? w.seasons[seasonN - 1].eps : [];
+    const nextEp = all.find(e => e.n === s.ep + 1);
+    const bg = u => u ? `url("${u}")` : 'none';
+    const dubOk = ep.dub; const audioEff = s.audio === 'pt' && !dubOk ? 'ja' : s.audio;
+    const pctN = s.t / this.DUR;
+    const inOp = s.t >= this.OP[0] && s.t < this.OP[1];
+    const inEnd = s.t >= this.ED[0];
+    const ctrls = !s.playing || s.active || !!s.menu || s.eps || s.dragging;
+    const overlayBlock = s.resume || s.error || s.loading;
+    const narrow = s.narrow;
+    const btn = narrow ? '44px' : '40px';
+    const srcNames = { auto: 'Automática', f1: 'Fonte 1', f2: 'Fonte 2' };
+    const audioName = { ja: 'Japonês', pt: 'Português' }[audioEff];
+    const subsName = { off: 'Desligadas', pt: 'Português (Brasil)', en: 'Inglês', forced: 'Somente forçadas' }[s.subs];
+    const qName = { auto: 'Automática · 1080p', '1080': '1080p', '720': '720p', '480': '480p' }[s.quality];
+    const spName = s.speed === 1 ? 'Normal' : `${String(s.speed).replace('.', ',')}x`;
+    const SUBS = { audio: ['Áudio', [['ja', 'Japonês', 'Original'], ['pt', 'Português (Brasil)', dubOk ? 'Dublagem' : 'Indisponível neste episódio', !dubOk]]],
+      subs: ['Legendas', [['off', 'Desligadas'], ['pt', 'Português (Brasil)', 'Completa'], ['en', 'Inglês', 'Completa'], ['forced', 'Somente forçadas', 'Placas e falas em outro idioma']]],
+      quality: ['Qualidade', [['auto', 'Automática', 'Ajusta à sua conexão · recomendada'], ['1080', '1080p'], ['720', '720p'], ['480', '480p']]],
+      speed: ['Velocidade', [[0.75, '0,75x'], [1, 'Normal'], [1.25, '1,25x'], [1.5, '1,5x'], [2, '2x']]] };
+    const keyOf = { audio: 'audio', subs: 'subs', quality: 'quality', speed: 'speed' };
+    const subOpts = s.sub ? SUBS[s.sub][1].map(([v, l, d, dis]) => {
+      const cur = s.sub === 'audio' ? audioEff : s[keyOf[s.sub]];
+      return { label: l, desc: d || '', hasDesc: !!d, on: cur === v, color: cur === v ? '#DBAF57' : '#F0EEE9', opacity: dis ? 0.45 : 1, cursor: dis ? 'not-allowed' : 'pointer',
+        pick: () => { if (dis) return; const patch = { [keyOf[s.sub]]: v, sub: null }; this.setState(patch); if (s.sub === 'speed') this.store('nk-player', { speed: v, vol: s.vol, muted: s.muted }); this.showOsd(`${SUBS[s.sub][0]}: ${l}`); } };
+    }) : [];
+    const tog = (on) => ({ track: on ? '#DBAF57' : '#2D2924', knob: on ? '#1A1714' : '#B7B1A4', x: on ? '21px' : '3px' });
+    const saveCfg = (k, v) => { const c = this.load('nk-cfg', {}); c[k] = v; this.store('nk-cfg', c); };
+    const prog = s.prog;
+    const epItem = e => { const p = prog[e.n] || {}; const isCur = e.n === s.ep; const pctE = isCur ? pctN : (p.t || 0) / this.DUR; return { ...e, isCur, done: !!p.done && !isCur, hasPct: !p.done && pctE > 0.02, pctW: `${Math.round(pctE * 100)}%`, bgImg: bg(e.thumb), ring: isCur ? '#DBAF57' : 'transparent', titleColor: isCur ? '#DBAF57' : '#F0EEE9', bg: isCur ? 'rgba(219,175,87,.08)' : 'transparent', border: isCur ? 'rgba(219,175,87,.4)' : 'transparent', numColor: isCur ? '#DBAF57' : '#B7B1A4', state: isCur ? 'assistindo agora' : p.done ? 'assistido' : p.t > 30 ? `parou em ${this.fmt(p.t)}` : '24 min', go: () => this.goEp(e.n, false) }; };
+    const epList = seasonEps.map(epItem);
+    const curDone = !!(prog[s.ep] || {}).done;
+    const hover = s.hover;
+    const subLines = ['Legenda de exemplo · o texto do episódio aparece aqui', '[Fala do personagem]', 'Legenda de exemplo · sincronizada com o vídeo'];
+    const subText = s.subs === 'forced' ? '[Placa em coreano: Associação de Caçadores]' : s.subs === 'en' ? 'Sample subtitle · English track' : subLines[Math.floor(s.t / 6) % subLines.length];
+    const showSub = s.subs !== 'off' && !overlayBlock && !(s.subs === 'forced' && Math.floor(s.t / 20) % 3 !== 0);
+    const RR = ['O vídeo não carrega', 'Áudio no idioma errado', 'Legenda fora de sincronia', 'Episódio errado', 'Outro problema'];
+    const sinceSaved = s.savedAt ? Math.round((Date.now() - s.savedAt) / 1000) : null;
+    const isNextSeason = nextEp && nextEp.n === 13;
+    let guestFlag = false; try { guestFlag = localStorage.getItem('nk-guest') === '1'; } catch (e) {}
+    const loggedIn = (this.props.loggedIn ?? true) && !guestFlag;
+    return {
+      loggedIn, guest: !loggedIn, ...this.commentVals(loggedIn),
+      stageRef: this.stageRef, barRef: this.barRef, rowRef: this.rowRef,
+      stageMax: '1280px', stageMaxH: s.fs ? 'none' : 'calc(100vh - 150px)', stageRadius: s.fs ? '0px' : '14px', stageCursor: ctrls ? 'default' : 'none',
+      crumb: `Temporada ${seasonN} · Episódio ${s.ep}`, crumbShort: `T${seasonN} · Episódio ${s.ep}`,
+      savedText: sinceSaved == null ? 'Progresso sincronizado' : sinceSaved < 5 ? 'Progresso salvo agora' : `Progresso salvo há ${sinceSaved} s`,
+      frameBg: bg(ep.thumb), framePos: ep.pos || 'center', frameDim: s.playing ? 1 : 0.6,
+      stageClick: () => { if (s.menu || s.eps) { this.setState({ menu: null, sub: null, eps: false }); return; } if (narrow && !s.active) { this.wake(); return; } this.togglePlay(); },
+      wake: this.wake, sleepNow: () => { if (s.playing && !s.menu && !s.eps) this.setState({ active: false }); },
+      showSub, subText, subSize: narrow ? '14px' : s.fs ? '28px' : '20px', subBottom: ctrls ? (narrow ? '96px' : '108px') : '40px',
+      showBigPlay: !s.playing && !overlayBlock && !narrow, loading: s.loading, loadingText: s.loadingText,
+      error: s.error, errorText: `A ${srcNames[s.src]} não respondeu.`,
+      tryOther: () => this.setSource(s.src === 'f2' ? 'f1' : 'f2'), retry: () => this.setSource(s.src),
+      resumeAsk: s.resume, resumeText: this.fmt(s.t), resumePct: `${Math.round(pctN * 100)}%`,
+      resumeYes: () => this.setState({ resume: false, playing: true }), resumeNo: () => this.setState({ resume: false, t: 0, playing: true }),
+      showTop: ctrls && !overlayBlock && s.fs,
+      showSkipOp: inOp && !s.autoSkip && !overlayBlock, skipOp: () => this.seek(this.OP[1], 'Abertura pulada'),
+      skipBottom: ctrls ? (narrow ? '100px' : '110px') : '28px',
+      showNext: inEnd && !s.nextDismissed && !overlayBlock && (!!nextEp || s.t >= this.DUR - 1),
+      next: nextEp ? { label: s.autoNext && s.playing ? `Próximo em ${Math.ceil(s.countdown)} s` : isNextSeason ? 'A seguir · Temporada 2' : 'A seguir', title: `Episódio ${nextEp.n} · ${nextEp.title}`, meta: '24 min', bg: bg(nextEp.thumb), pos: nextEp.pos || 'center',
+          hasCount: s.autoNext && s.playing, countPct: `${Math.max(0, (10 - s.countdown) / 10 * 100)}%`, cta: 'Assistir próximo', go: () => { this.markDone(s.ep, s.played); this.goEp(s.ep + 1, true); }, dismissLabel: s.autoNext && s.playing ? 'Cancelar' : 'Ver créditos' }
+        : { label: 'Fim da animação', title: 'Você chegou ao último episódio lançado', meta: 'A história continua no manhwa', bg: bg(ep.thumb), pos: 'center', hasCount: false, countPct: '0%', cta: 'Continuar na obra original', go: () => { location.href = 'Obra.dc.html?aba=uni'; }, dismissLabel: 'Fechar' },
+      dismissNext: () => this.setState({ nextDismissed: true }),
+      showControls: ctrls && !s.resume && !s.error,
+      barH: hover != null || s.dragging ? '6px' : '4px', knobScale: hover != null || s.dragging ? 1 : 0.7,
+      pct: `${pctN * 100}%`, bufPct: `${Math.min(100, pctN * 100 + 9)}%`,
+      opLeft: `${this.OP[0] / this.DUR * 100}%`, opW: `${(this.OP[1] - this.OP[0]) / this.DUR * 100}%`, edLeft: `${this.ED[0] / this.DUR * 100}%`, edW: `${(this.ED[1] - this.ED[0]) / this.DUR * 100}%`,
+      hoverOn: hover != null && !narrow, hoverLeft: `${(hover || 0) / this.DUR * 100}%`, hoverText: this.fmt(hover || 0),
+      hoverChapter: hover >= this.OP[0] && hover < this.OP[1] ? 'Abertura' : hover >= this.ED[0] && hover < this.ED[1] ? 'Encerramento' : '',
+      barHover: e => this.setState({ hover: this.barT(e.clientX) }), barLeave: () => this.setState({ hover: null }),
+      barDown: e => {
+        e.preventDefault(); this.setState({ dragging: true, t: this.barT(e.clientX) });
+        const mv = ev => this.setState({ t: this.barT(ev.clientX), hover: this.barT(ev.clientX) });
+        const up = ev => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); this.setState({ dragging: false, hover: null }); this.seek(this.barT(ev.clientX)); };
+        document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+      },
+      ctrlGap: narrow ? '2px' : '6px', btn, wideCtrls: !narrow,
+      playing: s.playing, paused: !s.playing, playLabel: s.playing ? 'Pausar' : 'Reproduzir', togglePlay: this.togglePlay,
+      back10: () => this.seek(s.t - 10, '−10 s'), fwd10: () => this.seek(s.t + 10, '+10 s'),
+      toggleMute: this.toggleMute, muteLabel: s.muted ? 'Ativar som' : 'Silenciar',
+      volPath: s.muted || s.vol === 0 ? 'M22 9l-6 6M16 9l6 6' : s.vol < 50 ? 'M15.5 8.5a5 5 0 0 1 0 7' : 'M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
+      volVal: s.muted ? 0 : s.vol, onVol: e => { const vol = +e.target.value; this.setState({ vol, muted: vol === 0 }); this.store('nk-player', { speed: s.speed, vol, muted: vol === 0 }); },
+      timeText: this.fmt(s.t),
+      hasNextEp: !!nextEp, goNextNow: () => { if (nextEp) this.goEp(s.ep + 1, true); },
+      toggleCC: this.toggleCC, ccColor: s.subs === 'off' ? '#8F897D' : '#DBAF57',
+      toggleEps: () => this.setState({ eps: !s.eps, menu: null }), epsColor: s.eps ? '#DBAF57' : '#F0EEE9',
+      toggleSource: () => this.setState({ menu: s.menu === 'src' ? null : 'src', sub: null, eps: false }), srcOpen: s.menu === 'src', srcColor: s.menu === 'src' ? '#DBAF57' : '#F0EEE9',
+      sources: [['auto', 'Automática', 'Escolhe a melhor fonte disponível', true], ['f1', 'Fonte 1', 'Reprodução integrada · progresso automático'], ['f2', 'Fonte 2', 'Alternativa autorizada']].map(([k, l, d, rec]) => ({ label: l, desc: d, rec: !!rec, on: s.src === k, color: s.src === k ? '#DBAF57' : '#F0EEE9', bg: s.src === k ? 'rgba(219,175,87,.08)' : 'transparent', pick: () => this.setSource(k) })),
+      toggleSettings: () => this.setState({ menu: s.menu === 'set' ? null : 'set', sub: null, eps: false }), setOpen: s.menu === 'set', setColor: s.menu === 'set' ? '#DBAF57' : '#F0EEE9', gearRot: s.menu === 'set' ? '60deg' : '0deg',
+      menuMaxH: s.fs ? '70vh' : 'min(420px, calc(100vh - 260px))',
+      setMain: !s.sub, setSub: !!s.sub, subTitle: s.sub ? SUBS[s.sub][0] : '', subOpts, setBack: () => this.setState({ sub: null }),
+      setRows: [['audio', 'Áudio', audioName], ['subs', 'Legendas', subsName], ['quality', 'Qualidade', qName], ['speed', 'Velocidade', spName]].map(([k, l, v]) => ({ label: l, value: v, open: () => this.setState({ sub: k }) })),
+      setToggles: [
+        { label: 'Próximo episódio automático', desc: 'Contagem de 10 s no encerramento', on: s.autoNext, toggle: () => { this.setState({ autoNext: !s.autoNext }); saveCfg('autoplay', !s.autoNext); } },
+        { label: 'Pular abertura automaticamente', desc: 'Quando o episódio tiver marcação', on: s.autoSkip, toggle: () => { this.setState({ autoSkip: !s.autoSkip }); saveCfg('skip', !s.autoSkip); } }
+      ].map(r => ({ ...r, ...tog(r.on) })),
+      toggleFs: this.toggleFs, fsLabel: s.fs ? 'Sair da tela cheia' : 'Tela cheia', fsPath: s.fs ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+      epsOpen: s.eps, epList, seasonLabel: seasonN === 1 ? 'Temporada 1' : 'Temporada 2 · Arise from the Shadow',
+      osd: !!s.osd, osdText: s.osd || '',
+      ep, chips: [`24 min`, `Áudio ${audioName}`, s.subs === 'off' ? 'Sem legenda' : `Legenda ${s.subs === 'en' ? 'EN' : s.subs === 'forced' ? 'forçada' : 'PT-BR'}`, s.quality === 'auto' ? 'Qualidade automática' : `${s.quality}p`, `Fonte ${srcNames[s.src].toLowerCase()}`],
+      fallbackNote: s.audio === 'pt' && !dubOk,
+      synOpen: s.synOpen, synLabel: s.synOpen ? 'Ocultar sinopse' : 'Mostrar sinopse do episódio', toggleSyn: () => this.setState({ synOpen: !s.synOpen }),
+      goPrev: () => this.goEp(s.ep - 1, false), prevCursor: s.ep > 1 ? 'pointer' : 'not-allowed', prevOpacity: s.ep > 1 ? 1 : 0.4,
+      nextCursor: nextEp ? 'pointer' : 'not-allowed', nextBg: nextEp ? '#DBAF57' : '#4A443D', nextColor: '#1A1714',
+      toggleDone: () => { const p = { ...prog, [s.ep]: curDone ? { t: Math.floor(s.t), done: false } : { t: this.DUR, done: true } }; this.store('nk-progress', p); this.setState({ prog: p }); this.flash(curDone ? 'Marcado como não assistido' : `Episódio ${s.ep} marcado como assistido`); },
+      doneLabel: curDone ? 'Assistido · desfazer' : 'Marcar como assistido', doneColor: curDone ? '#DBAF57' : '#F0EEE9', doneBorder: curDone ? 'rgba(219,175,87,.6)' : 'rgba(240,238,233,.18)',
+      origText: seasonN === 1 ? 'A Temporada 1 adapta os capítulos 1 a 45 do manhwa Solo Leveling.' : 'A Temporada 2 adapta os capítulos 46 a 110 do manhwa Solo Leveling.',
+      openReport: () => this.setState({ report: true, menu: null, playing: false }), closeReport: () => this.setState({ report: false, reportReason: null, reportText: '' }),
+      reportOpen: s.report, reportCtx: `T${seasonN} · Episódio ${s.ep} · em ${this.fmt(s.t)} · ${srcNames[s.src]}`,
+      reportOpts: RR.map(l => { const on = s.reportReason === l; return { label: l, border: on ? '#DBAF57' : 'rgba(240,238,233,.1)', bg: on ? 'rgba(219,175,87,.08)' : 'transparent', dotBorder: on ? '#DBAF57' : 'rgba(240,238,233,.3)', dot: on ? '#DBAF57' : 'transparent', pick: () => this.setState({ reportReason: l }) }; }),
+      reportText: s.reportText, onReportText: e => this.setState({ reportText: e.target.value }),
+      reportBg: s.reportReason ? '#DBAF57' : '#4A443D', reportCursor: s.reportReason ? 'pointer' : 'not-allowed',
+      sendReport: () => { if (!s.reportReason) return; this.setState({ report: false, reportReason: null, reportText: '' }); this.flash('Obrigado! A equipe vai verificar este episódio.'); },
+      toast: !!s.toast, toastText: s.toast || ''
+    };
+  }
+}
+</script>
+</body>
+</html>

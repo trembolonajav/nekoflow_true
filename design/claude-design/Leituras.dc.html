@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#171411;color:#F0EEE9;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#DBAF57;text-decoration:none}a:hover{color:#F0EEE9}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#171411;display:flex;flex-direction:column">
+  <dc-import name="Header" active="leituras" logged-in="{{ loggedIn }}" hint-size="100%,0px" style="position:absolute;top:0;left:0;right:0;height:0;z-index:50"></dc-import>
+
+  <div style="position:relative;padding:116px 48px 0;overflow:hidden">
+    <div style="position:absolute;left:0;right:0;top:0;height:420px;background:radial-gradient(ellipse 60% 100% at 85% 0%,rgba(219,175,87,.10),rgba(23,20,17,0) 70%)"></div>
+    <div style="position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px 48px">
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:640px">
+        <span style="display:flex;align-items:center;gap:10px;font-size:11px;font-weight:500;letter-spacing:.32em;text-transform:uppercase;color:#DBAF57"><span style="width:32px;height:1px;background:rgba(219,175,87,.6)"></span>{{ tabInfo.kicker }}</span>
+        <h1 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:60px;line-height:1">{{ tabInfo.title }}</h1>
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#B7B1A4;text-wrap:pretty">{{ tabInfo.sub }}</p>
+      </div>
+      <nav style="display:flex;gap:6px;padding:5px;border-radius:999px;border:1px solid rgba(240,238,233,.1);background:#1A1714">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+          <a href="{{ t.href }}" onClick="{{ t.go }}" style="height:38px;display:flex;align-items:center;padding:0 18px;border-radius:999px;font-size:14px;font-weight:500;background:{{ t.bg }};color:{{ t.color }};white-space:nowrap" style-hover="color:{{ t.hover }}">{{ t.label }}</a>
+        </sc-for>
+      </nav>
+    </div>
+  </div>
+
+  <main style="padding:32px 48px 80px;display:flex;flex-direction:column;gap:64px">
+
+    <sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:64px">
+
+        <section style="position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(219,175,87,.16);background:#1A1714">
+          <sc-if value="{{ feat.hasBanner }}" hint-placeholder-val="{{ false }}"><img src="{{ feat.banner }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.32;filter:saturate(.8)"></sc-if>
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,#1A1714 0%,rgba(26,23,20,.85) 45%,rgba(26,23,20,.55) 100%)"></div>
+          <div style="position:relative;display:flex;flex-wrap:wrap;gap:28px 36px;padding:32px;align-items:center">
+            <img src="{{ feat.cover }}" alt="{{ feat.title }}" style="width:clamp(140px,14vw,200px);flex-shrink:0;aspect-ratio:2/3;object-fit:cover;border-radius:10px;border:1px solid rgba(219,175,87,.35);box-shadow:0 24px 48px rgba(0,0,0,.5);display:block">
+            <div style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1 1 360px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#DBAF57">Destaque · {{ feat.typeLabel }}</span>
+              <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(32px,3.4vw,46px);line-height:1.02;text-wrap:balance">{{ feat.title }}</h2>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px;color:rgba(240,238,233,.85)">
+                <span style="color:#DBAF57">★ {{ feat.score }}</span><span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span><span>{{ feat.genres }}</span><span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span><span>Em andamento</span><span style="width:4px;height:4px;border-radius:50%;background:#B7B1A4"></span><span>{{ feat.ch }} capítulos</span>
+              </div>
+              <p style="margin:0;font-size:15px;line-height:1.65;color:rgba(240,238,233,.86);max-width:560px;text-wrap:pretty">{{ feat.synopsis }}</p>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+                <a href="#" style="height:44px;display:flex;align-items:center;padding:0 22px;border-radius:999px;background:#DBAF57;color:#1A1714;font-size:14px;font-weight:600" style-hover="background:#E6C27A;color:#1A1714">Ler capítulo 1</a>
+                <a href="#" style="height:44px;display:flex;align-items:center;padding:0 22px;border-radius:999px;border:1px solid rgba(240,238,233,.25);color:#F0EEE9;font-size:14px" style-hover="border-color:#DBAF57;color:#F0EEE9">Ver obra</a>
+                <span title="Adicionar à biblioteca" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid rgba(240,238,233,.25);cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0EEE9" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;border-left:1px solid rgba(240,238,233,.1);padding-left:28px;flex:1 1 240px;max-width:320px">
+              <span style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#B7B1A4;margin-bottom:10px">Últimos capítulos</span>
+              <sc-for list="{{ feat.chList }}" as="c" hint-placeholder-count="3">
+                <a href="#" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(240,238,233,.07);color:#F0EEE9" style-hover="color:#DBAF57">
+                  <span style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500"><span style="width:6px;height:6px;transform:rotate(45deg);background:{{ c.dot }}"></span>Capítulo {{ c.n }}</span>
+                  <span style="font-size:12px;color:#B7B1A4">{{ c.when }}</span>
+                </a>
+              </sc-for>
+              <a href="#" style="font-size:13px;margin-top:12px">Todos os capítulos →</a>
+            </div>
+          </div>
+        </section>
+
+        <sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+          <section style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+              <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Continuar lendo</h2>
+              <a href="#" style="font-size:14px">Minha biblioteca →</a>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+              <sc-for list="{{ cont }}" as="c" hint-placeholder-count="3">
+                <div style="display:flex;gap:16px;padding:14px;border-radius:12px;background:#1A1714;border:1px solid rgba(240,238,233,.06)">
+                  <img src="{{ c.cover }}" alt="" style="width:76px;height:114px;object-fit:cover;border-radius:6px;flex-shrink:0;display:block">
+                  <div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1">
+                    <span style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#B7B1A4">{{ c.typeLabel }}</span>
+                    <span style="font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.title }}</span>
+                    <span style="font-size:13px;color:#B7B1A4">{{ c.where }}</span>
+                    <span style="display:block;height:3px;border-radius:2px;background:rgba(240,238,233,.12);overflow:hidden;margin-top:auto"><span style="display:block;height:100%;width:{{ c.pct }};background:#DBAF57"></span></span>
+                    <a href="#" style="font-size:13px;font-weight:600;margin-top:4px">Continuar →</a>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <section style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:8px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Atualizações recentes</h2>
+              <span style="font-size:14px;color:#B7B1A4">Capítulos publicados na Nekoflow, do mais novo para o mais antigo.</span>
+            </div>
+            <a href="#" style="font-size:14px">Ver todas →</a>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:0 40px">
+            <sc-for list="{{ updates }}" as="u" hint-placeholder-count="8">
+              <div style="display:flex;gap:16px;padding:14px 0;border-bottom:1px solid rgba(240,238,233,.07);align-items:center">
+                <img src="{{ u.cover }}" alt="" loading="lazy" style="width:56px;height:84px;object-fit:cover;border-radius:6px;flex-shrink:0;display:block">
+                <div style="display:flex;flex-direction:column;gap:8px;min-width:0;flex:1">
+                  <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                    <a href="#" style="font-size:15px;font-weight:500;color:#F0EEE9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" style-hover="color:#DBAF57">{{ u.title }}</a>
+                    <span style="font-size:12px;color:#B7B1A4">{{ u.typeLabel }} · PT-BR</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <a href="#" style="height:28px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:6px;background:#221F1B;border:1px solid {{ u.newBorder }};font-size:12px;color:#F0EEE9" style-hover="border-color:#DBAF57;color:#F0EEE9"><span style="width:5px;height:5px;transform:rotate(45deg);background:{{ u.newDot }}"></span>Cap. {{ u.ch }}<span style="color:#B7B1A4">{{ u.when }}</span></a>
+                    <a href="#" style="height:28px;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:6px;background:#1E1B18;border:1px solid rgba(240,238,233,.06);font-size:12px;color:#B7B1A4" style-hover="border-color:#DBAF57;color:#F0EEE9">Cap. {{ u.prev }}<span>{{ u.prevWhen }}</span></a>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <sc-if value="{{ isTodas }}" hint-placeholder-val="{{ false }}">
+          <section style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Em alta nesta semana</h2>
+                <span style="font-size:14px;color:#B7B1A4">Por número de leitores nos últimos 7 dias.</span>
+              </div>
+              <a href="#" style="font-size:14px">Ranking completo →</a>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:0 40px">
+              <sc-for list="{{ ranking }}" as="r" hint-placeholder-count="10">
+                <a href="#" style="display:flex;align-items:center;gap:18px;padding:12px 0;border-bottom:1px solid rgba(240,238,233,.07);color:#F0EEE9" style-hover="color:#DBAF57">
+                  <span style="width:44px;font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:500;line-height:1;color:{{ r.numColor }};text-align:right">{{ r.rank }}</span>
+                  <img src="{{ r.cover }}" alt="" loading="lazy" style="width:44px;height:66px;object-fit:cover;border-radius:5px;display:block">
+                  <span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1">
+                    <span style="font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.title }}</span>
+                    <span style="font-size:12px;color:#B7B1A4">{{ r.typeLabel }} · {{ r.genres }}</span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#DBAF57">★ {{ r.score }}</span>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ isMangas }}" hint-placeholder-val="{{ false }}">
+          <section style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Do anime para o original</h2>
+              <span style="font-size:14px;color:#B7B1A4">Viu a adaptação? Leia a história como ela foi publicada, desde o primeiro capítulo.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px">
+              <sc-for list="{{ adaptations }}" as="a" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:#1A1714;border:1px solid rgba(240,238,233,.07)">
+                  <div style="position:relative;aspect-ratio:16/7">
+                    <img src="{{ a.animeBanner }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+                    <span style="position:absolute;inset:0;background:linear-gradient(0deg,#1A1714,rgba(26,23,20,0) 70%)"></span>
+                    <span style="position:absolute;right:12px;top:12px;font-size:10px;font-weight:600;letter-spacing:.18em;background:rgba(23,20,17,.85);padding:5px 8px;border-radius:4px;color:#F0EEE9">ANIME</span>
+                  </div>
+                  <div style="display:flex;gap:16px;padding:0 20px 20px;margin-top:-56px;position:relative;align-items:flex-end">
+                    <img src="{{ a.cover }}" alt="" loading="lazy" style="width:84px;height:126px;object-fit:cover;border-radius:6px;border:1px solid rgba(219,175,87,.4);box-shadow:0 12px 24px rgba(0,0,0,.5);flex-shrink:0;display:block">
+                    <div style="display:flex;flex-direction:column;gap:6px;min-width:0;padding-bottom:2px">
+                      <span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#DBAF57">Mangá original</span>
+                      <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;line-height:1.1">{{ a.title }}</span>
+                      <span style="font-size:13px;color:#B7B1A4">{{ a.ch }} capítulos publicados</span>
+                    </div>
+                  </div>
+                  <a href="#" style="margin:0 20px 20px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:999px;border:1px solid rgba(219,175,87,.4);font-size:14px;font-weight:500" style-hover="background:#DBAF57;color:#1A1714">Ler do capítulo 1</a>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ isManhwas }}" hint-placeholder-val="{{ false }}">
+          <section style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Por tema</h2>
+                <span style="font-size:14px;color:#B7B1A4">Os enredos que os leitores de manhwa mais procuram.</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <sc-for list="{{ themes }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.pick }}" style="all:unset;cursor:pointer;height:36px;display:flex;align-items:center;padding:0 16px;border-radius:999px;font-size:13px;font-weight:500;border:1px solid {{ t.border }};background:{{ t.bg }};color:{{ t.color }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px">
+              <sc-for list="{{ themeItems }}" as="a" hint-placeholder-count="6">
+                <a href="#" style="display:flex;flex-direction:column;gap:10px;color:#F0EEE9" style-hover="color:#DBAF57">
+                  <span style="position:relative;display:block;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#221F1B;border:1px solid rgba(240,238,233,.06)">
+                    <img src="{{ a.cover }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+                    <span style="position:absolute;right:8px;top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(23,20,17,.85);color:#DBAF57;padding:3px 7px;border-radius:4px">★ {{ a.score }}</span>
+                  </span>
+                  <span style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font-size:14px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px">{{ a.title }}</span>
+                    <span style="font-size:12px;color:#B7B1A4">Cap. {{ a.ch }} · {{ a.genres }}</span>
+                  </span>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ isWebtoons }}" hint-placeholder-val="{{ false }}">
+          <section style="display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:36px;line-height:1.05">Agenda da semana</h2>
+                <span style="font-size:14px;color:#B7B1A4">Cada webtoon tem seu dia. Veja o que sai hoje e o que vem depois.</span>
+              </div>
+              <div style="display:flex;gap:4px;padding:4px;border-radius:12px;background:#1A1714;border:1px solid rgba(240,238,233,.08)">
+                <sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+                  <button onClick="{{ d.pick }}" style="all:unset;cursor:pointer;width:58px;height:48px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:{{ d.bg }};color:{{ d.color }}">
+                    <span style="font-size:13px;font-weight:600">{{ d.label }}</span>
+                    <span style="font-size:10px;letter-spacing:.08em;color:{{ d.subColor }}">{{ d.sub }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px">
+              <sc-for list="{{ dayItems }}" as="a" hint-placeholder-count="4">
+                <a href="#" style="display:flex;flex-direction:column;gap:10px;color:#F0EEE9" style-hover="color:#DBAF57">
+                  <span style="position:relative;display:block;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#221F1B;border:1px solid rgba(240,238,233,.06)">
+                    <img src="{{ a.cover }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+                    <span style="position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.14em;background:rgba(23,20,17,.88);color:#DBAF57;padding:5px 8px;border-radius:4px"><span style="width:5px;height:5px;transform:rotate(45deg);background:#DBAF57"></span>{{ a.badge }}</span>
+                  </span>
+                  <span style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font-size:14px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:38px">{{ a.title }}</span>
+                    <span style="font-size:12px;color:#B7B1A4">Próximo: cap. {{ a.next }}</span>
+                  </span>
+                </a>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+      </div>
+    </sc-if>
+  </main>
+
+  <dc-import name="Footer" hint-size="100%,320px" style="margin-top:auto"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;loggedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado&quot;}}">
+class Component extends DCLogic {
+  state = { items: null, tab: 'todas', day: 'sab', theme: 'regressao' };
+  componentDidMount() {
+    const p = new URLSearchParams(location.search).get('tipo');
+    if (['mangas', 'manhwas', 'webtoons'].includes(p)) this.setState({ tab: p });
+    fetch('data/leituras.json').then(r => r.json()).then(items => this.setState({ items }));
+  }
+  setTab(tab) {
+    this.setState({ tab });
+    try { history.replaceState(null, '', tab === 'todas' ? location.pathname : `?tipo=${tab}`); } catch (e) {}
+  }
+  renderVals() {
+    const loggedIn = this.props.loggedIn ?? true;
+    const { items, tab, day, theme } = this.state;
+    const all = items || [];
+    const byTitle = t => all.find(x => x.title === t) || all[0] || {};
+    const typeLabel = x => x.type === 'Manhwa' && x.webtoon ? 'Manhwa · Webtoon' : x.webtoon ? `${x.type} · Webtoon` : x.type;
+    const pool = tab === 'mangas' ? all.filter(x => x.type === 'Mangá') : tab === 'manhwas' ? all.filter(x => x.type === 'Manhwa') : tab === 'webtoons' ? all.filter(x => x.webtoon) : all;
+    const T = {
+      todas: { kicker: 'Mangás · Manhwas · Webtoons', title: 'Leituras', sub: 'Acompanhe capítulos novos das obras que você segue e retome a leitura de onde parou.', feat: 'Witch Hat Atelier' },
+      mangas: { kicker: 'Japão · leitura por páginas', title: 'Mangás', sub: 'Lidos da direita para a esquerda, com capítulos semanais ou mensais. Muitos deram origem aos animes da temporada.', feat: 'Kagurabachi' },
+      manhwas: { kicker: 'Coreia do Sul', title: 'Manhwas', sub: 'Regressão, murim, dungeons e romances de época. Capítulos coloridos, a maioria em rolagem vertical.', feat: 'Return of the Blossoming Blade' },
+      webtoons: { kicker: 'Rolagem vertical', title: 'Webtoons', sub: 'Feitos para ler no celular: um capítulo curto por semana, sempre no mesmo dia.', feat: 'Pick Me Up' }
+    };
+    const syn = {
+      'Witch Hat Atelier': 'Coco sempre quis ser bruxa, mas só quem nasce com magia pode aprender. Até descobrir que os feitiços são desenhados, e que um traço errado muda tudo.',
+      'Kagurabachi': 'Chihiro quer vingança pela morte do pai, um ferreiro de espadas encantadas, e caça os feiticeiros que roubaram suas lâminas.',
+      'Return of the Blossoming Blade': 'Chung Myung, o maior espadachim da seita do Monte Hua, renasce cem anos depois e encontra a seita em ruínas. Agora precisa reerguê-la do zero.',
+      'Pick Me Up': 'Um jogador veterano acorda dentro do gacha que dominava, como um herói de uma estrela, e precisa guiar novatos até o topo de uma torre de cem andares.'
+    };
+    const ti = T[tab];
+    const f = byTitle(ti.feat);
+    const feat = { ...f, hasBanner: !!f.banner, typeLabel: typeLabel(f), synopsis: syn[f.title] || '', score: f.score || '—',
+      chList: [0, 1, 2].map(i => ({ n: (f.ch || 3) - i, when: i === 0 ? f.when : `há ${i * 7} d`, dot: i === 0 ? '#DBAF57' : 'rgba(240,238,233,.25)' })) };
+    const rest = pool.filter(x => x.id !== f.id);
+    const cont = rest.slice(1, 4).map((x, i) => {
+      const n = Math.max(1, x.ch - [3, 12, 1][i]);
+      const paged = x.type === 'Mangá' && !x.webtoon;
+      return { ...x, typeLabel: typeLabel(x), pct: ['64%', '30%', '85%'][i], where: paged ? `Cap. ${n} · pág. ${[12, 6, 17][i]} de 19` : `Cap. ${n} · ${['64', '30', '85'][i]}% do capítulo` };
+    });
+    const updates = [...pool].sort((a, b) => a.hoursAgo - b.hoursAgo).slice(0, 10).map(x => ({
+      ...x, typeLabel: typeLabel(x), prev: x.ch - 1,
+      newBorder: x.hoursAgo < 12 ? 'rgba(219,175,87,.45)' : 'rgba(240,238,233,.08)',
+      newDot: x.hoursAgo < 12 ? '#DBAF57' : 'rgba(240,238,233,.3)'
+    }));
+    const ranking = [...all].sort((a, b) => b.pop - a.pop).slice(0, 10).map((x, i) => ({ ...x, rank: i + 1, typeLabel: typeLabel(x), score: x.score || '—', numColor: i < 3 ? '#DBAF57' : 'rgba(240,238,233,.35)' }));
+    const adaptations = ['Dandadan', 'Sakamoto Days', 'One-Punch Man'].map(byTitle).filter(x => x.anime).map(x => ({ ...x, animeBanner: x.anime.banner || x.anime.cover }));
+    const TH = [['regressao', 'Regressão'], ['murim', 'Murim'], ['dungeon', 'Dungeons e torres'], ['romance', 'Romance']];
+    const themeItems = all.filter(x => x.type === 'Manhwa' && (theme === 'romance' ? x.genres.includes('Romance') || x.themes.includes('epoca') : x.themes.includes(theme))).slice(0, 12).map(x => ({ ...x, score: x.score || '—' }));
+    const D = [['seg', 'Seg'], ['ter', 'Ter'], ['qua', 'Qua'], ['qui', 'Qui'], ['sex', 'Sex'], ['sab', 'Sáb'], ['dom', 'Dom']];
+    const dayItems = all.filter(x => x.webtoon && x.day === day).map(x => ({ ...x, next: x.ch + 1, badge: day === 'sab' ? 'HOJE' : D.find(d => d[0] === day)[1].toUpperCase() }));
+    return {
+      loggedIn, ready: !!items,
+      tabInfo: ti,
+      tabs: [['todas', 'Todas'], ['mangas', 'Mangás'], ['manhwas', 'Manhwas'], ['webtoons', 'Webtoons']].map(([k, label]) => ({
+        label, href: k === 'todas' ? 'Leituras.dc.html' : `Leituras.dc.html?tipo=${k}`,
+        bg: k === tab ? '#DBAF57' : 'transparent', color: k === tab ? '#1A1714' : '#F0EEE9', hover: k === tab ? '#1A1714' : '#DBAF57',
+        go: e => { e.preventDefault(); this.setTab(k); }
+      })),
+      isTodas: tab === 'todas', isMangas: tab === 'mangas', isManhwas: tab === 'manhwas', isWebtoons: tab === 'webtoons',
+      feat, cont, updates, ranking, adaptations, themeItems, dayItems,
+      themes: TH.map(([k, label]) => ({ label, pick: () => this.setState({ theme: k }),
+        bg: k === theme ? 'rgba(219,175,87,.12)' : 'transparent', border: k === theme ? '#DBAF57' : 'rgba(240,238,233,.15)', color: k === theme ? '#DBAF57' : '#F0EEE9' })),
+      days: D.map(([k, label]) => ({ label, sub: k === 'sab' ? 'hoje' : String(all.filter(x => x.webtoon && x.day === k).length), pick: () => this.setState({ day: k }),
+        bg: k === day ? '#DBAF57' : 'transparent', color: k === day ? '#1A1714' : '#F0EEE9', subColor: k === day ? '#1A1714' : '#B7B1A4' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

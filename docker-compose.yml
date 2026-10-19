@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nekoflow}
+      POSTGRES_USER: ${DB_USER:-nekoflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nekoflow}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nekoflow} -d ${DB_NAME:-nekoflow}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-nekoflow}
+      DB_USER: ${DB_USER:-nekoflow}
+      DB_PASSWORD: ${DB_PASSWORD:-nekoflow}
+      NEKOFLOW_DEMO: ${NEKOFLOW_DEMO:-true}
+      NEKOFLOW_DEMO_PASSWORD: ${NEKOFLOW_DEMO_PASSWORD:-nekoflow2026}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
