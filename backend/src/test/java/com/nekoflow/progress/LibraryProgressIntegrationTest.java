@@ -326,6 +326,19 @@ class LibraryProgressIntegrationTest {
     }
 
     @Test
+    void workProgressListsEachUnitOfTheWork() throws Exception {
+        saveEp(ep1, userA, 30_000, 30_000, false, UUID.randomUUID(), 1, 0);
+        mvc.perform(put("/api/v1/me/progress/episodes/" + ep2 + "/completion").with(userA).with(csrf()));
+        mvc.perform(get("/api/v1/me/works/" + animePublic + "/progress").with(userA))
+                .andExpect(jsonPath("$.episodes.length()").value(2))
+                .andExpect(jsonPath("$.episodes[0].episodeId").value(ep1.toString()))
+                .andExpect(jsonPath("$.episodes[0].positionMs").value(30_000))
+                .andExpect(jsonPath("$.episodes[1].completionSource").value("MANUAL"));
+        mvc.perform(get("/api/v1/me/works/" + animePublic + "/progress").with(userB))
+                .andExpect(jsonPath("$.episodes.length()").value(0));
+    }
+
+    @Test
     void progressRespectsExplicitPausedStatus() throws Exception {
         putJson("/api/v1/me/library/" + animePublic, userA, "{\"status\":\"pausado\"}");
         saveEp(ep1, userA, 10_000, 10_000, false, UUID.randomUUID(), 1, 0).andExpect(status().isOk());

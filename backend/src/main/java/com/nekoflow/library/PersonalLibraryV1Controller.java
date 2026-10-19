@@ -111,6 +111,12 @@ public class PersonalLibraryV1Controller {
         return library.follow(CurrentUser.id(), workId, false);
     }
 
+    @GetMapping("/works/{workId}/progress")
+    public Map<String, Object> workProgress(@PathVariable String workId) {
+        PersonalLibraryService.WorkRef w = library.resolve(workId);
+        return progress.workUnits(CurrentUser.id(), w.id(), w.publicId());
+    }
+
     // ---- continuidade -----------------------------------------------------------------
 
     @GetMapping("/continue-watching")

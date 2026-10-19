@@ -335,6 +335,51 @@ public class ProgressService {
         return chapter(userId, chapterId, editionId);
     }
 
+    // ---- visão por obra (ficha) -------------------------------------------------------------
+
+    /** Progresso do usuário em cada unidade de uma obra, para a ficha marcar vistos/lidos. */
+    public Map<String, Object> workUnits(long userId, long workId, UUID workPublicId) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("workId", workPublicId);
+        m.put("episodes", jdbc.sql("""
+                SELECT p.episode_id, p.position_ms, p.duration_ms, p.completed_at IS NOT NULL AS completed,
+                       p.completion_source, p.version, p.last_activity_at
+                FROM episode_progress p JOIN episode e ON e.id = p.episode_id JOIN season s ON s.id = e.season_id
+                WHERE p.user_id = ? AND s.work_id = ? ORDER BY s.sort_position, e.sort_position""")
+                .params(userId, workId)
+                .query((rs, n) -> {
+                    Map<String, Object> u = new LinkedHashMap<>();
+                    u.put("episodeId", rs.getObject("episode_id", UUID.class));
+                    u.put("positionMs", rs.getLong("position_ms"));
+                    u.put("durationMs", rs.getObject("duration_ms"));
+                    u.put("completed", rs.getBoolean("completed"));
+                    u.put("completionSource", rs.getString("completion_source"));
+                    u.put("version", rs.getLong("version"));
+                    u.put("lastActivityAt", rs.getObject("last_activity_at", OffsetDateTime.class));
+                    return u;
+                }).list());
+        m.put("chapters", jdbc.sql("""
+                SELECT p.chapter_id, p.edition_id, p.page_index, p.segment_key, p.percent_complete,
+                       p.completed_at IS NOT NULL AS completed, p.completion_source, p.version, p.last_activity_at
+                FROM chapter_progress p JOIN work_edition ed ON ed.id = p.edition_id
+                WHERE p.user_id = ? AND ed.work_id = ?""")
+                .params(userId, workId)
+                .query((rs, n) -> {
+                    Map<String, Object> u = new LinkedHashMap<>();
+                    u.put("chapterId", rs.getObject("chapter_id", UUID.class));
+                    u.put("editionId", rs.getObject("edition_id", UUID.class));
+                    u.put("pageIndex", rs.getObject("page_index"));
+                    u.put("segmentKey", rs.getString("segment_key"));
+                    u.put("percentComplete", rs.getBigDecimal("percent_complete"));
+                    u.put("completed", rs.getBoolean("completed"));
+                    u.put("completionSource", rs.getString("completion_source"));
+                    u.put("version", rs.getLong("version"));
+                    u.put("lastActivityAt", rs.getObject("last_activity_at", OffsetDateTime.class));
+                    return u;
+                }).list());
+        return m;
+    }
+
     // ---- regras compartilhadas -----------------------------------------------------------
 
     private static void requireSyncFields(UUID session, Long sequence, Long expectedVersion, UUID eventId) {
