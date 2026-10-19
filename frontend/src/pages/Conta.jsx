@@ -31,6 +31,28 @@ class ContaLogic extends DCLogic {
   };
   TABS = ["perfil", "lista", "assistindo", "lendo", "historico", "notificacoes", "solicitacoes", "configuracoes"];
   ALIASES = { biblioteca: "lista", "continuar-assistindo": "assistindo", "continuar-lendo": "lendo" };
+  accountAction = async (kind) => {
+    try {
+      if (kind === "name") {
+        const displayName = window.prompt("Novo nome de exibição", session.user.name || "");
+        if (!displayName) return;
+        const me = await api.patch("/api/me", { displayName }); session.set(me);
+        this.setState({ toast: "Nome de exibição atualizado." });
+      } else if (kind === "password") {
+        const currentPassword = window.prompt("Senha atual"); if (!currentPassword) return;
+        const newPassword = window.prompt("Nova frase-senha (mínimo de 15 caracteres)"); if (!newPassword) return;
+        await api.post("/api/me/change-password", { currentPassword, newPassword });
+        this.setState({ toast: "Senha alterada; as outras sessões foram encerradas." });
+      } else if (kind === "sessions") {
+        const sessions = await api.get("/api/me/sessions");
+        const others = sessions.filter((x) => !x.current);
+        if (!others.length) return this.setState({ toast: "Somente esta sessão está conectada." });
+        const answer = window.prompt(`Outras sessões: ${others.map((x, i) => `${i + 1}: ${new Date(x.lastAccess).toLocaleString("pt-BR")}`).join(" · ")}\nDigite o número para encerrar.`);
+        const chosen = others[Number(answer) - 1]; if (!chosen) return;
+        await api.del(`/api/me/sessions/${chosen.id}`); this.setState({ toast: "Sessão encerrada." });
+      }
+    } catch (e) { this.setState({ toast: e.message || "Não foi possível concluir." }); }
+  };
   componentDidMount() {
     const p = new URLSearchParams(location.search);
     const a = this.ALIASES[p.get("aba")] || p.get("aba");
@@ -464,19 +486,21 @@ class ContaLogic extends DCLogic {
           label: "Nome de exibição",
           desc: `${session.user.name || ""} · aparece no perfil e nos comentários`,
           action: "Alterar",
+          act: () => this.accountAction("name"),
         },
         {
           label: "E-mail",
           desc: `${(session.user.email || "").replace(/^(.)[^@]*/, "$1•••••")} · exige confirmação por e-mail`,
-          action: "Alterar",
+          action: "Em preparação",
+          disabled: true,
         },
-        { label: "Senha", desc: "Alterada há 3 meses", action: "Alterar senha" },
-        { label: "Sessões conectadas", desc: "Chrome no Windows (esta) · Nekoflow no Android", action: "Gerenciar" },
+        { label: "Senha", desc: "Use uma frase-senha com pelo menos 15 caracteres", action: "Alterar senha", act: () => this.accountAction("password") },
+        { label: "Sessões conectadas", desc: "Consulte e encerre outras sessões reais", action: "Gerenciar", act: () => this.accountAction("sessions") },
         {
-          key: "twofa",
           label: "Verificação em duas etapas",
           desc: "Pede um código ao entrar em um novo dispositivo",
-          d: false,
+          action: "Ainda indisponível",
+          disabled: true,
         },
       ],
       play: [
@@ -2638,9 +2662,12 @@ function render(v) {
                             <>
                               <button
                                 className="nk-hover-ucdklh"
+                                onClick={r?.act}
+                                disabled={r?.disabled}
                                 style={{
                                   all: "unset",
-                                  cursor: "pointer",
+                                  cursor: r?.disabled ? "not-allowed" : "pointer",
+                                  opacity: r?.disabled ? ".55" : "1",
                                   height: "36px",
                                   display: "flex",
                                   alignItems: "center",

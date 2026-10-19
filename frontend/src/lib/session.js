@@ -1,7 +1,7 @@
 // Sessão do usuário (uma única fonte para todas as telas).
 import { api } from "./api";
 
-let current = { authenticated: false };
+let current = { authenticated: false, authState: "loading" };
 let loaded = null;
 const subs = new Set();
 
@@ -11,7 +11,8 @@ export const session = {
     if (!loaded) {
       loaded = api
         .get("/api/auth/me")
-        .catch(() => ({ authenticated: false }))
+        .then((me) => ({ ...me, authState: me?.authenticated ? "authenticated" : "visitor" }))
+        .catch((error) => ({ authenticated: false, authState: error?.status === 401 ? "visitor" : "unavailable" }))
         .then((me) => {
           current = me || { authenticated: false };
           subs.forEach((f) => f(current));
@@ -31,7 +32,7 @@ export const session = {
     return () => subs.delete(fn);
   },
   set(me) {
-    current = me || { authenticated: false };
+    current = me ? { ...me, authState: me.authenticated ? "authenticated" : (me.authState || "visitor") } : { authenticated: false, authState: "visitor" };
     loaded = Promise.resolve(current);
     subs.forEach((f) => f(current));
   },
@@ -42,10 +43,7 @@ export const session = {
     return me;
   },
   async register(username, email, password) {
-    const me = await api.post("/api/auth/register", { username, email, password });
-    clearPrivateCache();
-    this.set(me);
-    return me;
+    return api.post("/api/auth/register", { username, email, password });
   },
   /** Sai da conta e limpa dados privados guardados neste navegador (a conta não é afetada). */
   async logout() {
@@ -53,7 +51,7 @@ export const session = {
       await api.post("/api/auth/logout");
     } catch (e) {}
     clearPrivateCache();
-    this.set({ authenticated: false });
+    this.set({ authenticated: false, authState: "visitor" });
   },
 };
 
