@@ -29,9 +29,24 @@ public class CatalogV1Controller {
   }
   @GetMapping("/works/{id}") public Map<String,Object> detail(@PathVariable UUID id){long legacy=legacy(id);return detailMap(legacy);}
   @GetMapping("/works/resolve") public Map<String,Object> resolve(@RequestParam String section,@RequestParam String slug){
-    return jdbc.sql("SELECT public_id FROM work WHERE visibility='PUBLISHED' AND slug=? AND media_family=?").params(slug,"animes".equals(section)?"ANIMATION":"READING").query(UUID.class).optional().map(this::detail).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Obra não encontrada"));}
-  @GetMapping("/works/{id}/seasons") public List<Map<String,Object>> seasons(@PathVariable UUID id){return rows("SELECT id,title,display_number,sort_position,poster_url,release_date FROM season WHERE work_id=? AND visibility='PUBLISHED' ORDER BY sort_position",legacy(id));}
-  @GetMapping("/seasons/{id}/episodes") public List<Map<String,Object>> episodes(@PathVariable UUID id){return rowsUuid("SELECT e.id,e.title,e.display_number,e.sort_position,e.synopsis,e.duration_seconds,e.original_air_date,e.availability,EXISTS(SELECT 1 FROM episode_source s WHERE s.episode_id=e.id AND s.enabled AND (s.available_from IS NULL OR s.available_from<=now()) AND (s.available_until IS NULL OR s.available_until>now())) AS has_source,EXISTS(SELECT 1 FROM episode_source s WHERE s.episode_id=e.id AND s.enabled AND s.source_type IN ('HLS','MP4','DASH') AND (s.available_from IS NULL OR s.available_from<=now()) AND (s.available_until IS NULL OR s.available_until>now())) AS playable FROM episode e JOIN season se ON se.id=e.season_id WHERE e.season_id=? AND se.visibility='PUBLISHED' ORDER BY e.sort_position",id);}
+    String family="animes".equals(section)?"ANIMATION":"READING";
+    Optional<UUID> exact=jdbc.sql("SELECT public_id FROM work WHERE visibility='PUBLISHED' AND slug=? AND media_family=?")
+      .params(slug,family).query(UUID.class).optional();
+    if(exact.isPresent()) return detail(exact.get());
+    // Endereço antigo ou alternativo (ex.: slug do FIB Anime) abre a mesma obra.
+    Optional<UUID> alias=jdbc.sql("SELECT w.public_id FROM work_slug_alias a JOIN work w ON w.id=a.work_id WHERE a.media_family=? AND a.slug=? AND w.visibility='PUBLISHED'")
+      .params(family,slug).query(UUID.class).optional();
+    if(alias.isPresent()) return detail(alias.get());
+    int dash=slug.lastIndexOf('-');
+    if(dash>=0) try {
+      long legacyId=Long.parseLong(slug.substring(dash+1));
+      return jdbc.sql("SELECT public_id FROM work WHERE id=? AND visibility='PUBLISHED' AND media_family=?")
+        .params(legacyId,family).query(UUID.class).optional().map(this::detail)
+        .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Obra não encontrada"));
+    } catch(NumberFormatException ignored) { }
+    throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Obra não encontrada");}
+  @GetMapping("/works/{id}/seasons") public List<Map<String,Object>> seasons(@PathVariable UUID id){return rows("SELECT s.id,s.title,s.display_number,s.sort_position,s.poster_url,s.release_date,(SELECT count(*) FROM episode e WHERE e.season_id=s.id) AS episode_count FROM season s WHERE s.work_id=? AND s.visibility='PUBLISHED' ORDER BY s.sort_position",legacy(id));}
+  @GetMapping("/seasons/{id}/episodes") public List<Map<String,Object>> episodes(@PathVariable UUID id){return rowsUuid("SELECT e.id,e.title,e.display_number,e.sort_position,e.synopsis,e.duration_seconds,e.original_air_date,e.availability,e.thumbnail_url,e.source_page_url,EXISTS(SELECT 1 FROM episode_source s WHERE s.episode_id=e.id AND s.enabled AND (s.available_from IS NULL OR s.available_from<=now()) AND (s.available_until IS NULL OR s.available_until>now())) AS has_source,EXISTS(SELECT 1 FROM episode_source s WHERE s.episode_id=e.id AND s.enabled AND s.source_type IN ('HLS','MP4','DASH','EMBED') AND (s.available_from IS NULL OR s.available_from<=now()) AND (s.available_until IS NULL OR s.available_until>now())) AS playable FROM episode e JOIN season se ON se.id=e.season_id WHERE e.season_id=? AND se.visibility='PUBLISHED' ORDER BY e.sort_position",id);}
   @GetMapping("/episodes/{id}") public Map<String,Object> episode(@PathVariable UUID id){return jdbc.sql("SELECT e.id,e.title,e.display_number,e.sort_position,e.synopsis,e.duration_seconds,e.original_air_date,e.availability,w.public_id AS work_id,w.title AS work_title,w.slug FROM episode e JOIN season s ON s.id=e.season_id JOIN work w ON w.id=s.work_id WHERE e.id=? AND s.visibility='PUBLISHED' AND w.visibility='PUBLISHED'").param(id).query((rs,n)->row(rs)).optional().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Episódio não encontrado"));}
   @GetMapping("/works/{id}/volumes") public List<Map<String,Object>> volumes(@PathVariable UUID id){return rows("SELECT v.* FROM volume v JOIN work_edition e ON e.id=v.edition_id WHERE e.work_id=? ORDER BY v.sort_position",legacy(id));}
   @GetMapping("/works/{id}/editions") public List<Map<String,Object>> editions(@PathVariable UUID id){return rows("SELECT id,name,language,is_original,reading_mode,reading_direction FROM work_edition WHERE work_id=? ORDER BY is_original DESC,name",legacy(id));}
