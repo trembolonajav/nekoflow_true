@@ -1160,7 +1160,23 @@ function render(v) {
                 transition: "filter .3s",
               }}
             />{" "}
-            {v.realVideo ? (
+            {v.embedUrl ? (
+              <iframe
+                src={v.embedUrl}
+                title={`${v.workTitle || "Anime"} · player incorporado`}
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  width: "100%",
+                  height: "100%",
+                  border: "0",
+                  background: "#000",
+                }}
+              />
+            ) : v.realVideo ? (
               <video
                 ref={v.videoRef}
                 playsInline
@@ -1176,7 +1192,9 @@ function render(v) {
                 }}
               />
             ) : null}{" "}
-            <span onClick={v.stageClick} onDoubleClick={v.toggleFs} style={{ position: "absolute", inset: "0" }} />{" "}
+            {!v.embedUrl ? (
+              <span onClick={v.stageClick} onDoubleClick={v.toggleFs} style={{ position: "absolute", inset: "0" }} />
+            ) : null}{" "}
             {v.showSub ? (
               <>
                 {" "}
@@ -4058,6 +4076,7 @@ class RealPlayerLogic extends PlayerLogic {
     unitProg: {},
     syncStatus: null,
     external: false,
+    embedUrl: null,
     fatal: null,
     loading: true,
     loadingText: "Preparando o episódio…",
@@ -4154,6 +4173,18 @@ class RealPlayerLogic extends PlayerLogic {
 
     const src = pickSource(ranked);
     if (!src) {
+      const embed = ranked.find((s) => s.embedUrl);
+      if (embed) {
+        this.setState({
+          loading: false,
+          external: false,
+          embedUrl: embed.embedUrl,
+          error: false,
+          playing: false,
+          src: embed.id,
+        });
+        return;
+      }
       const ext = ranked.find((s) => s.externalUrl);
       this.setState({ loading: false, external: true, error: true, playing: false, src: ext ? ext.id : null });
       return;
@@ -4188,6 +4219,7 @@ class RealPlayerLogic extends PlayerLogic {
     this.meter.reset(startT);
     this.setState({
       src: src.id,
+      embedUrl: null,
       loading: true,
       error: false,
       fatal: null,
@@ -4373,7 +4405,11 @@ class RealPlayerLogic extends PlayerLogic {
     on("error", () => {
       const code = v.error && v.error.code;
       if (this.hls) return; // o hls.js trata os próprios erros
-      this.fail(code === 4 ? "Este navegador não suporta o formato desta fonte." : "O vídeo não pôde ser carregado.", code === 4);
+      this.fail(
+        code === 4
+          ? "A fonte não respondeu: o link pode ter expirado ou estar fora do ar."
+          : "O vídeo não pôde ser carregado.",
+      );
     });
   }
 
@@ -4505,6 +4541,20 @@ class RealPlayerLogic extends PlayerLogic {
     const s = this.state;
     const src = s.ranked.find((x) => x.id === id);
     if (!src) return;
+    if (src.embedUrl) {
+      this.detach();
+      this.setState({
+        menu: null,
+        src: src.id,
+        embedUrl: src.embedUrl,
+        external: false,
+        loading: false,
+        error: false,
+        playing: false,
+      });
+      this.flash(`${src.label} · player incorporado`);
+      return;
+    }
     if (!src.playsInPlayer) {
       this.setState({ menu: null });
       if (src.externalUrl) window.open(src.externalUrl, "_blank", "noopener,noreferrer");
@@ -4540,7 +4590,11 @@ class RealPlayerLogic extends PlayerLogic {
     const unit = pb ? pb.episode : { number: "", title: "" };
     const src = s.ranked.find((x) => x.id === s.src) || null;
     const bg = (u) => (u ? `url("${u}")` : "none");
-    const unitLabel = (u) => (u.title ? u.title : `Episódio ${u.number}`);
+    // Títulos técnicos de importação ("T1 EP16") aparecem como "Episódio 16".
+    const unitLabel = (u) =>
+      u.title && !/^T\d+\s*EP\d+$/i.test(u.title.trim()) && !/^(episódio|episode)\s*\d+$/i.test(u.title.trim())
+        ? u.title
+        : `Episódio ${u.number}`;
     const crumb = pb ? `${pb.episode.seasonTitle} · Episódio ${unit.number}` : "Carregando…";
     const myProg = s.unitProg;
     const nextU = pb && pb.next;
@@ -4611,7 +4665,7 @@ class RealPlayerLogic extends PlayerLogic {
 
     const savedText = !loggedIn
       ? "Entre para salvar seu progresso"
-      : s.external
+      : s.external || s.embedUrl
         ? "Marque como assistido quando terminar"
         : {
             saving: "Salvando progresso…",
@@ -4690,13 +4744,19 @@ class RealPlayerLogic extends PlayerLogic {
             errorTitle: s.incompatible ? "Formato não suportado neste navegador" : "Não foi possível carregar o vídeo",
             errorText: s.errorText || "A fonte não respondeu.",
             errorSaved: loggedIn && s.t > 0,
-            tryOtherLabel: playableAlt.length ? "Tentar outra fonte" : extSrc ? "Assistir no provedor ↗" : "Voltar à obra",
+            tryOtherLabel: playableAlt.length
+              ? "Tentar outra fonte"
+              : extSrc
+                ? "Assistir no provedor ↗"
+                : "Reportar problema",
             tryOther: () =>
               playableAlt.length
                 ? this.setSource(playableAlt[0].id)
                 : extSrc
                   ? window.open(extSrc.externalUrl, "_blank", "noopener,noreferrer")
-                  : (location.href = pb ? pb.work.href : "/animes"),
+                  : loggedIn
+                    ? this.setState({ report: true, reportReason: "VIDEO_NOT_LOADING", menu: null })
+                    : goLogin(),
             retryLabel: "Tentar novamente",
             retry: () => {
               const cur2 = s.ranked.find((x) => x.id === s.src);
@@ -4708,7 +4768,8 @@ class RealPlayerLogic extends PlayerLogic {
       ...base,
       ...errorVals,
       demoBanner: false,
-      realVideo: true,
+      realVideo: !s.embedUrl,
+      embedUrl: s.embedUrl,
       commentsOn: false,
       videoRef: this.videoRef,
       videoPoster: pb ? pb.work.banner : null,
@@ -4736,7 +4797,7 @@ class RealPlayerLogic extends PlayerLogic {
         }
         this.togglePlay();
       },
-      showBigPlay: !s.playing && !overlayBlock && !s.narrow,
+      showBigPlay: !s.embedUrl && !s.playing && !overlayBlock && !s.narrow,
       resumeYes: () => {
         this.setState({ resume: false });
         this.playNow();
@@ -4774,7 +4835,7 @@ class RealPlayerLogic extends PlayerLogic {
             go: () => (location.href = pb && pb.adaptation ? pb.adaptation.href : pb.work.href),
             dismissLabel: "Fechar",
           },
-      showControls: ctrls && !s.resume && !s.error,
+      showControls: !s.embedUrl && ctrls && !s.resume && !s.error,
       pct: `${pctN * 100}%`,
       bufPct: dur ? `${Math.min(100, (s.bufEnd / dur) * 100)}%` : "0%",
       opLeft: this.OP[0] >= 0 && dur ? `${(this.OP[0] / dur) * 100}%` : "0%",
@@ -4803,7 +4864,9 @@ class RealPlayerLogic extends PlayerLogic {
       ccColor: s.subIdx >= 0 ? "#DBAF57" : "#8F897D",
       sources: s.ranked.map((x) => ({
         label: x.label,
-        desc: x.playsInPlayer
+        desc: x.embedUrl
+          ? "Player incorporado no NekoFlow"
+          : x.playsInPlayer
           ? !x.compatible
             ? "Incompatível com este navegador"
             : x.capabilities.progress
@@ -4826,7 +4889,7 @@ class RealPlayerLogic extends PlayerLogic {
       ].map(([k, l, val]) => ({ label: l, value: val, open: () => this.setState({ sub: k }) })),
       epList,
       seasonLabel: pb ? pb.episode.seasonTitle : "",
-      ep: { n: unit.number, title: unit.title || `Episódio ${unit.number}` },
+      ep: { n: unit.number, title: unitLabel(unit) },
       chips: [
         dur ? `${Math.round(dur / 60)} min` : null,
         `Áudio ${audioName}`,
