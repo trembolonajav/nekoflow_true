@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { libraryApi } from "../features/library/libraryApi";
+import { progressApi } from "../features/progress/progressApi";
 import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
 
 const WORK_ID = 105398;
@@ -224,6 +225,23 @@ class ObraLeituraLogic extends DCLogic {
       ["chars", "Personagens", d ? d.chars.length : null],
     ];
     return {
+      // Textos da ficha original do design; a ficha dinâmica (DynamicObraLeituraLogic) substitui.
+      workTitle: "Solo Leveling",
+      legacyId: WORK_ID,
+      heroTag1: "Manhwa",
+      heroTag2: "Webtoon · vertical",
+      heroTag3: "Concluído",
+      creditsLine: "Chugong · Jang Seong-rak",
+      chaptersText: "201 capítulos",
+      langNoteText: "Em português faltam 5 capítulos das histórias paralelas (196 a 200). Eles já estão disponíveis em inglês.",
+      hasAnime: true,
+      hasAnimeMap: true,
+      animeTitle: "Solo Leveling",
+      animeHref: canonicalWorks.soloLevelingAnime,
+      animeFirstHref: getUnitUrl({ id: 151807, kind: "anime" }, 1),
+      animeFirstCta: "Assistir episódio 1",
+      afterAnimeHref: getUnitUrl({ id: WORK_ID, kind: "manhwa" }, 111),
+      afterAnimeText: "Continuar após o anime · cap. 111",
       loggedIn,
       narrow: s.narrow,
       d: d || { native: "", score: "", synopsisShort: "" },
@@ -355,13 +373,13 @@ class ObraLeituraLogic extends DCLogic {
       themeTags: d ? d.themes : [],
       altText: d ? d.alt.join(" · ") : "",
       ficha: d ? d.ficha.map(([k, v]) => ({ k, v })) : [],
-      animeBannerBg: bg(d && d.anime.banner),
-      animeCoverBg: bg(d && d.anime.cover),
-      animeMeta: d ? d.anime.meta : "",
+      animeBannerBg: bg(d && d.anime && d.anime.banner),
+      animeCoverBg: bg(d && d.anime && d.anime.cover),
+      animeMeta: d && d.anime ? d.anime.meta : "",
       mapHidden: !s.mapOpen,
       mapShown: s.mapOpen,
       showMap: () => this.setState({ mapOpen: true }),
-      animeMap: d ? d.anime.map : [],
+      animeMap: d && d.anime ? d.anime.map : [],
       related: d ? d.related.map((r) => ({ ...r, hasCover: !!r.cover, noCover: !r.cover, bg: bg(r.cover) })) : [],
       chars: d
         ? d.chars.map((c) => ({
@@ -459,7 +477,7 @@ function render(v) {
           >
             <span
               role="img"
-              aria-label="Capa do manhwa Solo Leveling"
+              aria-label={`Capa de ${v.workTitle ?? ""}`}
               style={{
                 width: "clamp(170px,17vw,250px)",
                 aspectRatio: "2/3",
@@ -493,7 +511,7 @@ function render(v) {
                     textTransform: "uppercase",
                   }}
                 >
-                  Manhwa
+                  {txt(v.heroTag1)}
                 </span>
                 <span
                   style={{
@@ -512,7 +530,7 @@ function render(v) {
                     textTransform: "uppercase",
                   }}
                 >
-                  Webtoon · vertical
+                  {txt(v.heroTag2)}
                 </span>
                 <span
                   style={{
@@ -531,7 +549,7 @@ function render(v) {
                     textTransform: "uppercase",
                   }}
                 >
-                  Concluído
+                  {txt(v.heroTag3)}
                 </span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -545,7 +563,7 @@ function render(v) {
                     letterSpacing: "-.01em",
                   }}
                 >
-                  Solo Leveling
+                  {txt(v.workTitle)}
                 </h1>
                 <span style={{ fontSize: "15px", color: "rgba(240,238,233,.7)" }}>{txt(v.d?.native)}</span>
               </div>
@@ -565,10 +583,14 @@ function render(v) {
                 </span>
                 <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
                 <span>{txt(v.genresText)}</span>
+                {v.creditsLine ? (
+                  <>
+                    <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
+                    <span>{txt(v.creditsLine)}</span>
+                  </>
+                ) : null}
                 <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
-                <span>Chugong · Jang Seong-rak</span>
-                <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
-                <span>201 capítulos</span>
+                <span>{txt(v.chaptersText)}</span>
               </div>
               <p
                 style={{
@@ -887,7 +909,7 @@ function render(v) {
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", flexShrink: "0" }}>
                   <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "20px", fontWeight: "500" }}>
-                    Solo Leveling
+                    {txt(v.workTitle)}
                   </span>
                   <a
                     className="nk-hover-1uijps0"
@@ -1248,9 +1270,8 @@ function render(v) {
                           }}
                         />
                         <span>
-                          Em português faltam 5 capítulos das histórias paralelas (196 a 200). Eles já estão disponíveis
-                          em inglês.{" "}
-                          <a href="/conta?aba=solicitacoes&obra=105398&pedido=traducao" style={{ fontWeight: "600" }}>
+                          {txt(v.langNoteText)}{" "}
+                          <a href={`/conta?aba=solicitacoes&obra=${v.legacyId}&pedido=traducao`} style={{ fontWeight: "600" }}>
                             Pedir tradução →
                           </a>
                         </span>
@@ -1413,7 +1434,7 @@ function render(v) {
                                   flexShrink: "0",
                                 }}
                               >
-                                Em tradução
+                                {txt(c?.unavailableLabel ?? "Em tradução")}
                               </span>
                             </>
                           ) : null}
@@ -1719,6 +1740,7 @@ function render(v) {
                       Versões desta mesma história. Para obras parecidas, veja as recomendações abaixo.
                     </span>
                   </div>
+                  {v.hasAnime ? (
                   <div
                     style={{
                       position: "relative",
@@ -1757,7 +1779,7 @@ function render(v) {
                     >
                       <span
                         role="img"
-                        aria-label="Capa do anime Solo Leveling"
+                        aria-label={`Capa de ${v.animeTitle ?? ""}`}
                         style={{
                           width: "clamp(130px,13vw,180px)",
                           aspectRatio: "2/3",
@@ -1799,13 +1821,13 @@ function render(v) {
                             lineHeight: "1",
                           }}
                         >
-                          Solo Leveling
+                          {txt(v.animeTitle)}
                         </span>
                         <span style={{ fontSize: "14px", color: "#D9D5CC" }}>{txt(v.animeMeta)}</span>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                           <a
                             className="nk-hover-1uijps0"
-                            href={canonicalWorks.soloLevelingAnime}
+                            href={v.animeHref}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1822,7 +1844,7 @@ function render(v) {
                           </a>
                           <a
                             className="nk-hover-1rcmvu"
-                            href={getUnitUrl({ id: 151807, kind: "anime" }, 1)}
+                            href={v.animeFirstHref}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1844,10 +1866,11 @@ function render(v) {
                                 borderBottom: "5px solid transparent",
                               }}
                             />
-                            Assistir episódio 1
+                            {txt(v.animeFirstCta)}
                           </a>
                         </div>
                       </div>
+                      {v.hasAnimeMap ? (
                       <div
                         style={{
                           flex: "1 1 280px",
@@ -1937,7 +1960,7 @@ function render(v) {
                                 Verificado pela equipe · aproximado
                               </span>
                               <a
-                                href={getUnitUrl({ id: WORK_ID, kind: "manhwa" }, 111)}
+                                href={v.afterAnimeHref}
                                 style={{
                                   alignSelf: "flex-start",
                                   height: "38px",
@@ -1951,14 +1974,16 @@ function render(v) {
                                   fontWeight: "600",
                                 }}
                               >
-                                Continuar após o anime · cap. 111
+                                {txt(v.afterAnimeText)}
                               </a>
                             </div>
                           </>
                         ) : null}
                       </div>
+                      ) : null}
                     </div>{" "}
                   </div>
+                  ) : null}
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "30px", fontWeight: "500" }}>
                       Da mesma franquia
@@ -2020,7 +2045,7 @@ function render(v) {
                                     color: "#DBAF57",
                                   }}
                                 >
-                                  SL
+                                  {txt(r?.initials)}
                                 </span>
                               </>
                             ) : null}
@@ -2111,6 +2136,7 @@ function render(v) {
               </>
             ) : null}
           </div>
+          {v.hasRecs !== false ? (
           <section style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <h2
@@ -2183,6 +2209,7 @@ function render(v) {
               ))}
             </div>
           </section>
+          ) : null}
         </main>
         {v.narrow ? (
           <>
@@ -2283,4 +2310,280 @@ function render(v) {
 
 export const defaults = { loggedIn: true };
 
-export default defineDC("ObraLeitura", ObraLeituraLogic, render, { helmet });
+/**
+ * Ficha do design para qualquer leitura do catálogo: o mesmo layout, com os capítulos
+ * reais de cada edição, o documento de apresentação (catálogo + AniList) e a API v1.
+ */
+class DynamicObraLeituraLogic extends ObraLeituraLogic {
+  state = { ...this.state, edition: 0, asc: false, unitProg: {}, lib: null };
+
+  componentDidMount() {
+    const a = new URLSearchParams(location.search).get("aba");
+    if (["caps", "sobre", "adapt", "chars"].includes(a)) this.setState({ active: a });
+    (this.props.presentation
+      ? Promise.resolve(this.props.presentation)
+      : api.get(`/api/v1/works/${this.props.presentationId}/presentation`)
+    )
+      .then((d) => {
+        this.setState({ d });
+        document.title = `${d.title} — NekoFlow`;
+      })
+      .catch(() => this.setState({ failed: true }));
+    this.loadMe();
+    document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", this.onResize);
+    document.addEventListener("mousedown", this.onDown);
+    window.addEventListener("nk:personal", this.onPersonal);
+    this.unsub = session.subscribe(() => this.loadMe());
+    this.onResize();
+  }
+  componentWillUnmount() {
+    super.componentWillUnmount();
+    window.removeEventListener("nk:personal", this.onPersonal);
+    if (this.unsub) this.unsub();
+  }
+  onPersonal = () => {
+    clearTimeout(this.pt);
+    this.pt = setTimeout(() => this.loadMe(), 150);
+  };
+  loadMe() {
+    if (!session.loggedIn) return;
+    const id = this.props.presentationId;
+    Promise.all([libraryApi.state(id).catch(() => null), progressApi.workUnits(id).catch(() => null)]).then(
+      ([lib, p]) => {
+        const unitProg = {};
+        for (const u of (p && p.chapters) || []) unitProg[`${u.chapterId}:${u.editionId}`] = u;
+        this.setState({
+          lib,
+          unitProg,
+          status: lib && lib.status ? STATUS_LABEL[lib.status] : null,
+          follow: !!(lib && lib.follow),
+        });
+      },
+    );
+  }
+  save(req, msg) {
+    return req.then(() => this.flash(msg)).catch(() => this.flash("Não foi possível salvar. Tente novamente."));
+  }
+  chapterHref(c, ed) {
+    return c.readable ? `/leitor?chapter=${c.id}&edition=${ed.id}` : c.externalUrl || "#";
+  }
+  renderVals() {
+    const s = this.state;
+    const d = s.d;
+    // A base gera a lista do Solo Leveling (0–200): aqui só reaproveitamos o que é genérico.
+    const base = super.renderVals();
+    if (!d) return { ...base, workTitle: "", heroTag1: "", heroTag2: "", heroTag3: "", chaptersText: "", hasAnime: false };
+    const loggedIn = session.loggedIn;
+    const id = d.id;
+    const bg = (u) => (u ? `url("${u}")` : "none");
+    const eds = d.editions || [];
+    const ed = eds[s.edition] || eds[0] || { chapters: [], languageName: "", id: null };
+    const all = ed.chapters.map((c, i) => ({ ...c, i }));
+    const prog = s.unitProg;
+    const pOf = (c) => prog[`${c.id}:${ed.id}`];
+    const resume = s.lib && s.lib.resume && s.lib.resume.state !== "UP_TO_DATE" ? s.lib.resume : null;
+    const cur = resume ? all.find((c) => c.id === resume.unitId && ed.id === resume.editionId) : null;
+    const curP = cur ? pOf(cur) : null;
+    const curPct = curP ? Math.round(Number(curP.percentComplete || 0)) : 0;
+    const readCount = all.filter((c) => pOf(c) && pOf(c).completed).length;
+    const block = 50;
+    const RANGES = [["all", "Todos", String(all.length)]];
+    if (all.length > block)
+      for (let a = 0; a < all.length; a += block) {
+        const from = all[a].n;
+        const to = all[Math.min(all.length, a + block) - 1].n;
+        RANGES.push([`${a}-${Math.min(all.length, a + block) - 1}`, `${from}–${to}`, ""]);
+      }
+    const inRange = (c) => {
+      if (s.range === "all") return true;
+      const [a, b] = s.range.split("-").map(Number);
+      return c.i >= a && c.i <= b;
+    };
+    let list = all.filter((c) => inRange(c) && !(loggedIn && s.hideRead && pOf(c) && pOf(c).completed));
+    if (!s.asc) list.reverse();
+    const filtered = list.length;
+    list = list.slice(0, s.limit);
+    const fmt = ed.readingMode === "VERTICAL" ? "vertical" : "paginado";
+    const chapters = list.map((c) => {
+      const p = pOf(c);
+      const done = !!(p && p.completed);
+      const isCur = !!cur && cur.id === c.id;
+      const label = c.title && c.title !== `Capítulo ${c.n}` ? `Capítulo ${c.n} · ${c.title}` : `Capítulo ${c.n}`;
+      const hl = s.hl === c.n;
+      return {
+        n: c.n,
+        ref: this.ref(c.n),
+        href: this.chapterHref(c, ed),
+        numLabel: String(c.n),
+        title: label,
+        isSide: false,
+        meta: c.available
+          ? [ed.languageName, c.readable ? fmt : "no provedor", c.volume ? `vol. ${c.volume}` : null].filter(Boolean).join(" · ")
+          : "Ainda não disponível",
+        available: c.available,
+        unavailable: !c.available,
+        unavailableLabel: "Em breve",
+        done,
+        hasPct: isCur && curPct > 0,
+        pctW: `${curPct}%`,
+        cta: isCur ? "Continuar" : done ? "Lido" : "Ler",
+        aria: `${label}: ${isCur ? "continuar" : done ? "reler" : "ler"}`,
+        ctaBg: isCur ? "#DBAF57" : "transparent",
+        ctaColor: isCur ? "#1A1714" : done ? "#B7B1A4" : "#F0EEE9",
+        ctaBorder: isCur ? "#DBAF57" : done ? "rgba(240,238,233,.1)" : "rgba(240,238,233,.22)",
+        bg: hl ? "rgba(219,175,87,.14)" : isCur ? "rgba(219,175,87,.07)" : "#1A1714",
+        border: hl || isCur ? "rgba(219,175,87,.5)" : "rgba(240,238,233,.06)",
+        numColor: isCur ? "#DBAF57" : done ? "#8F897D" : "#F0EEE9",
+        opacity: c.available ? (done ? 0.78 : 1) : 0.5,
+      };
+    });
+    const first = all.find((c) => c.available);
+    const target = cur || first;
+    const chip = (on) => ({
+      bg: on ? "rgba(219,175,87,.14)" : "transparent",
+      border: on ? "#DBAF57" : "rgba(240,238,233,.14)",
+      color: on ? "#DBAF57" : "#F0EEE9",
+    });
+    const pill = (on) => ({ bg: on ? "#DBAF57" : "transparent", color: on ? "#1A1714" : "#F0EEE9" });
+    const jumpN = String(s.jump || "").trim();
+    const jumpHit = all.find((c) => String(c.n) === jumpN);
+    const anime = d.anime;
+    const STATUS = ["Lendo", "Planejado", "Concluído", "Pausado", "Abandonado"];
+    const tags = d.heroTags || [];
+    return {
+      ...base,
+      d: { ...d, score: d.score || "—", native: d.native || "" },
+      workTitle: d.title,
+      legacyId: id,
+      heroTag1: tags[0] || "",
+      heroTag2: tags[1] || "",
+      heroTag3: tags[2] || "",
+      creditsLine: d.creditsLine,
+      chaptersText: `${d.chapterCount} ${d.chapterCount === 1 ? "capítulo" : "capítulos"} no NekoFlow`,
+      bannerBg: bg(d.banner || d.cover),
+      coverBg: bg(d.cover),
+      genresText: d.genres.join(" · "),
+      curTitle: cur ? `Capítulo ${cur.n}` : "",
+      curPctW: `${curPct}%`,
+      curMeta: `${curPct}% lido`,
+      ctaHref: target ? this.chapterHref(target, ed) : "#",
+      ctaLabel: cur ? `Continuar capítulo ${cur.n}` : target ? "Começar leitura" : "Capítulos em breve",
+      ctaShort: cur ? `Continuar cap. ${cur.n}` : "Começar leitura",
+      overallPct: `${all.length ? Math.round((readCount / all.length) * 100) : 0}%`,
+      progressText: cur
+        ? `${readCount} de ${all.length} capítulos lidos · no capítulo ${cur.n}`
+        : `${readCount} de ${all.length} capítulos lidos`,
+      statusOpts: STATUS.map((l) => ({
+        label: l,
+        on: s.status === l,
+        color: s.status === l ? "#DBAF57" : "#F0EEE9",
+        pick: () => {
+          this.setState({ status: l, listOpen: false });
+          this.save(libraryApi.setStatus(id, STATUS_CODE[l]), `Salvo como ${l}`);
+        },
+      })),
+      removeList: () => {
+        this.setState({ status: null, listOpen: false });
+        this.save(libraryApi.remove(id), "Removido da sua lista · avisos mantidos");
+      },
+      toggleFollow: () => {
+        if (!loggedIn) return goLogin();
+        this.setState({ follow: !s.follow });
+        this.save(
+          libraryApi.follow(id, !s.follow),
+          s.follow ? "Avisos de novos capítulos desligados" : "Você será avisado sobre novos capítulos",
+        );
+      },
+      tabs: [
+        ["caps", "Capítulos", all.length],
+        ["sobre", "Sobre", null],
+        ["adapt", "Adaptações", (anime ? 1 : 0) + d.related.length],
+        ["chars", "Personagens", d.chars.length || null],
+      ].map(([k, label, count]) => ({
+        label,
+        count,
+        hasCount: count != null,
+        sel: String(s.active === k),
+        color: s.active === k ? "#DBAF57" : "#B7B1A4",
+        line: s.active === k ? "#DBAF57" : "transparent",
+        go: () => this.setTab(k),
+      })),
+      showContinue: !!cur && s.range === "all" && !s.hl,
+      capsInfo: `${filtered} ${filtered === 1 ? "capítulo" : "capítulos"} · ${ed.languageName} · ${
+        ed.readingMode === "VERTICAL" ? "rolagem vertical" : ed.direction === "RTL" ? "paginado, dir. → esq." : "paginado"
+      }`,
+      jumpBg: jumpHit ? "#DBAF57" : "#4A443D",
+      jump: (e) => {
+        e.preventDefault();
+        if (!jumpHit) return;
+        const r = RANGES.slice(1).find(([k]) => {
+          const [a, b] = k.split("-").map(Number);
+          return jumpHit.i >= a && jumpHit.i <= b;
+        });
+        this.setState({ range: r ? r[0] : "all", hideRead: false, limit: 500, hl: jumpHit.n, jump: "" });
+        setTimeout(() => {
+          const el = this.chRefs[jumpHit.n] && this.chRefs[jumpHit.n].current;
+          if (el) this.scrollTo(el.getBoundingClientRect().top + this.scrollY() - 200);
+        }, 60);
+        clearTimeout(this.ht);
+        this.ht = setTimeout(() => this.setState({ hl: null }), 2600);
+      },
+      langTabs: eds.map((e, i) => ({
+        label: e.languageName,
+        ...pill(i === s.edition),
+        pick: () => this.setState({ edition: i, range: "all", limit: 30 }),
+      })),
+      langNote: false,
+      langNoteText: "",
+      ranges: RANGES.map(([k, l, sub]) => ({
+        label: l,
+        sub,
+        ...chip(s.range === k),
+        pick: () => this.setState({ range: k, limit: 30, hl: null }),
+      })),
+      chapters,
+      hasMore: filtered > s.limit,
+      remaining: Math.max(0, filtered - s.limit),
+      capsEmpty: filtered === 0,
+      synopsis: s.synOpen ? d.synopsis : d.synopsis.slice(0, 1),
+      people: d.people.map(([role, name]) => ({ role, name, initial: (name || "?")[0] })),
+      genreTags: d.genres,
+      themeTags: d.themes,
+      altText: d.alt.join(" · "),
+      ficha: d.ficha.map(([k, v]) => ({ k, v })),
+      hasAnime: !!anime,
+      hasAnimeMap: !!(anime && anime.map && anime.map.length),
+      animeTitle: anime ? anime.title : "",
+      animeHref: anime ? anime.href : "#",
+      animeFirstHref: anime ? anime.firstHref : "#",
+      animeFirstCta: anime && anime.firstHref !== anime.href ? "Assistir episódio 1" : "Ver episódios",
+      animeBannerBg: bg(anime && (anime.banner || anime.cover)),
+      animeCoverBg: bg(anime && anime.cover),
+      animeMeta: anime ? anime.meta : "",
+      animeMap: anime ? anime.map : [],
+      afterAnimeHref: "#",
+      afterAnimeText: "",
+      related: d.related.map((r) => ({ ...r, href: r.href || "#", hasCover: !!r.cover, noCover: !r.cover, bg: bg(r.cover) })),
+      chars: d.chars.map((c) => ({
+        ...c,
+        bg: bg(c.img),
+        border: c.role === "Protagonista" ? "rgba(219,175,87,.5)" : "rgba(240,238,233,.06)",
+        roleColor: c.role === "Protagonista" ? "#DBAF57" : "#B7B1A4",
+      })),
+      hasRecs: d.recs.length > 0,
+      recs: d.recs.map((r) => ({ ...r, bg: bg(r.cover), href: r.href || "#" })),
+    };
+  }
+}
+
+const LegacyObraLeitura = defineDC("ObraLeitura", ObraLeituraLogic, render, { helmet });
+const DynamicObraLeitura = defineDC("ObraLeitura", DynamicObraLeituraLogic, render, { helmet });
+
+export default function ObraLeitura(props) {
+  return props.presentationId ? (
+    <DynamicObraLeitura key={props.presentationId} {...props} />
+  ) : (
+    <LegacyObraLeitura {...props} />
+  );
+}

@@ -29,9 +29,16 @@ export default function WorkRoute({
         if (error?.status !== 404) throw error;
         return api.get(`/api/catalog/${section}/${encodeURIComponent(slug)}`);
       })
-      .then(
-        (work) => active && setState({ loading: false, work, missing: false }),
-      )
+      .then(async (work) => {
+        // Ficha do design para toda obra do catálogo: o Java monta o documento de
+        // apresentação (catálogo + AniList). Se ele falhar, a ficha simples continua.
+        let presentation = null;
+        const legacy = Number(work.legacyId ?? work.id);
+        if (!RICH_IDS.has(legacy) && work.legacyId != null) {
+          presentation = await api.get(`/api/v1/works/${work.id}/presentation`).catch(() => null);
+        }
+        if (active) setState({ loading: false, work, presentation, missing: false });
+      })
       .catch((error) => {
         if (active)
           setState({
@@ -54,6 +61,16 @@ export default function WorkRoute({
       <RichComponent
         {...richDefaults}
         canonicalWork={{ ...state.work, id: state.work.legacyId ?? state.work.id }}
+        loggedIn={loggedIn}
+      />
+    );
+  }
+  if (state.presentation) {
+    return (
+      <RichComponent
+        {...richDefaults}
+        presentationId={state.work.id}
+        presentation={state.presentation}
         loggedIn={loggedIn}
       />
     );
