@@ -1,266 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { goLogin } from "../lib/session";
 import { api } from "../services/api";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
+import "./work-detail.css";
 
-const labelStyle = {
-  fontSize: "11px",
-  fontWeight: 600,
-  letterSpacing: ".2em",
-  textTransform: "uppercase",
-  color: "#DBAF57",
+const STATUS_LABELS = {
+  COMPLETED: "Concluído",
+  ONGOING: "Em lançamento",
+  HIATUS: "Em pausa",
+  CANCELLED: "Cancelado",
+  UNKNOWN: "Catálogo auditado",
 };
 
-export default function BasicWorkDetail({ work, section, loading = false, missing = false, loggedIn = false }) {
-  const [catalog, setCatalog] = useState({ seasons: [], episodes: [], chapters: [], relations: [], contributors: [] });
-  useEffect(() => {
-    let active = true;
-    if (!work?.id || !work?.mediaFamily) return undefined;
-    const common = [
-      api.get(`/api/v1/works/${work.id}/relations`).catch(() => []),
-      api.get(`/api/v1/works/${work.id}/contributors`).catch(() => []),
-    ];
-    const media =
-      work.mediaFamily === "ANIMATION"
-        ? api
-            .get(`/api/v1/works/${work.id}/seasons`)
-            .then(async (seasons) => ({
-              seasons,
-              episodes: (await Promise.all(seasons.map((s) => api.get(`/api/v1/seasons/${s.id}/episodes`)))).flat(),
-            }))
-        : api.get(`/api/v1/works/${work.id}/chapters`).then((chapters) => ({ chapters }));
-    Promise.all([...common, media]).then(([relations, contributors, units]) => {
-      if (active) setCatalog({ seasons: [], episodes: [], chapters: [], relations, contributors, ...units });
-    });
-    return () => {
-      active = false;
-    };
-  }, [work?.id, work?.mediaFamily]);
-  const title = loading ? "Carregando obra…" : missing ? "Obra não encontrada" : work.title;
-  const activeSection = work?.section || section;
-  const explore = activeSection === "animes" ? "/animes" : "/leituras";
-  const units = work?.availableUnits ?? work?.totalUnits;
-  const cover = work?.coverUrl || work?.cover;
-  const banner = work?.bannerUrl || work?.banner;
-  const synopsis = work?.synopsis || work?.synopsisShort;
-  const typeLabel =
-    work?.mediaFamily === "ANIMATION" ? "Anime" : work?.readingCategory === "MANGA" ? "Mangá" : work?.typeLabel;
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#171411",
-        color: "#F0EEE9",
-        fontFamily: "Inter,system-ui,sans-serif",
-      }}
-    >
-      <Header active={activeSection === "animes" ? "animes" : "leituras"} loggedIn={loggedIn} solid />
-      <main
-        style={{
-          minHeight: "72vh",
-          padding: "112px clamp(20px,5vw,72px) 72px",
-        }}
-      >
-        <section
-          style={{
-            minHeight: "420px",
-            borderRadius: "20px",
-            overflow: "hidden",
-            border: "1px solid rgba(219,175,87,.15)",
-            background: banner
-              ? `linear-gradient(90deg,rgba(20,18,16,.98),rgba(20,18,16,.72)),url(${banner}) center/cover`
-              : "linear-gradient(135deg,#221F1B,#171411)",
-            display: "grid",
-            gridTemplateColumns: cover ? "repeat(auto-fit,minmax(min(100%,260px),1fr))" : "1fr",
-            gap: "clamp(24px,5vw,64px)",
-            alignItems: "center",
-            padding: "clamp(24px,5vw,64px)",
-          }}
-        >
-          {cover && (
-            <img
-              src={cover}
-              alt={`Capa de ${work.title}`}
-              style={{
-                width: "100%",
-                maxWidth: "240px",
-                borderRadius: "12px",
-                justifySelf: "center",
-              }}
-            />
-          )}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "18px",
-              maxWidth: "760px",
-            }}
-          >
-            <span style={labelStyle}>{missing ? "Catálogo" : typeLabel || "NekoFlow"}</span>
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: "'Cormorant Garamond',serif",
-                fontWeight: 500,
-                fontSize: "clamp(42px,7vw,78px)",
-                lineHeight: 1,
-              }}
-            >
-              {title}
-            </h1>
-            {!loading && !missing && (
-              <>
-                {(work.alt || work.titles?.length > 1) && (
-                  <p style={{ margin: 0, color: "#B7B1A4", lineHeight: 1.6 }}>
-                    {work.alt
-                      ? work.alt.split(" | ").join(" · ")
-                      : work.titles
-                          .slice(1)
-                          .map((x) => x.title)
-                          .join(" · ")}
-                  </p>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "10px",
-                    color: "#D9D5CC",
-                  }}
-                >
-                  {[
-                    work.year,
-                    work.storyStatus || work.status,
-                    units != null
-                      ? `${units} ${work.mediaFamily === "ANIMATION" || work.section === "animes" ? "episódios disponíveis" : "capítulos disponíveis"}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .map((item) => (
-                      <span
-                        key={item}
-                        style={{
-                          padding: "8px 12px",
-                          border: "1px solid rgba(240,238,233,.14)",
-                          borderRadius: "999px",
-                        }}
-                      >
-                        {item}
-                      </span>
-                    ))}
-                </div>
-                <p style={{ margin: 0, color: "#B7B1A4", lineHeight: 1.7, whiteSpace: "pre-line" }}>
-                  {synopsis || "A sinopse desta obra ainda não foi cadastrada."}
-                </p>
-                {synopsis && work?.synopsisSource && (
-                  <p style={{ margin: 0, color: "#827B70", fontSize: "12px" }}>
-                    Sinopse: {work.synopsisSource}
-                    {work.synopsisLanguage === "en" ? " · texto original em inglês" : ""}
-                  </p>
-                )}
-              </>
-            )}
-            {missing && (
-              <p style={{ margin: 0, color: "#B7B1A4" }}>O endereço não corresponde a nenhuma obra cadastrada.</p>
-            )}
-            {!loading && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                <a
-                  href={missing ? "/explorar" : explore}
-                  style={{
-                    padding: "12px 18px",
-                    borderRadius: "8px",
-                    background: "#DBAF57",
-                    color: "#1A1714",
-                    fontWeight: 600,
-                  }}
-                >
-                  {missing ? "Voltar ao catálogo" : "Explorar obras semelhantes"}
-                </a>
-                {!missing && !loggedIn && (
-                  <button
-                    onClick={goLogin}
-                    style={{
-                      padding: "12px 18px",
-                      borderRadius: "8px",
-                      border: "1px solid rgba(219,175,87,.5)",
-                      background: "transparent",
-                      color: "#DBAF57",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Entrar para adicionar à lista
-                  </button>
-                )}
-              </div>
-            )}
-            {!loading && !missing && loggedIn && work?.id && <PersonalControls work={work} />}
-          </div>
-        </section>
-        {!loading && !missing && (
-          <section style={{ maxWidth: "1180px", margin: "36px auto 0", display: "grid", gap: "28px" }}>
-            {!!work.genres?.length && (
-              <div>
-                <span style={labelStyle}>Gêneros</span>
-                <p style={{ color: "#D9D5CC" }}>{work.genres.map((g) => g.name).join(" · ")}</p>
-              </div>
-            )}
-            <CatalogUnits work={work} catalog={catalog} loggedIn={loggedIn} />
-            {!!catalog.contributors.length && (
-              <div>
-                <span style={labelStyle}>Equipe</span>
-                <p style={{ color: "#D9D5CC" }}>
-                  {catalog.contributors.map((x) => `${x.name} — ${String(x.role).replaceAll("_", " ")}`).join(" · ")}
-                </p>
-              </div>
-            )}
-            {!!catalog.relations.length && (
-              <div>
-                <span style={labelStyle}>Obras relacionadas</span>
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
-                  {catalog.relations.map((x) => (
-                    <a
-                      key={`${x.id}-${x.direction}`}
-                      href={`${x.media_family === "ANIMATION" ? "/animes/" : "/leituras/"}${x.slug}`}
-                      style={{ color: "#DBAF57" }}
-                    >
-                      {x.title}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-      </main>
-      <Footer />
-    </div>
-  );
-}
-
-const STATUSES = [
-  ["planejado", "Planejado"],
-  ["andamento", "Em andamento"],
-  ["concluido", "Concluído"],
-  ["pausado", "Pausado"],
-  ["abandonado", "Abandonado"],
-];
-
-const chipStyle = (on) => ({
-  padding: "8px 12px",
-  borderRadius: "999px",
-  border: `1px solid ${on ? "#DBAF57" : "rgba(240,238,233,.18)"}`,
-  background: on ? "rgba(219,175,87,.14)" : "transparent",
-  color: on ? "#DBAF57" : "#F0EEE9",
-  cursor: "pointer",
-  fontSize: "13px",
-});
-
-/** Recarrega quando qualquer tela alterar dados pessoais (evento nk:personal). */
 function usePersonal(load, deps) {
   useEffect(() => {
     load();
@@ -270,289 +24,244 @@ function usePersonal(load, deps) {
   }, deps);
 }
 
-/** Situação na biblioteca, favorito e alertas — três escolhas independentes. */
-function PersonalControls({ work }) {
-  const [state, setState] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(null);
-  usePersonal(
-    () =>
-      libraryApi
-        .state(work.id)
-        .then(setState)
-        .catch(() => setMessage("Não foi possível carregar sua biblioteca.")),
-    [work.id],
-  );
-  const run = async (promise, ok) => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      setState(await promise);
-      setMessage(ok);
-    } catch (error) {
-      setMessage(error?.body?.message || "Não foi possível salvar. Tente novamente.");
-    } finally {
-      setBusy(false);
-    }
+function formatDuration(seconds) {
+  return seconds ? `${Math.max(1, Math.round(Number(seconds) / 60))} min` : null;
+}
+
+function displayTitle(unit, animation) {
+  const generic = animation ? `Episódio ${unit.display_number}` : `Capítulo ${unit.display_number}`;
+  const title = String(unit.title || "").trim();
+  if (!title || /^T\d+\s+EP\d+$/i.test(title) || /^(episódio|capítulo)\s*\d+$/i.test(title)) return generic;
+  return title;
+}
+
+export default function BasicWorkDetail({ work, section, loading = false, missing = false, loggedIn = false }) {
+  const animation = work?.mediaFamily === "ANIMATION" || section === "animes";
+  const [catalog, setCatalog] = useState({ seasons: [], chapters: [], relations: [], contributors: [] });
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("units");
+  const unitsRef = useRef(null);
+  const aboutRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!work?.id || !work?.mediaFamily) return undefined;
+    const common = Promise.all([
+      api.get(`/api/v1/works/${work.id}/relations`).catch(() => []),
+      api.get(`/api/v1/works/${work.id}/contributors`).catch(() => []),
+    ]);
+    const media = animation
+      ? api.get(`/api/v1/works/${work.id}/seasons`).then((seasons) => ({ seasons, chapters: [] }))
+      : api.get(`/api/v1/works/${work.id}/chapters`).then((chapters) => ({ seasons: [], chapters }));
+    Promise.all([common, media]).then(([[relations, contributors], content]) => {
+      if (!active) return;
+      setCatalog({ ...content, relations, contributors });
+      if (animation && content.seasons.length) setSelectedSeason((current) => current || content.seasons[0].id);
+      if (!animation) setUnits(content.chapters);
+    });
+    return () => {
+      active = false;
+    };
+  }, [work?.id, work?.mediaFamily, animation]);
+
+  useEffect(() => {
+    let active = true;
+    if (!animation || !selectedSeason) return undefined;
+    setUnitsLoading(true);
+    api.get(`/api/v1/seasons/${selectedSeason}/episodes`)
+      .then((episodes) => active && setUnits(episodes))
+      .catch(() => active && setUnits([]))
+      .finally(() => active && setUnitsLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [animation, selectedSeason]);
+
+  const selected = catalog.seasons.find((item) => item.id === selectedSeason);
+  const firstAvailable = units.find((item) => item.has_source);
+  const cover = work?.coverUrl || work?.cover;
+  const banner = work?.bannerUrl || work?.banner || cover;
+  const title = loading ? "Carregando obra…" : missing ? "Obra não encontrada" : work?.title;
+  const synopsis = work?.synopsis || work?.synopsisShort;
+  const status = STATUS_LABELS[work?.storyStatus] || work?.status || "Catálogo auditado";
+  const totalUnits = work?.episodeCount || work?.chapterCount || work?.totalUnits || 0;
+  const unitLabel = animation ? "Episódios" : "Capítulos";
+  const sectionHref = animation ? "/animes" : "/leituras";
+
+  const scrollTo = (ref, tab) => {
+    setActiveTab(tab);
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  if (!state) return message ? <p style={{ margin: 0, color: "#E08A7A", fontSize: "13px" }}>{message}</p> : null;
-  const resume = state.resume;
-  const noun = work.mediaFamily === "ANIMATION" ? "Ep." : "Cap.";
+
+  if (loading || missing) {
+    return (
+      <div className="nk-work-page">
+        <Header active={animation ? "animes" : "leituras"} loggedIn={loggedIn} solid />
+        <main className="nk-work-state">
+          <span>{loading ? "Catálogo NekoFlow" : "404"}</span>
+          <h1>{title}</h1>
+          {!loading && <a href={sectionHref}>Voltar ao catálogo</a>}
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-      <span style={labelStyle}>Minha biblioteca</span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-        {STATUSES.map(([code, label]) => (
-          <button
-            key={code}
-            disabled={busy}
-            onClick={() => run(libraryApi.setStatus(work.id, code), `Salvo como ${label}.`)}
-            style={chipStyle(state.status === code)}
-          >
-            {label}
-          </button>
-        ))}
-        {state.inLibrary && (
-          <button
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm("Remover da sua lista? O progresso e o histórico continuam salvos."))
-                run(libraryApi.remove(work.id), "Removido da lista · progresso e histórico mantidos.");
-            }}
-            style={{ ...chipStyle(false), color: "#E08A7A" }}
-          >
-            Remover da lista
-          </button>
-        )}
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-        <button
-          disabled={busy}
-          onClick={() =>
-            run(
-              libraryApi.favorite(work.id, !state.favorite),
-              state.favorite ? "Removido dos favoritos." : "Adicionado aos favoritos.",
-            )
-          }
-          style={chipStyle(state.favorite)}
-        >
-          {state.favorite ? "♥ Favorito" : "♡ Favoritar"}
-        </button>
-        <button
-          disabled={busy}
-          onClick={() =>
-            run(
-              libraryApi.follow(work.id, !state.follow),
-              state.follow ? "Alertas desativados." : "Você será avisado de novos lançamentos.",
-            )
-          }
-          style={chipStyle(state.follow)}
-        >
-          {state.follow ? "Acompanhando lançamentos" : "Acompanhar lançamentos"}
-        </button>
-      </div>
-      {resume && (
-        <p style={{ margin: 0, color: "#D9D5CC", fontSize: "14px" }}>
-          {resume.state === "UP_TO_DATE" ? (
-            <>
-              Em dia · você viu tudo o que está disponível até {noun} {resume.unitNumber}.
-            </>
-          ) : (
-            <>
-              {resume.state === "NEXT" ? "Próximo" : "Continuar"}: {noun} {resume.unitNumber}
-              {resume.state === "RESUME" && resume.percent > 0 ? ` · ${Math.round(resume.percent)}%` : ""}
-              {!resume.available && " · indisponível no momento"}
-            </>
-          )}
-        </p>
-      )}
-      {message && <p style={{ margin: 0, color: "#DBAF57", fontSize: "13px" }}>{message}</p>}
+    <div className="nk-work-page">
+      <Header active={animation ? "animes" : "leituras"} loggedIn={loggedIn} />
+      <section className="nk-work-hero">
+        <div className="nk-work-backdrop" style={{ backgroundImage: banner ? `url("${banner}")` : "none" }} />
+        <div className="nk-work-shade" />
+        <div className="nk-work-hero-content">
+          <div className="nk-work-cover-wrap">
+            {cover ? <img className="nk-work-cover" src={cover} alt={`Capa de ${title}`} /> : <div className="nk-work-cover nk-work-cover-empty">N</div>}
+          </div>
+          <div className="nk-work-copy">
+            <div className="nk-work-eyebrow"><i />{animation ? "Anime · Série" : work?.readingCategory === "MANGA" ? "Mangá" : "Leitura"}{work?.year ? ` · ${work.year}` : ""}</div>
+            <h1>{title}</h1>
+            {!!work?.titles?.length && work.titles[1]?.title && <p className="nk-work-native">{work.titles[1].title}</p>}
+            <div className="nk-work-meta">
+              {!!work?.genres?.length && <span>{work.genres.map((genre) => genre.name).join(" · ")}</span>}
+              <b>{status}</b>
+              {!!totalUnits && <span>{totalUnits} {animation ? "episódios" : "capítulos"}</span>}
+              {animation && !!work?.seasonCount && <span>{work.seasonCount} {Number(work.seasonCount) === 1 ? "temporada" : "temporadas"}</span>}
+            </div>
+            <p className="nk-work-synopsis">{synopsis || "A sinopse desta obra ainda está em preparação editorial."}</p>
+            <div className="nk-work-actions">
+              {firstAvailable ? (
+                <a className="nk-work-primary" href={animation ? `/player?episode=${firstAvailable.id}` : `/leitor?chapter=${firstAvailable.id}&edition=${firstAvailable.edition_id}`}>
+                  <span>▶</span> {animation ? "Assistir agora" : "Ler agora"}
+                </a>
+              ) : (
+                <button className="nk-work-primary" onClick={() => scrollTo(unitsRef, "units")}><span>↓</span> Ver {unitLabel.toLowerCase()}</button>
+              )}
+              {loggedIn ? <PersonalButton work={work} /> : <button className="nk-work-secondary" onClick={goLogin}>♡ Minha lista</button>}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav className="nk-work-tabs" aria-label="Seções da obra">
+        <button className={activeTab === "units" ? "is-active" : ""} onClick={() => scrollTo(unitsRef, "units")}>{unitLabel} <small>{totalUnits || ""}</small></button>
+        <button className={activeTab === "about" ? "is-active" : ""} onClick={() => scrollTo(aboutRef, "about")}>Sobre</button>
+      </nav>
+
+      <main className="nk-work-main">
+        <section className="nk-work-units" ref={unitsRef}>
+          <div className="nk-work-section-head">
+            <div>
+              <h2>{unitLabel}</h2>
+              <p>{animation ? selected?.title || "Temporadas e episódios do catálogo" : "Capítulos disponíveis nesta edição"}</p>
+            </div>
+            {animation && catalog.seasons.length > 0 && (
+              <div className="nk-season-tabs" aria-label="Temporadas">
+                {catalog.seasons.map((season) => (
+                  <button key={season.id} className={season.id === selectedSeason ? "is-active" : ""} onClick={() => setSelectedSeason(season.id)}>
+                    Temporada {season.display_number} <small>{season.episode_count}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {unitsLoading ? <div className="nk-units-empty">Carregando episódios…</div> : units.length ? (
+            <UnitGrid work={work} units={units} animation={animation} loggedIn={loggedIn} />
+          ) : <div className="nk-units-empty">Nenhum {animation ? "episódio" : "capítulo"} publicado nesta seção.</div>}
+        </section>
+
+        <section className="nk-work-about" ref={aboutRef}>
+          <div>
+            <span className="nk-work-kicker">Sobre a obra</span>
+            <h2>Sinopse</h2>
+            <p>{synopsis || "A sinopse desta obra ainda está em preparação editorial."}</p>
+            {work?.synopsisSource && <small>Fonte editorial: {work.synopsisSource}</small>}
+          </div>
+          <aside>
+            <dl>
+              <div><dt>Formato</dt><dd>{animation ? "Anime" : work?.readingCategory === "MANGA" ? "Mangá" : "Leitura"}</dd></div>
+              <div><dt>Situação</dt><dd>{status}</dd></div>
+              {!!work?.year && <div><dt>Ano</dt><dd>{work.year}</dd></div>}
+              {!!work?.originCountry && <div><dt>Origem</dt><dd>{work.originCountry}</dd></div>}
+              <div><dt>{animation ? "Temporadas" : "Capítulos"}</dt><dd>{animation ? work?.seasonCount || 0 : totalUnits}</dd></div>
+            </dl>
+          </aside>
+        </section>
+      </main>
+      <Footer />
     </div>
   );
 }
 
-function formatClock(ms) {
-  const total = Math.floor((ms || 0) / 1000);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+function PersonalButton({ work }) {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState(false);
+  usePersonal(() => libraryApi.state(work.id).then(setState).catch(() => {}), [work.id]);
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const next = state?.inLibrary ? await libraryApi.remove(work.id) : await libraryApi.setStatus(work.id, "planejado");
+      setState(next);
+      window.dispatchEvent(new Event("nk:personal"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <button className="nk-work-secondary" disabled={busy} onClick={toggle}>{state?.inLibrary ? "✓ Na minha lista" : "♡ Minha lista"}</button>;
 }
 
-/** Episódios/capítulos reais com o progresso do usuário em cada um. */
-function CatalogUnits({ work, catalog, loggedIn }) {
-  const [opening, setOpening] = useState(null);
-  const [message, setMessage] = useState(null);
+function UnitGrid({ work, units, animation, loggedIn }) {
   const [progress, setProgress] = useState({});
-  const animation = work.mediaFamily === "ANIMATION";
+  const [busy, setBusy] = useState(null);
   usePersonal(() => {
-    if (!loggedIn || !work?.id) return;
-    progressApi
-      .workUnits(work.id)
-      .then((p) => {
-        const map = {};
-        for (const u of p.episodes) map[u.episodeId] = u;
-        for (const u of p.chapters) map[`${u.chapterId}:${u.editionId}`] = u;
-        setProgress(map);
-      })
-      .catch(() => {});
-  }, [work?.id, loggedIn]);
-  const open = async (kind, x) => {
-    const id = x.id;
-    // Player e leitor do NekoFlow quando há mídia própria; senão, o site do provedor.
-    if (kind === "episodes") {
-      location.href = `/player?episode=${id}`;
-      return;
-    }
-    if (x.readable) {
-      location.href = `/leitor?chapter=${id}&edition=${x.edition_id}`;
-      return;
-    }
-    setOpening(id);
-    try {
-      const source = await api.get(`/api/v1/${kind}/${id}/source`);
-      window.open(source.source_url, "_blank", "noopener,noreferrer");
-    } catch {
-      setMessage("Esta fonte está indisponível no momento.");
-    } finally {
-      setOpening(null);
-    }
-  };
-  const toggle = async (x, done) => {
+    if (!loggedIn) return;
+    progressApi.workUnits(work.id).then((data) => {
+      const next = {};
+      for (const item of data.episodes || []) next[item.episodeId] = item;
+      for (const item of data.chapters || []) next[`${item.chapterId}:${item.editionId}`] = item;
+      setProgress(next);
+    }).catch(() => {});
+  }, [work.id, loggedIn]);
+
+  const mark = async (unit, done) => {
     if (!loggedIn) return goLogin();
-    setOpening(x.id);
-    setMessage(null);
-    const label = animation ? "Episódio" : "Capítulo";
+    setBusy(unit.id);
     try {
-      if (animation) await progressApi.setEpisodeCompleted(x.id, !done);
-      else await progressApi.setChapterCompleted(x.id, x.edition_id, !done);
-      setMessage(
-        done
-          ? `${label} ${x.display_number} desmarcado.`
-          : `${label} ${x.display_number} marcado como ${animation ? "assistido" : "lido"} por você.`,
-      );
-    } catch (error) {
-      setMessage(error?.body?.message || "Não foi possível salvar o progresso.");
+      if (animation) await progressApi.setEpisodeCompleted(unit.id, !done);
+      else await progressApi.setChapterCompleted(unit.id, unit.edition_id, !done);
+      const key = animation ? unit.id : `${unit.id}:${unit.edition_id}`;
+      setProgress((current) => ({ ...current, [key]: { ...(current[key] || {}), completed: !done } }));
     } finally {
-      setOpening(null);
+      setBusy(null);
     }
   };
-  const rows = animation ? catalog.episodes : catalog.chapters;
-  const noun = animation ? "episódios" : "capítulos";
-  if (!rows.length)
-    return (
-      <div>
-        <span style={labelStyle}>{noun}</span>
-        <p style={{ color: "#B7B1A4" }}>Nenhum {noun.slice(0, -1)} disponível foi cadastrado.</p>
-      </div>
-    );
+
   return (
-    <div>
-      <span style={labelStyle}>{noun}</span>
-      <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
-        {rows.map((x) => {
-          const available = x.has_source;
-          const p = progress[animation ? x.id : `${x.id}:${x.edition_id}`];
-          const done = !!p?.completed;
-          let status = null;
-          if (p && done) {
-            const word = animation ? "Assistido" : "Lido";
-            status = p.completionSource === "MANUAL" ? `${word} · marcado por você` : word;
-          } else if (p) {
-            status = animation
-              ? `Parou em ${formatClock(p.positionMs)}`
-              : `${Math.round(Number(p.percentComplete || 0))}% lido`;
-          }
-          return (
-            <div
-              key={x.id}
-              style={{
-                padding: "14px 16px",
-                border: `1px solid ${done ? "rgba(219,175,87,.35)" : "rgba(240,238,233,.12)"}`,
-                borderRadius: "10px",
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "space-between",
-                gap: "16px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <strong>
-                  {animation ? "Episódio" : "Capítulo"} {x.display_number}
-                </strong>
-                {x.title && <span style={{ color: "#B7B1A4" }}> · {x.title}</span>}
-                {!animation && x.edition_name && <span style={{ color: "#827B70" }}> · {x.edition_name}</span>}
-                <div style={{ color: available ? "#8BCB88" : "#827B70", fontSize: "12px", marginTop: "4px" }}>
-                  {!available
-                    ? "Indisponível"
-                    : animation
-                      ? x.playable
-                        ? "Reprodução no NekoFlow"
-                        : "Abre no site do provedor"
-                      : x.readable
-                        ? "Páginas no NekoFlow"
-                        : "Abre no site do provedor"}
-                  {status && <span style={{ color: "#DBAF57" }}> · {status}</span>}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {available && (
-                  <button
-                    disabled={opening === x.id}
-                    onClick={() => open(animation ? "episodes" : "chapters", x)}
-                    style={{
-                      border: 0,
-                      borderRadius: "8px",
-                      padding: "10px 14px",
-                      background: "#DBAF57",
-                      color: "#1A1714",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {opening === x.id
-                      ? "Abrindo…"
-                      : animation
-                        ? x.playable
-                          ? "Assistir"
-                          : "Assistir no provedor"
-                        : x.readable
-                          ? "Ler agora"
-                          : "Ler no provedor"}
-                  </button>
-                )}
-                {loggedIn && (
-                  <button
-                    disabled={opening === x.id}
-                    onClick={() => toggle(x, done)}
-                    style={{
-                      border: "1px solid rgba(219,175,87,.45)",
-                      borderRadius: "8px",
-                      padding: "10px 14px",
-                      background: "transparent",
-                      color: "#DBAF57",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {done ? "Desmarcar" : animation ? "Marcar como assistido" : "Marcar como lido"}
-                  </button>
-                )}
+    <div className="nk-unit-grid">
+      {units.map((unit) => {
+        const key = animation ? unit.id : `${unit.id}:${unit.edition_id}`;
+        const done = !!progress[key]?.completed;
+        const playable = animation ? unit.playable : unit.readable;
+        const hasSource = !!unit.has_source;
+        const href = animation ? `/player?episode=${unit.id}` : `/leitor?chapter=${unit.id}&edition=${unit.edition_id}`;
+        return (
+          <article className={`nk-unit-card${done ? " is-done" : ""}`} key={key}>
+            <div className="nk-unit-thumb">
+              {unit.thumbnail_url || work.coverUrl ? <img src={unit.thumbnail_url || work.coverUrl} alt="" loading="lazy" /> : <span>N</span>}
+              <b>{animation ? "EP" : "CAP"} {unit.display_number}</b>
+            </div>
+            <div className="nk-unit-copy">
+              <h3>{displayTitle(unit, animation)}</h3>
+              <p>{[formatDuration(unit.duration_seconds), hasSource ? (playable ? "Disponível no NekoFlow" : "Fonte externa") : "Fonte em revisão"].filter(Boolean).join(" · ")}</p>
+              <div className="nk-unit-actions">
+                {hasSource ? <a href={href}>▶ {animation ? "Assistir" : "Ler"}</a> : <span>Catálogo integrado</span>}
+                {loggedIn && <button disabled={busy === unit.id} onClick={() => mark(unit, done)}>{done ? "✓ Concluído" : "Marcar concluído"}</button>}
               </div>
             </div>
-          );
-        })}
-      </div>
-      {message && <p style={{ color: "#DBAF57", fontSize: "13px" }}>{message}</p>}
-      <p style={{ color: "#827B70", fontSize: "12px" }}>
-        {animation
-          ? rows.some((x) => x.playable)
-            ? "No player do NekoFlow o progresso é salvo pela reprodução real. Fontes que abrem no provedor não informam o tempo: marque o episódio quando terminar."
-            : "Estas fontes abrem fora do NekoFlow e não informam o tempo assistido. Marque o episódio quando terminar; nenhum tempo é inventado."
-          : rows.some((x) => x.readable)
-            ? "No leitor do NekoFlow a página lida é salva na sua conta. Leituras no provedor não informam a página: marque o capítulo quando terminar."
-            : "A leitura externa não informa a página lida. Marque o capítulo quando terminar."}
-      </p>
-      {!loggedIn && (
-        <p style={{ color: "#827B70", fontSize: "12px" }}>Entre na conta para sincronizar biblioteca e progresso.</p>
-      )}
+          </article>
+        );
+      })}
     </div>
   );
 }

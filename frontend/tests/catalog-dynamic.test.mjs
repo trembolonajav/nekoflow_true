@@ -23,8 +23,12 @@ test("mesma identidade não duplica e nova obra pode entrar na coleção", () =>
 
 test("fichas usam API v1 e fonte externa não fabrica progresso", async () => {
   const route = await readFile(new URL("../src/pages/WorkRoute.jsx", import.meta.url), "utf8");
+  const detail = await readFile(new URL("../src/pages/BasicWorkDetail.jsx", import.meta.url), "utf8");
   const player = await readFile(new URL("../src/pages/Player.jsx", import.meta.url), "utf8");
   assert.match(route, /\/api\/v1\/works\/resolve/);
+  assert.match(detail, /\/api\/v1\/works\/\$\{work\.id\}\/seasons/);
+  assert.match(detail, /\/api\/v1\/seasons\/\$\{selectedSeason\}\/episodes/);
+  assert.match(detail, /Temporada \{season\.display_number\}/);
   // Protocolo 06: fonte que só abre no provedor fica com conclusão manual, sem tempo inventado.
   assert.match(player, /Este episódio abre no site do provedor/);
   assert.match(player, /não informa o tempo assistido/);
