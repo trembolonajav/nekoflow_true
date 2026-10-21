@@ -19,9 +19,23 @@ import org.springframework.stereotype.Component;
 public class AniListClient {
 
     static final URI ENDPOINT = URI.create("https://graphql.anilist.co");
+    /** Campos da ficha: os mesmos que as páginas do design exibem. */
     private static final String QUERY = """
-            query($id:Int){Media(id:$id){id type description(asHtml:false) bannerImage
-            coverImage{extraLarge} siteUrl}}""";
+            query($id:Int){Media(id:$id){id type format status episodes chapters volumes duration season seasonYear
+            averageScore isAdult countryOfOrigin source siteUrl description(asHtml:false)
+            title{romaji english native} synonyms bannerImage coverImage{extraLarge large}
+            startDate{year month day} endDate{year month day} genres
+            tags{name rank isMediaSpoiler isGeneralSpoiler}
+            trailer{id site}
+            studios(isMain:true){nodes{name}}
+            staff(sort:[RELEVANCE],perPage:12){edges{role node{name{full native}}}}
+            characters(sort:[ROLE,RELEVANCE],perPage:12){edges{role node{id name{full native} image{large}}
+              voiceActors(language:JAPANESE,sort:[RELEVANCE]){name{full} image{medium}}}}
+            relations{edges{relationType node{id type format status title{romaji english native}
+              coverImage{large} startDate{year} episodes chapters siteUrl}}}
+            recommendations(sort:[RATING_DESC],perPage:8){nodes{rating mediaRecommendation{id type format
+              title{romaji english} coverImage{large} genres siteUrl}}}
+            nextAiringEpisode{episode airingAt}}}""";
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
     private final ObjectMapper mapper;
@@ -31,7 +45,7 @@ public class AniListClient {
     }
 
     public record Media(long id, String type, String description, String bannerImage, String cover,
-                        String siteUrl) {
+                        String siteUrl, JsonNode raw) {
     }
 
     public Optional<Media> fetch(long id) throws Exception {
@@ -47,6 +61,7 @@ public class AniListClient {
             return Optional.empty();
         }
         if (response.statusCode() != 200) {
+            // O AniList devolve 403 quando a API está temporariamente desativada.
             throw new IllegalStateException("AniList respondeu HTTP " + response.statusCode());
         }
         JsonNode m = mapper.readTree(response.body()).path("data").path("Media");
@@ -54,7 +69,7 @@ public class AniListClient {
             return Optional.empty();
         }
         return Optional.of(new Media(m.path("id").asLong(), text(m, "type"), text(m, "description"),
-                text(m, "bannerImage"), text(m.path("coverImage"), "extraLarge"), text(m, "siteUrl")));
+                text(m, "bannerImage"), text(m.path("coverImage"), "extraLarge"), text(m, "siteUrl"), m));
     }
 
     private static String text(JsonNode node, String field) {

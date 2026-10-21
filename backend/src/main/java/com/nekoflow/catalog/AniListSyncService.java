@@ -5,6 +5,7 @@ import com.nekoflow.progress.ProgressException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -39,34 +41,49 @@ public class AniListSyncService {
         this.syncOnBoot = syncOnBoot;
     }
 
-    /** Obras do catálogo normalizado (com temporadas ou edições) ainda não sincronizadas. */
+    /**
+     * Obras do catálogo normalizado (com temporadas ou edições) sem retrato do AniList ou com
+     * retrato de mais de 7 dias. Roda no boot e a cada 30 min: se o AniList estiver fora do
+     * ar, a próxima rodada tenta de novo.
+     */
     @EventListener(ApplicationReadyEvent.class)
     public void syncPendingOnBoot() {
         if (!syncOnBoot) {
             return;
         }
-        List<Long> pending = jdbc.sql("""
-                SELECT w.id FROM work w
-                WHERE w.anilist_synced_at IS NULL
-                  AND EXISTS (SELECT 1 FROM external_identifier x WHERE x.work_id = w.id AND x.provider = 'ANILIST')
-                  AND (EXISTS (SELECT 1 FROM season s WHERE s.work_id = w.id)
-                       OR EXISTS (SELECT 1 FROM work_edition e WHERE e.work_id = w.id))
-                ORDER BY w.id LIMIT 20""").query(Long.class).list();
-        if (pending.isEmpty()) {
-            return;
-        }
-        Thread worker = new Thread(() -> {
-            for (Long id : pending) {
-                try {
-                    sync(id, null);
-                    Thread.sleep(1500); // respeita o limite de requisições do AniList
-                } catch (Exception e) {
-                    log.warn("Sincronização AniList da obra {} falhou: {}", id, e.getMessage());
-                }
-            }
-        }, "anilist-sync");
+        Thread worker = new Thread(this::syncPending, "anilist-sync");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    @Scheduled(initialDelay = 30, fixedDelay = 30, timeUnit = TimeUnit.MINUTES)
+    public void retryPending() {
+        if (syncOnBoot) {
+            syncPending();
+        }
+    }
+
+    synchronized void syncPending() {
+        List<Long> pending = jdbc.sql("""
+                SELECT w.id FROM work w
+                LEFT JOIN work_anilist_snapshot s ON s.work_id = w.id
+                WHERE (s.work_id IS NULL OR s.fetched_at < now() - interval '7 days')
+                  AND EXISTS (SELECT 1 FROM external_identifier x WHERE x.work_id = w.id AND x.provider = 'ANILIST')
+                  AND (EXISTS (SELECT 1 FROM season se WHERE se.work_id = w.id)
+                       OR EXISTS (SELECT 1 FROM work_edition e WHERE e.work_id = w.id))
+                ORDER BY w.id LIMIT 20""").query(Long.class).list();
+        for (Long id : pending) {
+            try {
+                sync(id, null);
+                Thread.sleep(1500); // respeita o limite de requisições do AniList
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception e) {
+                log.warn("Sincronização AniList da obra {} falhou: {}", id, e.getMessage());
+                return; // AniList indisponível: tenta tudo de novo na próxima rodada
+            }
+        }
     }
 
     public Map<String, Object> syncFromAdmin(long workId) {
@@ -101,6 +118,12 @@ public class AniListSyncService {
                 WHERE id = ?""")
                 .params(s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
                 .update();
+        jdbc.sql("""
+                INSERT INTO work_anilist_snapshot (work_id, anilist_id, payload, fetched_at)
+                VALUES (?, ?, CAST(? AS jsonb), now())
+                ON CONFLICT (work_id) DO UPDATE SET anilist_id = EXCLUDED.anilist_id, payload = EXCLUDED.payload,
+                                                    fetched_at = now()""")
+                .params(workId, anilistId, media.raw() == null ? "{}" : media.raw().toString()).update();
         String after = jdbc.sql("SELECT jsonb_build_object('synopsis', synopsis_full, 'banner', banner)::text FROM work WHERE id = ?")
                 .param(workId).query(String.class).single();
         jdbc.sql("""

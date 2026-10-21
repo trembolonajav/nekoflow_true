@@ -9,7 +9,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController @RequestMapping("/api/v1")
 public class CatalogV1Controller {
   private final JdbcClient jdbc;
-  public CatalogV1Controller(JdbcClient jdbc){this.jdbc=jdbc;}
+  private final WorkPresentationService presentation;
+  public CatalogV1Controller(JdbcClient jdbc,WorkPresentationService presentation){this.jdbc=jdbc;this.presentation=presentation;}
+  /** Documento das fichas do design (mesmo formato de obra.json / leitura-obra.json). */
+  @GetMapping("/works/{id}/presentation") public Map<String,Object> presentation(@PathVariable UUID id){return presentation.build(id);}
 
   @GetMapping("/works")
   public Map<String,Object> works(@RequestParam(defaultValue="") String q,@RequestParam(required=false) String media,
