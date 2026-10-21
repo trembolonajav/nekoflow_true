@@ -138,6 +138,22 @@ public class WorkRepository {
         return Optional.empty();
     }
 
+    /** Mesmo critério de {@link #findExactTitle}, mas só entre animes e filmes. */
+    public Optional<Work> findExactAnimationTitle(String title) {
+        String n = Text.norm(title);
+        if (n.isEmpty()) {
+            return Optional.empty();
+        }
+        for (Work w : jdbc.sql("SELECT * FROM work WHERE media_family = 'ANIMATION' OR kind IN ('anime','filme')")
+                .query(WorkRepository::map).list()) {
+            if (w.isAnimation() && (Text.norm(w.title()).equals(n)
+                    || Arrays.stream(w.altTitles().split("\\|")).anyMatch(a -> Text.norm(a).equals(n)))) {
+                return Optional.of(w);
+            }
+        }
+        return Optional.empty();
+    }
+
     private static int score(Work w, String n) {
         String t = Text.norm(w.title());
         int s = t.equals(n) ? 300 : t.startsWith(n) ? 200 : t.contains(n) ? 100 : 50;

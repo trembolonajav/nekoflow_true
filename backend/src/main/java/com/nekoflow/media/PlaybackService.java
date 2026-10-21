@@ -55,7 +55,8 @@ public class PlaybackService {
         List<Map<String, Object>> units = units(ep.workId());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("episodeId", ep.id());
-        out.put("availability", sources.stream().anyMatch(x -> Boolean.TRUE.equals(x.get("playsInPlayer")))
+        out.put("availability", sources.stream().anyMatch(x -> Boolean.TRUE.equals(x.get("playsInPlayer"))
+                        || x.get("embedUrl") != null)
                 ? "AVAILABLE" : sources.isEmpty() ? "UNAVAILABLE" : "EXTERNAL_ONLY");
         out.put("episode", map("id", ep.id(), "title", ep.title(), "number", ep.number(),
                 "durationSeconds", ep.durationSeconds(), "synopsis", ep.synopsis(),
@@ -183,7 +184,7 @@ public class PlaybackService {
         return jdbc.sql("""
                 SELECT e.id, e.display_number, e.title, e.duration_seconds, s.id, s.title,
                        EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
-                               AND es.source_type IN ('HLS','MP4','DASH')
+                               AND es.source_type IN ('HLS','MP4','DASH','EMBED')
                                AND (es.available_from IS NULL OR es.available_from <= now())
                                AND (es.available_until IS NULL OR es.available_until > now())) AS playable,
                        EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
