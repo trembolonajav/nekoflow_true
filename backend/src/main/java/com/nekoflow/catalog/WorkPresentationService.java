@@ -46,15 +46,22 @@ public class WorkPresentationService {
     }
 
     public Map<String, Object> build(UUID publicId) {
+        return build(publicId, "pt-BR");
+    }
+
+    public Map<String, Object> build(UUID publicId, String language) {
         WorkRow w = work(publicId);
         JsonNode a = snapshot(w.id());
-        return "ANIMATION".equals(w.family()) ? anime(w, a) : reading(w, a);
+        Translation translation = translation(w, language);
+        return "ANIMATION".equals(w.family()) ? anime(w, a, translation) : reading(w, a, translation);
     }
+
+    record Translation(String language, String synopsisShort, String synopsisFull, String source) {}
 
     // ---- anime ---------------------------------------------------------------------------
 
-    private Map<String, Object> anime(WorkRow w, JsonNode a) {
-        Map<String, Object> d = common(w, a);
+    private Map<String, Object> anime(WorkRow w, JsonNode a, Translation translation) {
+        Map<String, Object> d = common(w, a, translation);
         List<Map<String, Object>> seasons = seasons(w.id());
         int episodes = seasons.stream().mapToInt(s -> ((List<?>) s.get("eps")).size()).sum();
         int available = (int) seasons.stream().flatMap(s -> ((List<Map<String, Object>>) s.get("eps")).stream())
@@ -121,15 +128,23 @@ public class WorkPresentationService {
                 .list();
         for (Map<String, Object> s : seasons) {
             s.put("eps", jdbc.sql("""
-                    SELECT e.id, e.display_number, e.title, e.duration_seconds, e.thumbnail_url,
+                    SELECT e.id, e.display_number, e.title, e.duration_seconds,
+                           COALESCE(e.thumbnail_url, w.banner, w.cover) AS thumbnail_url,
                            EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                    AND (es.available_from IS NULL OR es.available_from <= now())
                                    AND (es.available_until IS NULL OR es.available_until > now())) AS available,
                            EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                    AND es.source_type IN ('HLS','MP4','DASH')) AS playable,
-                           (SELECT es.audio_language FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
-                            ORDER BY es.priority LIMIT 1) AS audio
-                    FROM episode e WHERE e.season_id = ? ORDER BY e.sort_position""")
+                           (SELECT string_agg(DISTINCT es.audio_language, ',' ORDER BY es.audio_language)
+                            FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
+                              AND NULLIF(es.audio_language,'') IS NOT NULL) AS audio_languages,
+                           (SELECT string_agg(DISTINCT es.language, ',' ORDER BY es.language)
+                            FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
+                              AND NULLIF(es.language,'') IS NOT NULL) AS subtitle_languages
+                    FROM episode e
+                    JOIN season se ON se.id = e.season_id
+                    JOIN work w ON w.id = se.work_id
+                    WHERE e.season_id = ? ORDER BY e.sort_position""")
                     .param(s.get("id"))
                     .query((rs, n) -> {
                         Map<String, Object> e = new LinkedHashMap<>();
@@ -141,13 +156,22 @@ public class WorkPresentationService {
                         e.put("pos", "center");
                         e.put("available", rs.getBoolean(6));
                         e.put("playable", rs.getBoolean(7));
-                        e.put("audio", rs.getString(8));
-                        e.put("dub", false);
+                        List<String> audioLanguages = csv(rs.getString(8));
+                        List<String> subtitleLanguages = csv(rs.getString(9));
+                        e.put("audio", audioLanguages.isEmpty() ? null : audioLanguages.get(0));
+                        e.put("audioLanguages", audioLanguages);
+                        e.put("subtitleLanguages", subtitleLanguages);
+                        e.put("dub", audioLanguages.stream().anyMatch(x -> !"ja".equalsIgnoreCase(x)));
                         return e;
                     })
                     .list());
         }
         return seasons;
+    }
+
+    private static List<String> csv(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return java.util.Arrays.stream(value.split(",")).map(String::strip).filter(x -> !x.isBlank()).toList();
     }
 
     private List<Map<String, Object>> animeOrder(WorkRow w, JsonNode a, String format, String years, int episodes) {
@@ -233,8 +257,8 @@ public class WorkPresentationService {
 
     // ---- leitura -------------------------------------------------------------------------
 
-    private Map<String, Object> reading(WorkRow w, JsonNode a) {
-        Map<String, Object> d = common(w, a);
+    private Map<String, Object> reading(WorkRow w, JsonNode a, Translation translation) {
+        Map<String, Object> d = common(w, a, translation);
         List<Map<String, Object>> editions = editions(w.id());
         int chapters = editions.stream().mapToInt(e -> ((List<?>) e.get("chapters")).size()).max().orElse(0);
         String type = formatLabel(text(a, "format"), "READING");
@@ -379,7 +403,7 @@ public class WorkPresentationService {
 
     // ---- partes comuns ---------------------------------------------------------------------
 
-    private Map<String, Object> common(WorkRow w, JsonNode a) {
+    private Map<String, Object> common(WorkRow w, JsonNode a, Translation translation) {
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("id", w.id());
         d.put("publicId", w.publicId());
@@ -414,14 +438,32 @@ public class WorkPresentationService {
                 ? String.format(PT, "%.1f", a.path("averageScore").asInt() / 10.0) : null);
         d.put("genres", genres(w.id(), a));
         d.put("themes", themes(a));
-        d.put("synopsisShort", w.synopsisShort() != null ? w.synopsisShort() : firstParagraph(w.synopsisFull()));
-        d.put("synopsis", paragraphs(w.synopsisFull() != null ? w.synopsisFull() : w.synopsisShort()));
-        d.put("synopsisSource", w.synopsisSource());
-        d.put("synopsisLanguage", w.synopsisLanguage());
+        String synopsisShort = translation.synopsisShort() != null ? translation.synopsisShort()
+                : firstParagraph(translation.synopsisFull());
+        d.put("synopsisShort", synopsisShort);
+        d.put("synopsis", paragraphs(translation.synopsisFull() != null
+                ? translation.synopsisFull() : translation.synopsisShort()));
+        d.put("synopsisSource", translation.source());
+        d.put("synopsisLanguage", translation.language());
         d.put("chars", characters(a));
         d.put("recs", recommendations(a));
         d.put("anilistSynced", !a.isMissingNode() && a.size() > 0);
         return d;
+    }
+
+    private Translation translation(WorkRow w, String requested) {
+        String language = requested == null || requested.isBlank() ? "pt-BR" : requested;
+        return jdbc.sql("""
+                SELECT language,synopsis_short,synopsis_full,source FROM work_translation
+                WHERE work_id=:work
+                ORDER BY CASE WHEN language=:language THEN 0
+                              WHEN split_part(language,'-',1)=split_part(:language,'-',1) THEN 1
+                              WHEN language='en' THEN 2 ELSE 3 END
+                LIMIT 1""")
+                .param("work", w.id()).param("language", language)
+                .query((rs, n) -> new Translation(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)))
+                .optional()
+                .orElse(new Translation(w.synopsisLanguage(), w.synopsisShort(), w.synopsisFull(), w.synopsisSource()));
     }
 
     private WorkRow work(UUID publicId) {

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import BasicWorkDetail from "./BasicWorkDetail";
+import { getLocale, subscribeLocale } from "../i18n/locale";
 
 const RICH_IDS = new Set([151807, 105398]);
 
@@ -12,6 +13,7 @@ export default function WorkRoute({
   loggedIn,
 }) {
   const { slug } = useParams();
+  const locale = useSyncExternalStore(subscribeLocale, getLocale, getLocale);
   const [state, setState] = useState({
     loading: true,
     work: null,
@@ -35,7 +37,7 @@ export default function WorkRoute({
         let presentation = null;
         const legacy = Number(work.legacyId ?? work.id);
         if (!RICH_IDS.has(legacy) && work.legacyId != null) {
-          presentation = await api.get(`/api/v1/works/${work.id}/presentation`).catch(() => null);
+          presentation = await api.get(`/api/v1/works/${work.id}/presentation?lang=${encodeURIComponent(locale)}`).catch(() => null);
         }
         if (active) setState({ loading: false, work, presentation, missing: false });
       })
@@ -50,7 +52,7 @@ export default function WorkRoute({
     return () => {
       active = false;
     };
-  }, [section, slug]);
+  }, [section, slug, locale]);
 
   if (state.loading)
     return <BasicWorkDetail loading section={section} loggedIn={loggedIn} />;

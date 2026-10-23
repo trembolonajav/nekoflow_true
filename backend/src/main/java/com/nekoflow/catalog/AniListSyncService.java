@@ -107,17 +107,41 @@ public class AniListSyncService {
                 .orElseThrow(() -> ProgressException.notFound("ANILIST_MEDIA_NOT_FOUND",
                         "O AniList não encontrou esta obra."));
         Synopsis s = clean(media.description());
+        String romaji = text(media.raw().path("title"), "romaji");
+        String english = text(media.raw().path("title"), "english");
+        String nativeTitle = text(media.raw().path("title"), "native");
         String before = jdbc.sql("SELECT jsonb_build_object('synopsis', synopsis_full, 'banner', banner)::text FROM work WHERE id = ?")
                 .param(workId).query(String.class).single();
         jdbc.sql("""
-                UPDATE work SET synopsis_full = COALESCE(CAST(? AS text), synopsis_full),
-                                synopsis_source = CASE WHEN CAST(? AS text) IS NULL THEN synopsis_source ELSE ? END,
-                                synopsis_language = CASE WHEN CAST(? AS text) IS NULL THEN synopsis_language ELSE 'en' END,
+                UPDATE work SET title = COALESCE(CAST(? AS text), title),
+                                synopsis_full = COALESCE(synopsis_full, CAST(? AS text)),
+                                synopsis_source = CASE WHEN synopsis_full IS NULL AND CAST(? AS text) IS NOT NULL
+                                                       THEN ? ELSE synopsis_source END,
+                                synopsis_language = CASE WHEN synopsis_full IS NULL AND CAST(? AS text) IS NOT NULL
+                                                         THEN 'en' ELSE synopsis_language END,
                                 banner = COALESCE(banner, CAST(? AS text)),
                                 anilist_synced_at = now(), updated_at = now()
                 WHERE id = ?""")
-                .params(s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
+                .params(romaji, s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
                 .update();
+        if (s.text() != null) {
+            jdbc.sql("""
+                    INSERT INTO work_translation(work_id,language,synopsis_full,source,updated_at)
+                    VALUES (?,'en',?,?,now())
+                    ON CONFLICT (work_id,language) DO UPDATE SET synopsis_full=EXCLUDED.synopsis_full,
+                        source=EXCLUDED.source,updated_at=now()""")
+                    .params(workId, s.text(), s.attribution()).update();
+        }
+        upsertTitle(workId, romaji, "ROMAJI", "ja-Latn");
+        upsertTitle(workId, english, "ENGLISH", "en");
+        upsertTitle(workId, nativeTitle, "ORIGINAL", "ja");
+        for (var synonym : media.raw().path("synonyms")) {
+            upsertTitle(workId, synonym.asText(null), "ALIAS", null);
+        }
+        jdbc.sql("""
+                UPDATE work SET alt_titles=(SELECT string_agg(DISTINCT title,' | ' ORDER BY title)
+                                              FROM work_title WHERE work_id=?)
+                WHERE id=?""").params(workId, workId).update();
         jdbc.sql("""
                 INSERT INTO work_anilist_snapshot (work_id, anilist_id, payload, fetched_at)
                 VALUES (?, ?, CAST(? AS jsonb), now())
@@ -138,6 +162,19 @@ public class AniListSyncService {
         out.put("synopsisSource", s.attribution());
         out.put("banner", media.bannerImage());
         return out;
+    }
+
+    private void upsertTitle(long workId, String title, String type, String language) {
+        if (title == null || title.isBlank()) return;
+        jdbc.sql("""
+                INSERT INTO work_title(work_id,title,title_norm,title_type,language)
+                VALUES (?,?,lower(?),?,?) ON CONFLICT DO NOTHING""")
+                .params(workId, title.strip(), title.strip(), type, language).update();
+    }
+
+    private static String text(com.fasterxml.jackson.databind.JsonNode node, String field) {
+        var value = node.path(field);
+        return value.isMissingNode() || value.isNull() || value.asText().isBlank() ? null : value.asText();
     }
 
     record Synopsis(String text, String attribution) {
