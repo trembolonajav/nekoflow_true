@@ -6,6 +6,8 @@ import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
 import { libraryApi } from "../features/library/libraryApi";
+import LanguageSelector from "./LanguageSelector";
+import { subscribeLocale } from "../i18n/locale";
 
 class HeaderLogic extends DCLogic {
   state = {
@@ -121,6 +123,7 @@ class HeaderLogic extends DCLogic {
     // Outras telas avisam quando algo pessoal muda (biblioteca, avisos lidos).
     this.onPersonal = () => this.loadPersonal();
     window.addEventListener("nk:personal", this.onPersonal);
+    this.unsubscribeLocale = subscribeLocale(() => this.forceUpdate());
     document.addEventListener("mousedown", this.onDocDown);
     document.addEventListener("keydown", this.onDocKey);
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
@@ -133,6 +136,7 @@ class HeaderLogic extends DCLogic {
     document.removeEventListener("keydown", this.onDocKey);
     clearInterval(this.poll);
     window.removeEventListener("nk:personal", this.onPersonal);
+    if (this.unsubscribeLocale) this.unsubscribeLocale();
     if (this.unsubscribe) this.unsubscribe();
   }
   renderVals() {
@@ -831,6 +835,7 @@ function render(v) {
             </>
           ) : null}{" "}
         </div>
+        <LanguageSelector />
         {v.loggedIn ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

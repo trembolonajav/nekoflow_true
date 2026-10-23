@@ -3,6 +3,7 @@ html,body{height:100%;margin:0}
 #dc-root,#dc-root>.sc-host{height:100%}
 .sc-host.sc-has-error{position:relative}
 .sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;border-radius:4px;white-space:pre-wrap;pointer-events:none}
+.nk-language-selector{display:flex;align-items:center;gap:2px;padding:3px;border:1px solid rgba(240,238,233,.12);border-radius:999px;background:rgba(23,20,17,.72);margin-left:10px;flex-shrink:0}.nk-language-selector button{border:0;background:transparent;color:#8f897d;border-radius:999px;min-width:34px;height:28px;padding:0 7px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}.nk-language-selector button.is-active{background:rgba(219,175,87,.14);color:#dbaf57}.nk-language-selector small{font:600 9px 'JetBrains Mono',monospace}@media(max-width:900px){.nk-language-selector small{display:none}.nk-language-selector button{min-width:28px;padding:0 5px}}@media(max-width:640px){.nk-language-selector{margin-left:2px;padding:2px}.nk-language-selector button{min-width:24px;height:26px;padding:0 3px}}
 @media print {
   @page { margin: 0.5cm; }
   figure, table { break-inside: avoid; }
