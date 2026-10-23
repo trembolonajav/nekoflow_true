@@ -124,9 +124,26 @@ const GENRES = {
 };
 for (const [k, v] of Object.entries(GENRES)) UI[k] = UI[k] || v;
 
+// Primeira visita: sugere o idioma do navegador (pt-BR é o padrão editorial do projeto).
+function browserLocale() {
+  const langs = (globalThis.navigator && (navigator.languages || [navigator.language])) || [];
+  for (const l of langs) {
+    const b = String(l || "").toLowerCase().split("-")[0];
+    if (b === "pt") return "pt-BR";
+    if (b === "en") return "en";
+    if (b === "es") return "es";
+  }
+  return "pt-BR";
+}
+
 let locale = (() => {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  return SUPPORTED.has(saved) ? saved : "pt-BR";
+  let saved = null;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    /* sem armazenamento */
+  }
+  return SUPPORTED.has(saved) ? saved : browserLocale();
 })();
 
 export function getLocale() { return locale; }

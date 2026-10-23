@@ -9,7 +9,7 @@ import { session, goLogin } from "../lib/session";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
-import { languageBadge } from "../features/media/playbackRules";
+import { languageBadge, languageName } from "../features/media/playbackRules";
 
 const WORK_ID = 151807;
 const STATUS_CODE = {
@@ -356,7 +356,10 @@ class ObraLogic extends DCLogic {
         ? w.chars.map((c) => ({
             ...c,
             hasVa: !!c.va,
-            vaName: c.va ? c.va.name : "",
+            // Elenco japonês e, quando o AniList registra, dublagens em outros idiomas.
+            vaName: c.va
+              ? [c.va.name, ...(c.voices || []).map((v) => `${languageBadge(v.language)} ${v.name}`)].join(" · ")
+              : (c.voices || []).map((v) => `${languageBadge(v.language)} ${v.name}`).join(" · "),
             vaImg: c.va ? c.va.img : "",
             border: c.role === "Protagonista" ? "rgba(219,175,87,.5)" : "rgba(240,238,233,.06)",
             roleColor: c.role === "Protagonista" ? "#DBAF57" : "#B7B1A4",
@@ -2509,10 +2512,16 @@ class DynamicObraLogic extends ObraLogic {
       const isCur = !!resumeEp && resumeEp.id === e.id;
       const pct = p && p.durationMs ? Math.round((p.positionMs / p.durationMs) * 100) : 0;
       const left = p && p.durationMs && !done ? Math.max(1, Math.ceil((p.durationMs - p.positionMs) / 60000)) : null;
-      const languageBadges = [
-        ...(e.subtitleLanguages || []).map((language) => `CC ${languageBadge(language)}`),
-        ...(e.audioLanguages || []).filter((language) => language && language !== "ja").map((language) => `🎙 ${languageBadge(language)}`),
-      ].filter((value, index, values) => values.indexOf(value) === index);
+      // União dos idiomas das fontes ativas: CC = legenda, 🎙 = áudio. "multi" é áudio duplo
+      // sem idiomas detalhados pela fonte; sem informação, o card diz que não foi informado.
+      const audioBadge = (language) => (language === "multi" ? "🎙 Dual" : `🎙 ${languageBadge(language)}`);
+      const languageBadges = e.available
+        ? [
+            ...(e.subtitleLanguages || []).map((language) => `CC ${languageBadge(language)}`),
+            ...(e.audioLanguages || []).filter(Boolean).map(audioBadge),
+          ].filter((value, index, values) => values.indexOf(value) === index)
+        : [];
+      if (e.available && !languageBadges.length) languageBadges.push("Idioma não informado");
       return {
         ...e,
         languageBadges,
@@ -2631,7 +2640,11 @@ class DynamicObraLogic extends ObraLogic {
       genreTags: w.genres,
       themeTags: w.themes,
       altText: w.alt.join(" · "),
-      ficha: w.ficha.map(([k, v]) => ({ k, v })),
+      ficha: [
+        ...w.ficha.map(([k, v]) => ({ k, v })),
+        // Sinopse exibida em outro idioma porque ainda não há tradução no idioma do site.
+        ...(w.synopsisFallback ? [{ k: "Idioma da sinopse", v: `${languageName(w.synopsisLanguage)} · tradução ainda não cadastrada` }] : []),
+      ],
       hasOrig: !!orig,
       hasOrigMap: !!(orig && orig.map && orig.map.length),
       orig: orig

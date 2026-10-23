@@ -1,3 +1,4 @@
+import { translateError } from "../../i18n/errors.js";
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 function apiBase() {
@@ -15,17 +16,27 @@ function csrfToken() {
   return match ? decodeURIComponent(match[1]) : "";
 }
 
+function currentLocale() {
+  try {
+    return globalThis.localStorage?.getItem("nk-locale") || "pt-BR";
+  } catch {
+    return "pt-BR";
+  }
+}
+
 function errorBody(status, body, fallbackCode) {
   const source = body && typeof body === "object" ? body : {};
+  const code = source.code || fallbackCode || `HTTP_${status}`;
+  const serverMessage =
+    source.message ||
+    (status ? `A API respondeu com HTTP ${status}.` : "Não foi possível acessar a API.");
   return {
-    code: source.code || fallbackCode || `HTTP_${status}`,
-    message:
-      source.message ||
-      (status
-        ? `A API respondeu com HTTP ${status}.`
-        : "Não foi possível acessar a API."),
     requestId: source.requestId || null,
     ...source,
+    code,
+    // O Java manda códigos estáveis; a mensagem segue o idioma escolhido no site.
+    message: translateError(code, serverMessage, currentLocale()),
+    serverMessage,
   };
 }
 

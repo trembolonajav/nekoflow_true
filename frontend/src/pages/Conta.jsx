@@ -3,6 +3,15 @@
 import React from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import { api } from "../lib/api";
+import { getLocale, setLocale } from "../i18n/locale";
+import {
+  AUDIO_OPTIONS,
+  SUBTITLE_OPTIONS,
+  SUBTITLE_FALLBACK_OPTIONS,
+  LOCALE_OPTIONS,
+  labelFromLocale,
+  localeFromLabel,
+} from "../features/preferences/mediaPreferences";
 import { session } from "../lib/session";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -179,6 +188,8 @@ class ContaLogic extends DCLogic {
     const prev = this.state.cfg;
     const cfg = { ...prev, [k]: v };
     this.setState({ cfg });
+    // Idioma do site muda a interface na hora; áudio e legenda continuam independentes.
+    if (k === "locale" && localeFromLabel(v)) setLocale(localeFromLabel(v));
     api
       .put("/api/me/preferences", cfg)
       .then(() => this.flash("Preferência salva"))
@@ -511,18 +522,32 @@ class ContaLogic extends DCLogic {
         },
         { key: "skip", label: "Pular abertura e encerramento", desc: "Quando o episódio tiver marcações", d: false },
         {
+          key: "locale",
+          label: "Idioma do site",
+          desc: "Menus e textos do NekoFlow. Não muda o áudio nem a legenda dos episódios",
+          opts: LOCALE_OPTIONS,
+          d: labelFromLocale(getLocale()) || "Português (Brasil)",
+        },
+        {
           key: "audio",
           label: "Áudio preferido",
           desc: "Usado quando houver mais de uma opção",
-          opts: ["Japonês", "Português"],
+          opts: AUDIO_OPTIONS,
           d: "Japonês",
         },
         {
           key: "subs",
-          label: "Legendas",
-          desc: "Idioma padrão das legendas",
-          opts: ["PT-BR", "Inglês", "Desligadas"],
+          label: "Legenda preferida",
+          desc: "Escolhida primeiro quando o episódio oferecer",
+          opts: SUBTITLE_OPTIONS,
           d: "PT-BR",
+        },
+        {
+          key: "subsAlt",
+          label: "Legenda alternativa",
+          desc: "Usada, com aviso, quando a preferida não existir no episódio",
+          opts: SUBTITLE_FALLBACK_OPTIONS,
+          d: "Inglês",
         },
         {
           key: "reader",

@@ -11,6 +11,15 @@ import { saveUnit, recordOpened, loadWork } from "../lib/progress";
 import { canonicalWorks } from "../features/catalog/workNavigation";
 import { mediaApi, ISSUE_CATEGORIES } from "../features/media/mediaApi";
 import {
+  loadMediaPreferences,
+} from "../features/preferences/preferencesApi";
+import {
+  normalizePreferences,
+  rankByPreference,
+  preferenceScore,
+  substitutionNotice,
+} from "../features/preferences/mediaPreferences";
+import {
   browserSupport,
   rankSources,
   pickSource,
@@ -4265,9 +4274,19 @@ class RealPlayerLogic extends PlayerLogic {
       }
     }
 
-    const src = pickSource(ranked);
+    // Fonte inicial pelas preferências do usuário (áudio, legenda, alternativa); entre
+    // fontes igualmente boas, o player nativo vem antes do embed. Nunca troca em silêncio.
+    const prefs = await loadMediaPreferences().catch(() => normalizePreferences({}));
+    this.prefs = prefs;
+    const candidates = ranked.filter((x) => (x.playsInPlayer && x.compatible) || x.embedUrl);
+    const preferred = rankByPreference(candidates, prefs).sort(
+      (a, b) => preferenceScore(b, prefs) - preferenceScore(a, prefs) || (a.embedUrl ? 1 : 0) - (b.embedUrl ? 1 : 0),
+    )[0];
+    const notice = substitutionNotice(preferred, prefs, languageName);
+    if (notice) this.flashLong(notice);
+    const src = preferred && !preferred.embedUrl ? preferred : preferred ? null : pickSource(ranked);
     if (!src) {
-      const embed = ranked.find((s) => s.embedUrl);
+      const embed = preferred && preferred.embedUrl ? preferred : ranked.find((s) => s.embedUrl);
       if (embed) {
         this.setState({
           loading: false,
@@ -4507,6 +4526,13 @@ class RealPlayerLogic extends PlayerLogic {
     });
   }
 
+  /** Aviso que fica mais tempo na tela (substituição de idioma). */
+  flashLong(text) {
+    clearTimeout(this.tt);
+    this.setState({ toast: text });
+    this.tt = setTimeout(() => this.setState({ toast: null }), 6000);
+  }
+
   playNow() {
     const v = this.video;
     if (!v) return;
@@ -4635,6 +4661,16 @@ class RealPlayerLogic extends PlayerLogic {
     const s = this.state;
     const src = s.ranked.find((x) => x.id === id);
     if (!src) return;
+    // Troca manual vale só para este episódio (as preferências globais não mudam), mas o
+    // usuário é avisado quando o idioma do áudio ou da legenda muda.
+    const cur = s.ranked.find((x) => x.id === s.src);
+    const langs = (x) => [...(x?.audioLanguages || []), "|", ...(x?.subtitleLanguages || [])].join(",");
+    const langChanged = cur && src.id !== cur.id && langs(cur) !== langs(src);
+    if (langChanged) {
+      const audio = (src.audioLanguages || []).map(languageName).join(", ") || "não informado";
+      const subs = (src.subtitleLanguages || []).map(languageName).join(", ") || "sem legenda informada";
+      setTimeout(() => this.flashLong(`Idioma desta fonte: áudio ${audio} · legenda ${subs}`), 0);
+    }
     if (src.embedUrl) {
       this.detach();
       this.setState({
