@@ -29,9 +29,6 @@ nekoflow:
     public-prefix: /media
   anilist:
     sync-on-boot: ${ANILIST_SYNC_ON_BOOT:true}
-  hianime-import:
-    # Desligado: HiAnime não é uma origem autorizada de distribuição para o NekoFlow.
-    enabled: ${HIANIME_IMPORT_ENABLED:false}
 
 spring:
   application:
