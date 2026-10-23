@@ -40,7 +40,8 @@ public class PlaybackService {
     }
 
     record SourceRow(UUID id, String type, String url, String provider, UUID providerId, String label, int priority,
-                     String audioLanguage, Integer maxHeight, boolean reportsProgress, boolean embedAllowed) {
+                     String audioLanguage, String subtitleLanguage, Integer maxHeight, boolean reportsProgress,
+                     boolean embedAllowed) {
     }
 
     public Map<String, Object> playback(UUID episodeId) {
@@ -119,7 +120,7 @@ public class PlaybackService {
     List<SourceRow> sources(UUID episodeId) {
         return jdbc.sql("""
                 SELECT id, source_type, source_url, provider, provider_id, label, priority, audio_language,
-                       max_height, reports_progress, embed_allowed
+                       language, max_height, reports_progress, embed_allowed
                 FROM episode_source
                 WHERE episode_id = ? AND enabled
                   AND (available_from IS NULL OR available_from <= now())
@@ -133,7 +134,7 @@ public class PlaybackService {
     private static SourceRow source(ResultSet rs, int n) throws SQLException {
         return new SourceRow(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
                 rs.getObject(5, UUID.class), rs.getString(6), rs.getInt(7), rs.getString(8),
-                (Integer) rs.getObject(9), rs.getBoolean(10), rs.getBoolean(11));
+                rs.getString(9), (Integer) rs.getObject(10), rs.getBoolean(11), rs.getBoolean(12));
     }
 
     /** Visão pública da fonte; null quando o provedor não autoriza mais a URL. */
@@ -155,9 +156,14 @@ public class PlaybackService {
                 "audioSelection", nativeType,
                 "subtitles", nativeType,
                 "markers", nativeType);
-        List<String> subtitleLanguages = jdbc.sql(
+        List<String> subtitleLanguages = new ArrayList<>(jdbc.sql(
                         "SELECT DISTINCT language FROM media_subtitle_track WHERE episode_source_id = ? ORDER BY 1")
-                .param(s.id()).query(String.class).list();
+                .param(s.id()).query(String.class).list());
+        // O iframe controla suas próprias legendas e não expõe o WebVTT. Para embeds,
+        // episode_source.language guarda o idioma confirmado editorialmente.
+        if (subtitleLanguages.isEmpty() && s.subtitleLanguage() != null && !s.subtitleLanguage().isBlank()) {
+            subtitleLanguages.add(s.subtitleLanguage());
+        }
         Map<String, Object> v = map("id", s.id(), "type", s.type(),
                 "label", s.label() != null ? s.label() : s.provider(), "provider", s.provider(),
                 "priority", s.priority(), "playsInPlayer", nativeType, "capabilities", caps,

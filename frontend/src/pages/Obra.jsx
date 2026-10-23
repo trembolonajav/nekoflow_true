@@ -9,6 +9,7 @@ import { session, goLogin } from "../lib/session";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
+import { languageBadge } from "../features/media/playbackRules";
 
 const WORK_ID = 151807;
 const STATUS_CODE = {
@@ -354,6 +355,9 @@ class ObraLogic extends DCLogic {
       chars: w
         ? w.chars.map((c) => ({
             ...c,
+            hasVa: !!c.va,
+            vaName: c.va ? c.va.name : "",
+            vaImg: c.va ? c.va.img : "",
             border: c.role === "Protagonista" ? "rgba(219,175,87,.5)" : "rgba(240,238,233,.06)",
             roleColor: c.role === "Protagonista" ? "#DBAF57" : "#B7B1A4",
             open: () => this.setState({ char: c.id, spoiler: false }),
@@ -1181,6 +1185,13 @@ function render(v) {
                                   </svg>
                                 </span>
                               </>
+                            ) : null}{" "}
+                            {e?.languageBadges?.length ? (
+                              <span style={{position:"absolute",right:"7px",bottom:"7px",display:"flex",gap:"4px",flexWrap:"wrap",justifyContent:"flex-end"}}>
+                                {e.languageBadges.map((badge) => (
+                                  <span key={badge} style={{padding:"3px 6px",borderRadius:"999px",background:"rgba(15,13,11,.86)",border:"1px solid rgba(240,238,233,.14)",fontSize:"9px",fontWeight:"650",letterSpacing:".03em"}}>{badge}</span>
+                                ))}
+                              </span>
                             ) : null}{" "}
                             {e?.hasPct ? (
                               <>
@@ -2029,6 +2040,12 @@ function render(v) {
                               {txt(c?.name)}
                             </span>
                             <span style={{ fontSize: "12px", color: `${c?.roleColor ?? ""}` }}>{txt(c?.role)}</span>
+                            {c?.hasVa ? (
+                              <span style={{display:"flex",alignItems:"center",gap:"7px",marginTop:"4px",color:"#B7B1A4",fontSize:"11px",minWidth:0}}>
+                                {c?.vaImg ? <img src={c.vaImg} alt="" loading="lazy" style={{width:"24px",height:"24px",borderRadius:"50%",objectFit:"cover",flexShrink:0}} /> : null}
+                                <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🎙 {txt(c?.vaName)}</span>
+                              </span>
+                            ) : null}
                           </span>
                         </button>
                       </React.Fragment>
@@ -2492,8 +2509,13 @@ class DynamicObraLogic extends ObraLogic {
       const isCur = !!resumeEp && resumeEp.id === e.id;
       const pct = p && p.durationMs ? Math.round((p.positionMs / p.durationMs) * 100) : 0;
       const left = p && p.durationMs && !done ? Math.max(1, Math.ceil((p.durationMs - p.positionMs) / 60000)) : null;
+      const languageBadges = [
+        ...(e.subtitleLanguages || []).map((language) => `CC ${languageBadge(language)}`),
+        ...(e.audioLanguages || []).filter((language) => language && language !== "ja").map((language) => `🎙 ${languageBadge(language)}`),
+      ].filter((value, index, values) => values.indexOf(value) === index);
       return {
         ...e,
+        languageBadges,
         done,
         available: e.available,
         unavailable: !e.available,

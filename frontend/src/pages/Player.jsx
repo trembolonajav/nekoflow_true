@@ -16,6 +16,7 @@ import {
   pickSource,
   createWatchMeter,
   languageName,
+  sourceLanguageSummary,
 } from "../features/media/playbackRules";
 
 const WORK_ID = 151807;
@@ -751,8 +752,9 @@ class PlayerLogic extends DCLogic {
       stageRef: this.stageRef,
       barRef: this.barRef,
       rowRef: this.rowRef,
-      stageMax: "1280px",
-      stageMaxH: s.fs ? "none" : "calc(100vh - 150px)",
+      stageMax: s.fs ? "100vw" : "1280px",
+      stageMaxH: s.fs ? "100vh" : "calc(100vh - 150px)",
+      stageHeight: s.fs ? "100vh" : "auto",
       stageRadius: s.fs ? "0px" : "14px",
       stageCursor: ctrls ? "default" : "none",
       crumb: `Temporada ${seasonN} · Episódio ${s.ep}`,
@@ -1131,6 +1133,97 @@ function render(v) {
             </a>
             <span style={{ fontSize: "12px", color: "#8F897D", whiteSpace: "nowrap" }}>{txt(v.savedText)}</span>
           </div>
+          {v.showEmbedSources ? (
+            <div
+              aria-label="Servidores de reprodução"
+              style={{
+                width: "100%",
+                maxWidth: `${v.stageMax ?? ""}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{
+                  minWidth: "0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px",
+                  overflowX: "auto",
+                  border: "1px solid rgba(219,175,87,.22)",
+                  borderRadius: "10px",
+                  background: "rgba(24,21,18,.82)",
+                }}
+              >
+                <span
+                  style={{
+                    padding: "0 5px",
+                    color: "#B7B1A4",
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    letterSpacing: ".12em",
+                    textTransform: "uppercase",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Servidor
+                </span>
+                {asList(v.embedSources).map((o, $index) => (
+                  <button
+                    key={$index}
+                    type="button"
+                    onClick={o?.pick}
+                    aria-pressed={!!o?.on}
+                    title={`${o?.label ?? "Servidor"} · qualidade controlada pelo player externo`}
+                    style={{
+                      border: o?.on ? "1px solid #DBAF57" : "1px solid rgba(240,238,233,.16)",
+                      borderRadius: "7px",
+                      padding: "7px 10px",
+                      background: o?.on ? "rgba(219,175,87,.18)" : "rgba(240,238,233,.06)",
+                      color: o?.on ? "#F2CF83" : "#F0EEE9",
+                      fontFamily: "inherit",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      lineHeight: "1",
+                      whiteSpace: "nowrap",
+                      cursor: o?.on ? "default" : "pointer",
+                    }}
+                  >
+                    {txt(o?.label)}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={v.toggleFs}
+                aria-label="Abrir vídeo em tela cheia"
+                title="Tela cheia"
+                style={{
+                  flexShrink: "0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "7px",
+                  border: "1px solid rgba(240,238,233,.18)",
+                  borderRadius: "9px",
+                  padding: "10px 12px",
+                  background: "rgba(240,238,233,.06)",
+                  color: "#F0EEE9",
+                  fontFamily: "inherit",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+                </svg>
+                Tela cheia
+              </button>
+            </div>
+          ) : null}
           <div
             ref={v.stageRef}
             onMouseMove={v.wake}
@@ -1139,6 +1232,7 @@ function render(v) {
               position: "relative",
               width: "100%",
               maxWidth: `${v.stageMax ?? ""}`,
+              height: `${v.stageHeight ?? ""}`,
               aspectRatio: "16/9",
               maxHeight: `${v.stageMaxH ?? ""}`,
               background: "#000",
@@ -1164,7 +1258,7 @@ function render(v) {
               <iframe
                 src={v.embedUrl}
                 title={`${v.workTitle || "Anime"} · player incorporado`}
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"
                 allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
                 style={{
@@ -4770,6 +4864,14 @@ class RealPlayerLogic extends PlayerLogic {
       demoBanner: false,
       realVideo: !s.embedUrl,
       embedUrl: s.embedUrl,
+      showEmbedSources: !!s.embedUrl && s.ranked.filter((x) => x.embedUrl).length > 1,
+      embedSources: s.ranked
+        .filter((x) => x.embedUrl)
+        .map((x) => ({
+          label: [x.label, sourceLanguageSummary(x)].filter(Boolean).join(" · "),
+          on: s.src === x.id,
+          pick: () => this.setSource(x.id),
+        })),
       commentsOn: false,
       videoRef: this.videoRef,
       videoPoster: pb ? pb.work.banner : null,
@@ -4863,9 +4965,9 @@ class RealPlayerLogic extends PlayerLogic {
       goNextNow: () => nextU && this.goUnit(nextU.id),
       ccColor: s.subIdx >= 0 ? "#DBAF57" : "#8F897D",
       sources: s.ranked.map((x) => ({
-        label: x.label,
+        label: [x.label, sourceLanguageSummary(x)].filter(Boolean).join(" · "),
         desc: x.embedUrl
-          ? "Player incorporado no NekoFlow"
+          ? `Player incorporado no NekoFlow${x.subtitleLanguages?.length ? ` · legenda ${x.subtitleLanguages.map(languageName).join(" / ")}` : ""}`
           : x.playsInPlayer
           ? !x.compatible
             ? "Incompatível com este navegador"

@@ -5,6 +5,7 @@ import { goLogin } from "../lib/session";
 import { api } from "../services/api";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
+import { languageBadge } from "../features/media/playbackRules";
 import "./work-detail.css";
 
 const STATUS_LABELS = {
@@ -33,6 +34,17 @@ function displayTitle(unit, animation) {
   const title = String(unit.title || "").trim();
   if (!title || /^T\d+\s+EP\d+$/i.test(title) || /^(episódio|capítulo)\s*\d+$/i.test(title)) return generic;
   return title;
+}
+
+function episodeLanguageBadges(unit) {
+  const split = (value) => Array.isArray(value)
+    ? value
+    : String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
+  const subtitles = split(unit.subtitle_languages).map((language) => `CC ${languageBadge(language)}`);
+  const dubbed = split(unit.audio_languages)
+    .filter((language) => language !== "ja")
+    .map((language) => `🎙 ${languageBadge(language)}`);
+  return [...new Set([...subtitles, ...dubbed])];
 }
 
 export default function BasicWorkDetail({ work, section, loading = false, missing = false, loggedIn = false }) {
@@ -245,11 +257,13 @@ function UnitGrid({ work, units, animation, loggedIn }) {
         const playable = animation ? unit.playable : unit.readable;
         const hasSource = !!unit.has_source;
         const href = animation ? `/player?episode=${unit.id}` : `/leitor?chapter=${unit.id}&edition=${unit.edition_id}`;
+        const languageBadges = animation ? episodeLanguageBadges(unit) : [];
         return (
           <article className={`nk-unit-card${done ? " is-done" : ""}`} key={key}>
             <div className="nk-unit-thumb">
               {unit.thumbnail_url || work.coverUrl ? <img src={unit.thumbnail_url || work.coverUrl} alt="" loading="lazy" /> : <span>N</span>}
               <b>{animation ? "EP" : "CAP"} {unit.display_number}</b>
+              {!!languageBadges.length && <span className="nk-unit-languages">{languageBadges.map((badge) => <i key={badge}>{badge}</i>)}</span>}
             </div>
             <div className="nk-unit-copy">
               <h3>{displayTitle(unit, animation)}</h3>

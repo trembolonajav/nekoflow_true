@@ -85,7 +85,32 @@ const LANG = {
   ko: "Coreano",
   zh: "Chinês",
 };
+const LANG_BADGE = {
+  ja: ["🇯🇵", "JA"],
+  "pt-BR": ["🇧🇷", "PT-BR"],
+  pt: ["🇧🇷", "PT"],
+  en: ["🇺🇸", "EN"],
+  es: ["🇪🇸", "ES"],
+  ko: ["🇰🇷", "KO"],
+  zh: ["🇨🇳", "ZH"],
+};
 export function languageName(code) {
   if (!code) return "Original";
   return LANG[code] || LANG[String(code).split("-")[0]] || code;
+}
+
+/** Símbolo + código curto. O texto acompanha a bandeira para não depender só do emoji. */
+export function languageBadge(code) {
+  if (!code) return "";
+  const normalized = String(code);
+  const badge = LANG_BADGE[normalized] || LANG_BADGE[normalized.split("-")[0]];
+  return badge ? `${badge[0]} ${badge[1]}` : normalized.toUpperCase();
+}
+
+/** Idiomas relevantes no seletor: legenda primeiro; áudio quando não há legenda. */
+export function sourceLanguageSummary(source) {
+  const subtitles = [...new Set(source?.subtitleLanguages || [])].filter(Boolean);
+  const audio = [...new Set(source?.audioLanguages || [])].filter(Boolean);
+  const values = subtitles.length ? subtitles : audio;
+  return values.map(languageBadge).filter(Boolean).join(" / ");
 }

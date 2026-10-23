@@ -8,6 +8,8 @@ import {
   createWatchMeter,
   markerAt,
   languageName,
+  languageBadge,
+  sourceLanguageSummary,
 } from "../src/features/media/playbackRules.js";
 
 const hls = { id: "h", type: "HLS", priority: 10, playsInPlayer: true };
@@ -64,6 +66,12 @@ test("marcações editoriais e nomes de idioma", () => {
   assert.equal(languageName("ja"), "Japonês");
   assert.equal(languageName("pt-BR"), "Português (Brasil)");
   assert.equal(languageName("fr"), "fr");
+  assert.equal(languageBadge("pt-BR"), "🇧🇷 PT-BR");
+  assert.equal(languageBadge("en"), "🇺🇸 EN");
+  assert.equal(languageBadge("es"), "🇪🇸 ES");
+  assert.equal(sourceLanguageSummary({ audioLanguages: ["ja"], subtitleLanguages: ["pt-BR"] }), "🇧🇷 PT-BR");
+  assert.equal(sourceLanguageSummary({ audioLanguages: ["ja"], subtitleLanguages: ["en", "es"] }), "🇺🇸 EN / 🇪🇸 ES");
+  assert.equal(sourceLanguageSummary({ audioLanguages: ["ja"], subtitleLanguages: [] }), "🇯🇵 JA");
 });
 
 test("player e leitor reais não usam temporizador de reprodução nem páginas fictícias", () => {
