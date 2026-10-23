@@ -56,13 +56,17 @@ public class WorkPresentationService {
         return "ANIMATION".equals(w.family()) ? anime(w, a, translation) : reading(w, a, translation);
     }
 
-    record Translation(String language, String synopsisShort, String synopsisFull, String source) {}
+    record Translation(String language, String synopsisShort, String synopsisFull, String source, String requested) {
+        Translation(String language, String synopsisShort, String synopsisFull, String source) {
+            this(language, synopsisShort, synopsisFull, source, language);
+        }
+    }
 
     // ---- anime ---------------------------------------------------------------------------
 
     private Map<String, Object> anime(WorkRow w, JsonNode a, Translation translation) {
         Map<String, Object> d = common(w, a, translation);
-        List<Map<String, Object>> seasons = seasons(w.id());
+        List<Map<String, Object>> seasons = seasons(w.id(), translation.requested());
         int episodes = seasons.stream().mapToInt(s -> ((List<?>) s.get("eps")).size()).sum();
         int available = (int) seasons.stream().flatMap(s -> ((List<Map<String, Object>>) s.get("eps")).stream())
                 .filter(e -> Boolean.TRUE.equals(e.get("available"))).count();
@@ -107,7 +111,7 @@ public class WorkPresentationService {
         return d;
     }
 
-    private List<Map<String, Object>> seasons(long workId) {
+    private List<Map<String, Object>> seasons(long workId, String language) {
         List<Map<String, Object>> seasons = jdbc.sql("""
                 SELECT s.id, s.title, s.display_number, s.release_date, w.title FROM season s JOIN work w ON w.id = s.work_id
                 WHERE s.work_id = ? AND s.visibility = 'PUBLISHED' ORDER BY s.sort_position""")
@@ -128,8 +132,15 @@ public class WorkPresentationService {
                 .list();
         for (Map<String, Object> s : seasons) {
             s.put("eps", jdbc.sql("""
-                    SELECT e.id, e.display_number, e.title, e.duration_seconds,
-                           COALESCE(e.thumbnail_url, w.banner, w.cover) AS thumbnail_url,
+                    SELECT e.id, e.display_number,
+                           COALESCE((SELECT t.title FROM episode_translation t
+                                     WHERE t.episode_id = e.id AND NULLIF(t.title, '') IS NOT NULL
+                                     ORDER BY CASE WHEN t.language = :lang THEN 0
+                                                   WHEN split_part(t.language,'-',1) = split_part(:lang,'-',1) THEN 1
+                                                   WHEN t.language = 'en' THEN 2 ELSE 3 END LIMIT 1), e.title) AS title,
+                           e.duration_seconds,
+                           -- Só a miniatura do próprio episódio; sem ela, o card mostra o fundo neutro.
+                           e.thumbnail_url,
                            EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                    AND (es.available_from IS NULL OR es.available_from <= now())
                                    AND (es.available_until IS NULL OR es.available_until > now())) AS available,
@@ -144,8 +155,8 @@ public class WorkPresentationService {
                     FROM episode e
                     JOIN season se ON se.id = e.season_id
                     JOIN work w ON w.id = se.work_id
-                    WHERE e.season_id = ? ORDER BY e.sort_position""")
-                    .param(s.get("id"))
+                    WHERE e.season_id = :season ORDER BY e.sort_position""")
+                    .param("season", s.get("id")).param("lang", language == null ? "pt-BR" : language)
                     .query((rs, n) -> {
                         Map<String, Object> e = new LinkedHashMap<>();
                         e.put("n", rs.getString(2));
@@ -445,6 +456,10 @@ public class WorkPresentationService {
                 ? translation.synopsisFull() : translation.synopsisShort()));
         d.put("synopsisSource", translation.source());
         d.put("synopsisLanguage", translation.language());
+        d.put("requestedLanguage", translation.requested());
+        // Sinopse em outro idioma porque ainda não há tradução no pedido: a ficha avisa.
+        d.put("synopsisFallback", translation.language() != null && translation.requested() != null
+                && !translation.language().split("-")[0].equalsIgnoreCase(translation.requested().split("-")[0]));
         d.put("chars", characters(a));
         d.put("recs", recommendations(a));
         d.put("anilistSynced", !a.isMissingNode() && a.size() > 0);
@@ -461,9 +476,11 @@ public class WorkPresentationService {
                               WHEN language='en' THEN 2 ELSE 3 END
                 LIMIT 1""")
                 .param("work", w.id()).param("language", language)
-                .query((rs, n) -> new Translation(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)))
+                .query((rs, n) -> new Translation(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
+                        language))
                 .optional()
-                .orElse(new Translation(w.synopsisLanguage(), w.synopsisShort(), w.synopsisFull(), w.synopsisSource()));
+                .orElse(new Translation(w.synopsisLanguage(), w.synopsisShort(), w.synopsisFull(), w.synopsisSource(),
+                        language));
     }
 
     private WorkRow work(UUID publicId) {
@@ -542,13 +559,40 @@ public class WorkPresentationService {
             c.put("role", role);
             JsonNode va = e.path("voiceActors").path(0);
             c.put("va", va.isObject() ? Map.of("name", va.path("name").path("full").asText(),
-                    "img", va.path("image").path("medium").asText("")) : null);
+                    "img", va.path("image").path("medium").asText(""), "language", "ja") : null);
+            // Elenco de voz em outros idiomas, como o AniList registra (languageV2). É crédito
+            // de dublagem, não prova de que o NekoFlow tenha esse áudio disponível.
+            List<Map<String, Object>> voices = new ArrayList<>();
+            Set<String> seenLang = new LinkedHashSet<>();
+            for (JsonNode v : e.path("allVoices")) {
+                String lang = voiceLanguage(v.path("languageV2").asText(""));
+                if (lang == null || "ja".equals(lang) || !seenLang.add(lang)) continue;
+                voices.add(Map.of("name", v.path("name").path("full").asText(), "language", lang,
+                        "img", v.path("image").path("medium").asText("")));
+            }
+            c.put("voices", voices);
             out.add(c);
             if (out.size() >= 8) {
                 break;
             }
         }
         return out;
+    }
+
+    /** languageV2 do AniList ("Portuguese", "English"...) em código BCP 47 curto. */
+    static String voiceLanguage(String languageV2) {
+        return switch (languageV2) {
+            case "Japanese" -> "ja";
+            case "Portuguese" -> "pt-BR";
+            case "English" -> "en";
+            case "Spanish" -> "es";
+            case "French" -> "fr";
+            case "German" -> "de";
+            case "Italian" -> "it";
+            case "Korean" -> "ko";
+            case "Chinese" -> "zh";
+            default -> null;
+        };
     }
 
     private List<Map<String, Object>> recommendations(JsonNode a) {

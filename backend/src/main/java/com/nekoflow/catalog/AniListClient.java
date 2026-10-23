@@ -30,7 +30,8 @@ public class AniListClient {
             studios(isMain:true){nodes{name}}
             staff(sort:[RELEVANCE],perPage:12){edges{role node{name{full native}}}}
             characters(sort:[ROLE,RELEVANCE],perPage:12){edges{role node{id name{full native} image{large}}
-              voiceActors(language:JAPANESE,sort:[RELEVANCE]){name{full} image{medium}}}}
+              voiceActors(language:JAPANESE,sort:[RELEVANCE]){name{full} image{medium}}
+              allVoices: voiceActors(sort:[RELEVANCE]){name{full} image{medium} languageV2}}}
             relations{edges{relationType node{id type format status title{romaji english native}
               coverImage{large} startDate{year} episodes chapters siteUrl}}}
             recommendations(sort:[RATING_DESC],perPage:8){nodes{rating mediaRecommendation{id type format

@@ -34,4 +34,13 @@ class WorkPresentationRulesTest {
         assertThat(WorkPresentationService.join(" · ", "Anime", null, "", "2026")).isEqualTo("Anime · 2026");
         assertThat(WorkPresentationService.join(" · ", (Object) null)).isNull();
     }
+
+    @Test
+    void anilistVoiceLanguagesBecomeShortCodes() {
+        assertThat(WorkPresentationService.voiceLanguage("Japanese")).isEqualTo("ja");
+        assertThat(WorkPresentationService.voiceLanguage("Portuguese")).isEqualTo("pt-BR");
+        assertThat(WorkPresentationService.voiceLanguage("English")).isEqualTo("en");
+        assertThat(WorkPresentationService.voiceLanguage("Spanish")).isEqualTo("es");
+        assertThat(WorkPresentationService.voiceLanguage("")).isNull();
+    }
 }
