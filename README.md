@@ -16,10 +16,10 @@ Plataforma de animes e leituras construída a partir do protótipo do Claude Des
 docker compose up -d --build
 ```
 
-- App: http://localhost:3000
-- API: http://localhost:8080
-- Postgres: localhost:5432 (usuário/senha `nekoflow`, veja `.env.example`)
-- E-mails locais: http://localhost:8025 (Mailpit; não envia mensagens para a internet)
+- App: http://localhost:9080
+- API: http://localhost:9090
+- Postgres: localhost:9432 (usuário/senha `nekoflow`, veja `.env.example`)
+- E-mails locais: http://localhost:9025 (Mailpit; não envia mensagens para a internet)
 
 Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
 padrão `nekoflow2026`):
@@ -35,9 +35,9 @@ Desligue as contas de demonstração com `NEKOFLOW_DEMO=false`.
 ## Desenvolvimento local
 
 ```bash
-docker compose up -d postgres               # só o banco
-cd backend && mvn spring-boot:run           # API em :8080
-cd frontend && npm install && npm run dev   # app em :5173 (proxy de /api para :8080)
+docker compose up -d postgres               # só o banco (host :9432)
+cd backend && mvn spring-boot:run           # API em :9090
+cd frontend && npm install && npm run dev   # app em :9073 (proxy de /api para :9090)
 ```
 
 Verificações locais:

@@ -45,7 +45,7 @@ alterada.
 
 ## E-mail e ambientes
 
-`AuthMailService` separa o domínio do transporte. O Compose usa Mailpit em `localhost:8025`, de modo
+`AuthMailService` separa o domínio do transporte. O Compose usa Mailpit em `localhost:9025`, de modo
 que desenvolvimento testa entrega real sem enviar para terceiros. Produção deve definir host, porta,
 credenciais, TLS e `NEKOFLOW_PUBLIC_URL`; uma falha de transporte é propagada e nunca vira falso sucesso.
 

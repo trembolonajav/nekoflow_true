@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:9090}
   error:
     include-message: always
   servlet:
@@ -11,7 +11,7 @@ server:
         secure: ${SESSION_COOKIE_SECURE:false}
 
 nekoflow:
-  public-url: ${NEKOFLOW_PUBLIC_URL:http://localhost:3000}
+  public-url: ${NEKOFLOW_PUBLIC_URL:http://localhost:9080}
   bootstrap-admin:
     enabled: ${NEKOFLOW_BOOTSTRAP_ADMIN:false}
     username: ${NEKOFLOW_BOOTSTRAP_ADMIN_USERNAME:}
@@ -29,12 +29,15 @@ nekoflow:
     public-prefix: /media
   anilist:
     sync-on-boot: ${ANILIST_SYNC_ON_BOOT:true}
+  hianime-import:
+    # Desligado: HiAnime não é uma origem autorizada de distribuição para o NekoFlow.
+    enabled: ${HIANIME_IMPORT_ENABLED:false}
 
 spring:
   application:
     name: nekoflow-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nekoflow}
+    url: ${DB_URL:jdbc:postgresql://localhost:9432/nekoflow}
     username: ${DB_USER:nekoflow}
     password: ${DB_PASSWORD:nekoflow}
   jpa:
