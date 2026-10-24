@@ -1,9 +1,10 @@
 // Serviço de mídia (Protocolo 06). O Player e o Leitor recebem do Java apenas o que
 // está publicado e autorizado; URLs de reprodução saem do endpoint de acesso.
 import { api } from "../../services/api";
+import { getLocale } from "../../i18n/locale";
 
 export const mediaApi = {
-  playback: (episodeId) => api.get(`/api/v1/episodes/${episodeId}/playback`),
+  playback: (episodeId) => api.get(`/api/v1/episodes/${episodeId}/playback?lang=${encodeURIComponent(getLocale())}`),
   access: (episodeId, sourceId) => api.post(`/api/v1/episodes/${episodeId}/playback/sources/${sourceId}/access`),
   manifest: (chapterId, editionId) => api.get(`/api/v1/chapters/${chapterId}/editions/${editionId}/manifest`),
   reportIssue: (body) => api.post("/api/v1/me/media-issues", body),

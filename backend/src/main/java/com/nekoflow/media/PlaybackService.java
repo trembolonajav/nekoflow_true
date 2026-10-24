@@ -45,7 +45,12 @@ public class PlaybackService {
     }
 
     public Map<String, Object> playback(UUID episodeId) {
-        EpisodeRow ep = episode(episodeId);
+        return playback(episodeId, "pt-BR");
+    }
+
+    public Map<String, Object> playback(UUID episodeId, String language) {
+        String lang = language == null || language.isBlank() ? "pt-BR" : language;
+        EpisodeRow ep = episode(episodeId, lang);
         List<Map<String, Object>> sources = new ArrayList<>();
         for (SourceRow s : sources(episodeId)) {
             Map<String, Object> view = sourceView(s);
@@ -53,7 +58,7 @@ public class PlaybackService {
                 sources.add(view);
             }
         }
-        List<Map<String, Object>> units = units(ep.workId());
+        List<Map<String, Object>> units = units(ep.workId(), lang);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("episodeId", ep.id());
         out.put("availability", sources.stream().anyMatch(x -> Boolean.TRUE.equals(x.get("playsInPlayer"))
@@ -103,12 +108,28 @@ public class PlaybackService {
     }
 
     EpisodeRow episode(UUID id) {
+        return episode(id, "pt-BR");
+    }
+
+    EpisodeRow episode(UUID id, String language) {
         return jdbc.sql("""
-                SELECT e.id, e.title, e.display_number, e.duration_seconds, e.synopsis, s.id, s.title,
+                SELECT e.id,
+                       COALESCE((SELECT t.title FROM episode_translation t
+                                 WHERE t.episode_id=e.id AND NULLIF(t.title,'') IS NOT NULL
+                                 ORDER BY CASE WHEN t.language=:lang THEN 0
+                                               WHEN split_part(t.language,'-',1)=split_part(:lang,'-',1) THEN 1
+                                               WHEN t.language='en' THEN 2 ELSE 3 END LIMIT 1),e.title),
+                       e.display_number, e.duration_seconds,
+                       COALESCE((SELECT t.synopsis FROM episode_translation t
+                                 WHERE t.episode_id=e.id AND NULLIF(t.synopsis,'') IS NOT NULL
+                                 ORDER BY CASE WHEN t.language=:lang THEN 0
+                                               WHEN split_part(t.language,'-',1)=split_part(:lang,'-',1) THEN 1
+                                               WHEN t.language='en' THEN 2 ELSE 3 END LIMIT 1),e.synopsis),
+                       s.id, s.title,
                        w.id, w.public_id, w.title, w.slug, w.cover, w.banner
                 FROM episode e JOIN season s ON s.id = e.season_id JOIN work w ON w.id = s.work_id
-                WHERE e.id = ? AND s.visibility = 'PUBLISHED' AND w.visibility = 'PUBLISHED'""")
-                .param(id)
+                WHERE e.id = :episode AND s.visibility = 'PUBLISHED' AND w.visibility = 'PUBLISHED'""")
+                .param("episode", id).param("lang", language)
                 .query((rs, n) -> new EpisodeRow(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
                         (Integer) rs.getObject(4), rs.getString(5), rs.getObject(6, UUID.class), rs.getString(7),
                         rs.getLong(8), rs.getObject(9, UUID.class), rs.getString(10), rs.getString(11),
@@ -187,23 +208,35 @@ public class PlaybackService {
 
     /** Todas as unidades publicadas da obra, na ordem editorial, com disponibilidade real. */
     List<Map<String, Object>> units(long workId) {
+        return units(workId, "pt-BR");
+    }
+
+    List<Map<String, Object>> units(long workId, String language) {
         return jdbc.sql("""
-                SELECT e.id, e.display_number, e.title, e.duration_seconds, s.id, s.title,
+                SELECT e.id, e.display_number,
+                       COALESCE((SELECT t.title FROM episode_translation t
+                                 WHERE t.episode_id=e.id AND NULLIF(t.title,'') IS NOT NULL
+                                 ORDER BY CASE WHEN t.language=:lang THEN 0
+                                               WHEN split_part(t.language,'-',1)=split_part(:lang,'-',1) THEN 1
+                                               WHEN t.language='en' THEN 2 ELSE 3 END LIMIT 1),e.title),
+                       e.duration_seconds, s.id, s.title,
                        EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                AND es.source_type IN ('HLS','MP4','DASH','EMBED')
                                AND (es.available_from IS NULL OR es.available_from <= now())
                                AND (es.available_until IS NULL OR es.available_until > now())) AS playable,
                        EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                AND (es.available_from IS NULL OR es.available_from <= now())
-                               AND (es.available_until IS NULL OR es.available_until > now())) AS available
+                               AND (es.available_until IS NULL OR es.available_until > now())) AS available,
+                       e.thumbnail_url
                 FROM episode e JOIN season s ON s.id = e.season_id
-                WHERE s.work_id = ? AND s.visibility = 'PUBLISHED'
+                WHERE s.work_id = :work AND s.visibility = 'PUBLISHED'
                 ORDER BY s.sort_position, e.sort_position""")
-                .param(workId)
+                .param("work", workId).param("lang", language)
                 .query((rs, n) -> map("id", rs.getObject(1, UUID.class), "number", rs.getString(2),
                         "title", rs.getString(3), "durationSeconds", rs.getObject(4),
                         "seasonId", rs.getObject(5, UUID.class), "seasonTitle", rs.getString(6),
-                        "playable", rs.getBoolean(7), "available", rs.getBoolean(8)))
+                        "playable", rs.getBoolean(7), "available", rs.getBoolean(8),
+                        "thumbnail", rs.getString(9)))
                 .list();
     }
 

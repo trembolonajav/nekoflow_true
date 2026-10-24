@@ -62,4 +62,8 @@ test("primeira visita usa o idioma do navegador; título nunca é traduzido", as
   assert.equal(m.translate("Tsuihou Sareta Tensei Juukishi wa Game Chishiki de Musou Suru", "es"),
     "Tsuihou Sareta Tensei Juukishi wa Game Chishiki de Musou Suru");
   assert.equal(m.translate("Ação e fantasia", "en"), "Action and fantasy");
+  assert.equal(m.translate("Buscar animes, mangás, webtoons…", "en"), "Search anime, manga, webtoons…");
+  assert.equal(m.translate("Idioma do site", "es"), "Idioma del sitio");
+  assert.equal(m.translate("Episódio 12", "en"), "Episode 12");
+  assert.equal(m.translate("Temporada 3", "es"), "Temporada 3");
 });
