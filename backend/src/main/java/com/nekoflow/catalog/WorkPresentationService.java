@@ -140,7 +140,7 @@ public class WorkPresentationService {
                                                    WHEN t.language = 'en' THEN 2 ELSE 3 END LIMIT 1), e.title) AS title,
                            e.duration_seconds,
                            -- Só a miniatura do próprio episódio; sem ela, o card mostra o fundo neutro.
-                           e.thumbnail_url,
+                           e.thumbnail_url, e.original_air_date,
                            EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                    AND (es.available_from IS NULL OR es.available_from <= now())
                                    AND (es.available_until IS NULL OR es.available_until > now())) AS available,
@@ -149,9 +149,11 @@ public class WorkPresentationService {
                            (SELECT string_agg(DISTINCT es.audio_language, ',' ORDER BY es.audio_language)
                             FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                               AND NULLIF(es.audio_language,'') IS NOT NULL) AS audio_languages,
+                           -- Legenda só de fontes com áudio original: fonte dublada não "tem legenda".
                            (SELECT string_agg(DISTINCT es.language, ',' ORDER BY es.language)
                             FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
-                              AND NULLIF(es.language,'') IS NOT NULL) AS subtitle_languages
+                              AND NULLIF(es.language,'') IS NOT NULL
+                              AND (es.audio_language IS NULL OR es.audio_language IN ('ja','multi'))) AS subtitle_languages
                     FROM episode e
                     JOIN season se ON se.id = e.season_id
                     JOIN work w ON w.id = se.work_id
@@ -164,11 +166,13 @@ public class WorkPresentationService {
                         e.put("title", episodeTitle(rs.getString(3), rs.getString(2)));
                         e.put("durationMin", rs.getObject(4) == null ? null : Math.round(rs.getInt(4) / 60.0));
                         e.put("thumb", rs.getString(5)); // miniatura cadastrada; sem ela, fundo neutro
+                        java.sql.Date aired = rs.getDate(6);
+                        e.put("airDate", aired == null ? null : aired.toLocalDate().toString());
                         e.put("pos", "center");
-                        e.put("available", rs.getBoolean(6));
-                        e.put("playable", rs.getBoolean(7));
-                        List<String> audioLanguages = csv(rs.getString(8));
-                        List<String> subtitleLanguages = csv(rs.getString(9));
+                        e.put("available", rs.getBoolean(7));
+                        e.put("playable", rs.getBoolean(8));
+                        List<String> audioLanguages = csv(rs.getString(9));
+                        List<String> subtitleLanguages = csv(rs.getString(10));
                         e.put("audio", audioLanguages.isEmpty() ? null : audioLanguages.get(0));
                         e.put("audioLanguages", audioLanguages);
                         e.put("subtitleLanguages", subtitleLanguages);

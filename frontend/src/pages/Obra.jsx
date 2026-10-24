@@ -10,6 +10,7 @@ import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
 import { languageBadge, languageName } from "../features/media/playbackRules";
+import { getLocale } from "../i18n/locale";
 
 const WORK_ID = 151807;
 const STATUS_CODE = {
@@ -554,6 +555,21 @@ function render(v) {
               >
                 {txt(v.w?.synopsisShort)}
               </p>
+              {v.synopsisFallback ? (
+                <span
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "5px 9px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(219,175,87,.32)",
+                    background: "rgba(219,175,87,.08)",
+                    color: "#D6BE8A",
+                    fontSize: "12px",
+                  }}
+                >
+                  Sinopse exibida no idioma original; tradução ainda não disponível.
+                </span>
+              ) : null}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginTop: "4px" }}>
                 <a
                   className="nk-hover-1uijps0"
@@ -1002,7 +1018,7 @@ function render(v) {
                       </div>
                       <div
                         style={{
-                          display: "flex",
+                          display: asList(v.audioTabs).length ? "flex" : "none",
                           gap: "4px",
                           padding: "4px",
                           borderRadius: "999px",
@@ -1098,6 +1114,37 @@ function render(v) {
                       </div>
                     </>
                   ) : null}
+                  {v.langBand ? (
+                    <div
+                      style={{
+                        padding: "16px 18px",
+                        borderRadius: "14px",
+                        border: "1px solid rgba(219,175,87,.25)",
+                        background: "rgba(219,175,87,.04)",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px 22px",
+                        fontSize: "14px",
+                        marginBottom: "14px",
+                      }}
+                    >
+                      {asList(v.langBand).map((item, $index) => (
+                        <span key={$index} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              letterSpacing: ".18em",
+                              textTransform: "uppercase",
+                              color: "#B7B1A4",
+                            }}
+                          >
+                            {txt(item?.label)}
+                          </span>
+                          <span>{txt(item?.value)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <div
                     style={{
                       display: "grid",
@@ -1189,13 +1236,7 @@ function render(v) {
                                 </span>
                               </>
                             ) : null}{" "}
-                            {e?.languageBadges?.length ? (
-                              <span style={{position:"absolute",right:"7px",bottom:"7px",display:"flex",gap:"4px",flexWrap:"wrap",justifyContent:"flex-end"}}>
-                                {e.languageBadges.map((badge) => (
-                                  <span key={badge} style={{padding:"3px 6px",borderRadius:"999px",background:"rgba(15,13,11,.86)",border:"1px solid rgba(240,238,233,.14)",fontSize:"9px",fontWeight:"650",letterSpacing:".03em"}}>{badge}</span>
-                                ))}
-                              </span>
-                            ) : null}{" "}
+
                             {e?.hasPct ? (
                               <>
                                 <span
@@ -1237,6 +1278,22 @@ function render(v) {
                               {txt(e?.title)}
                             </span>
                             <span style={{ fontSize: "12px", color: "#B7B1A4" }}>{txt(e?.meta)}</span>
+                            {e?.badge ? (
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: e.badge.gold ? "600" : "500",
+                                    padding: "3px 8px",
+                                    borderRadius: "999px",
+                                    border: `1px solid ${e.badge.gold ? "rgba(219,175,87,.45)" : "rgba(240,238,233,.15)"}`,
+                                    color: e.badge.gold ? "#DBAF57" : "#B7B1A4",
+                                  }}
+                                >
+                                  {txt(e.badge.label)}
+                                </span>
+                              </div>
+                            ) : null}
                             {e?.available ? (
                               <>
                                 <a
@@ -2506,36 +2563,81 @@ class DynamicObraLogic extends ObraLogic {
     const resumeEp = resume && resume.state !== "UP_TO_DATE" ? allEps.find((e) => e.id === resume.unitId) : null;
     const season = w.seasons.find((x) => x.n === s.season) || w.seasons[0] || { eps: [], label: "", n: 1 };
     const lastSeason = w.seasons.length ? w.seasons[w.seasons.length - 1].n : 1;
+    // Guia "Idiomas e Servidores": idioma é informação da temporada, dita uma vez numa
+    // faixa; o card só mostra a exceção (no máximo um selo).
+    const LANG_PT = { ja: "Japonês", "pt-BR": "Português (BR)", en: "Inglês", es: "Espanhol", multi: "Áudio duplo" };
+    const langPt = (c) => LANG_PT[c] || LANG_PT[String(c).split("-")[0]] || c;
+    const shortLang = (c) => (c === "pt-BR" ? "PT-BR" : String(c).toUpperCase());
+    const availEps = season.eps.filter((e) => e.available);
+    const isDub = (a) => a && a !== "ja" && a !== "multi";
+    const countBy = (fn) => {
+      const m = new Map();
+      for (const e of availEps) for (const x of new Set(fn(e))) m.set(x, (m.get(x) || 0) + 1);
+      return m;
+    };
+    const audioCount = countBy((e) => (e.audioLanguages || []).filter((a) => !isDub(a)));
+    const subCount = countBy((e) => e.subtitleLanguages || []);
+    const dubCount = countBy((e) => (e.audioLanguages || []).filter(isDub));
+    const half = Math.max(1, Math.ceil(availEps.length / 2));
+    const commonSubs = [...subCount].filter(([, n]) => n >= half).map(([c]) => c);
+    const subOrder = (a, b) => ["pt-BR", "en", "es"].indexOf(a) - ["pt-BR", "en", "es"].indexOf(b);
+    const hasDub = dubCount.size > 0;
+    const langBand = availEps.length
+      ? [
+          audioCount.size ? { label: "Áudio", value: [...audioCount.keys()].map(langPt).join(", ") } : null,
+          subCount.size
+            ? { label: "Legendas", value: [...subCount.keys()].sort(subOrder).map(langPt).join(", ") }
+            : null,
+          hasDub
+            ? {
+                label: "Dublagem",
+                value: [...dubCount]
+                  .map(([c, n]) => (n === availEps.length ? langPt(c) : `${langPt(c)} · ${n} de ${availEps.length} eps.`))
+                  .join(" · "),
+              }
+            : null,
+        ].filter(Boolean)
+      : null;
+    const dubMode = hasDub && s.audio === "dub";
+    const dateFmt = (iso) => {
+      if (!iso) return null;
+      try {
+        return new Intl.DateTimeFormat(getLocale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+          .format(new Date(`${iso}T00:00:00Z`))
+          .replace(/\./g, "")
+          .replace(/ de /g, " ");
+      } catch {
+        return null;
+      }
+    };
     let eps = season.eps.map((e) => {
       const p = prog[e.id];
       const done = !!(p && p.completed);
       const isCur = !!resumeEp && resumeEp.id === e.id;
       const pct = p && p.durationMs ? Math.round((p.positionMs / p.durationMs) * 100) : 0;
       const left = p && p.durationMs && !done ? Math.max(1, Math.ceil((p.durationMs - p.positionMs) / 60000)) : null;
-      // União dos idiomas das fontes ativas: CC = legenda, 🎙 = áudio. "multi" é áudio duplo
-      // sem idiomas detalhados pela fonte; sem informação, o card diz que não foi informado.
-      const audioBadge = (language) => (language === "multi" ? "🎙 Dual" : `🎙 ${languageBadge(language)}`);
-      const languageBadges = e.available
-        ? [
-            ...(e.subtitleLanguages || []).map((language) => `CC ${languageBadge(language)}`),
-            ...(e.audioLanguages || []).filter(Boolean).map(audioBadge),
-          ].filter((value, index, values) => values.indexOf(value) === index)
-        : [];
-      if (e.available && !languageBadges.length) languageBadges.push("Idioma não informado");
+      // Selo só quando o episódio foge da regra: tem dublagem que nem todos têm, ou falta
+      // uma legenda que a maioria da temporada tem.
+      const dubs = (e.audioLanguages || []).filter(isDub);
+      const missingSub = commonSubs.sort(subOrder).find((c) => !(e.subtitleLanguages || []).includes(c));
+      let badge = null;
+      if (e.available && dubs.length && [...dubCount.values()].some((n) => n < availEps.length))
+        badge = { label: `Dublado ${shortLang(dubs[0])}`, gold: true };
+      else if (e.available && missingSub) badge = { label: `Legenda ${shortLang(missingSub)} em breve`, gold: false };
+      const dubAvailable = !dubMode || dubs.length > 0;
       return {
         ...e,
-        languageBadges,
+        badge,
         done,
-        available: e.available,
-        unavailable: !e.available,
-        unavailableText: "Ainda sem fonte disponível no NekoFlow",
+        available: e.available && dubAvailable,
+        unavailable: !e.available || !dubAvailable,
+        unavailableText: e.available ? "Sem dublagem neste episódio" : "Ainda sem fonte disponível no NekoFlow",
         href: `/player?episode=${e.id}`,
         hasPct: isCur && pct > 0,
         pctW: `${pct}%`,
         meta: [
           e.durationMin ? `${e.durationMin} min` : null,
-          e.audio ? `Áudio ${e.audio === "ja" ? "JA" : e.audio === "pt-BR" ? "PT-BR" : e.audio}` : null,
-          e.available && !e.playable ? "abre no provedor" : null,
+          dateFmt(e.airDate),
           isCur && left ? `faltam ${left} min` : null,
         ]
           .filter(Boolean)
@@ -2544,8 +2646,8 @@ class DynamicObraLogic extends ObraLogic {
         ctaColor: isCur ? "#DBAF57" : done ? "#B7B1A4" : "#F0EEE9",
         bg: isCur ? "rgba(219,175,87,.07)" : "#1A1714",
         border: isCur ? "rgba(219,175,87,.45)" : "rgba(240,238,233,.06)",
-        opacity: e.available ? 1 : 0.55,
-        filter: e.available ? "none" : "grayscale(.7)",
+        opacity: e.available && dubAvailable ? 1 : 0.55,
+        filter: e.available && dubAvailable ? "none" : "grayscale(.7)",
       };
     });
     if (!s.asc) eps = [...eps].reverse();
@@ -2566,6 +2668,7 @@ class DynamicObraLogic extends ObraLogic {
       heroEyebrow: w.heroEyebrow,
       ageRating: null,
       statusText: w.statusText,
+      synopsisFallback: !!w.synopsisFallback,
       hasTrailer: !!w.trailer,
       heroProgress: loggedIn && !!resumeEp,
       heroProgressText: resumeEp
@@ -2616,7 +2719,7 @@ class DynamicObraLogic extends ObraLogic {
         go: () => this.setTab(k),
       })),
       seasonInfo: [
-        season.label,
+        season.n === 1 ? w.title : season.label,
         season.years,
         `${season.eps.length} ${season.eps.length === 1 ? "episódio" : "episódios"}`,
         w.plannedEpisodes && w.plannedEpisodes > w.episodeCount ? `${w.plannedEpisodes} previstos` : null,
@@ -2631,7 +2734,19 @@ class DynamicObraLogic extends ObraLogic {
         pick: () => this.setState({ season: x.n }),
       })),
       // Só o áudio que as fontes realmente têm: sem dublagem cadastrada, sem a opção.
-      audioTabs: [{ label: "Legendado", bg: "#DBAF57", color: "#1A1714", pick: () => {} }],
+      // Legendado / Dublado só existe quando a temporada tem dublagem.
+      audioTabs: hasDub
+        ? [
+            ["leg", "Legendado"],
+            ["dub", "Dublado"],
+          ].map(([k, l]) => ({
+            label: l,
+            bg: (k === "dub") === dubMode ? "#DBAF57" : "transparent",
+            color: (k === "dub") === dubMode ? "#1A1714" : "#F0EEE9",
+            pick: () => this.setState({ audio: k }),
+          }))
+        : [],
+      langBand,
       dubNote: false,
       episodes: eps,
       showEndHint: !!orig && season.n === lastSeason,
