@@ -14,6 +14,13 @@ import {
   loadMediaPreferences,
 } from "../features/preferences/preferencesApi";
 import {
+  groupVersions,
+  versionOf,
+  providerOf,
+  rememberedProvider,
+  rememberProvider,
+} from "../features/media/serverGroups";
+import {
   normalizePreferences,
   rankByPreference,
   preferenceScore,
@@ -27,6 +34,7 @@ import {
   languageName,
   sourceLanguageSummary,
 } from "../features/media/playbackRules";
+import { getLocale, subscribeLocale, translate } from "../i18n/locale";
 
 const WORK_ID = 151807;
 
@@ -151,8 +159,11 @@ class PlayerLogic extends DCLogic {
   };
   onFs = () => this.setState({ fs: !!document.fullscreenElement });
   onDown = (e) => {
-    if ((this.state.menu || this.state.eps) && !(e.target.closest && e.target.closest("[data-nk-pmenu]")))
-      this.setState({ menu: null, sub: null, eps: false });
+    if (
+      (this.state.menu || this.state.eps || this.state.srvOpen) &&
+      !(e.target.closest && e.target.closest("[data-nk-pmenu]"))
+    )
+      this.setState({ menu: null, sub: null, eps: false, srvOpen: false });
   };
   persist = () => {
     const s = this.state;
@@ -1142,95 +1153,157 @@ function render(v) {
             </a>
             <span style={{ fontSize: "12px", color: "#8F897D", whiteSpace: "nowrap" }}>{txt(v.savedText)}</span>
           </div>
-          {v.showEmbedSources ? (
+          {v.showVersions ? (
             <div
-              aria-label="Servidores de reprodução"
               style={{
+                position: "relative",
                 width: "100%",
                 maxWidth: `${v.stageMax ?? ""}`,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
+                gap: "12px",
+                flexWrap: "wrap",
               }}
             >
               <div
                 style={{
-                  minWidth: "0",
                   display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "6px",
-                  overflowX: "auto",
-                  border: "1px solid rgba(219,175,87,.22)",
-                  borderRadius: "10px",
-                  background: "rgba(24,21,18,.82)",
+                  gap: "4px",
+                  padding: "4px",
+                  borderRadius: "999px",
+                  background: "#1A1714",
+                  border: "1px solid rgba(240,238,233,.08)",
+                  flexWrap: "wrap",
                 }}
               >
-                <span
-                  style={{
-                    padding: "0 5px",
-                    color: "#B7B1A4",
-                    fontSize: "10px",
-                    fontWeight: "700",
-                    letterSpacing: ".12em",
-                    textTransform: "uppercase",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Servidor
-                </span>
-                {asList(v.embedSources).map((o, $index) => (
+                {asList(v.versions).map((o, $index) => (
                   <button
                     key={$index}
                     type="button"
                     onClick={o?.pick}
                     aria-pressed={!!o?.on}
-                    title={`${o?.label ?? "Servidor"} · qualidade controlada pelo player externo`}
                     style={{
-                      border: o?.on ? "1px solid #DBAF57" : "1px solid rgba(240,238,233,.16)",
-                      borderRadius: "7px",
-                      padding: "7px 10px",
-                      background: o?.on ? "rgba(219,175,87,.18)" : "rgba(240,238,233,.06)",
-                      color: o?.on ? "#F2CF83" : "#F0EEE9",
-                      fontFamily: "inherit",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      lineHeight: "1",
-                      whiteSpace: "nowrap",
-                      cursor: o?.on ? "default" : "pointer",
+                      all: "unset",
+                      cursor: "pointer",
+                      height: "36px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "0 16px",
+                      borderRadius: "999px",
+                      fontSize: "13px",
+                      fontWeight: "500",
+                      background: `${o?.bg ?? ""}`,
+                      color: `${o?.color ?? ""}`,
                     }}
                   >
                     {txt(o?.label)}
                   </button>
                 ))}
               </div>
+              <span style={{ flex: "1" }} />
               <button
                 type="button"
-                onClick={v.toggleFs}
-                aria-label="Abrir vídeo em tela cheia"
-                title="Tela cheia"
+                data-nk-pmenu="1"
+                className="nk-hover-srv"
+                onClick={v.toggleSrv}
+                aria-expanded={!!v.srvOpen}
                 style={{
-                  flexShrink: "0",
+                  all: "unset",
+                  cursor: "pointer",
+                  height: "44px",
                   display: "flex",
                   alignItems: "center",
-                  gap: "7px",
-                  border: "1px solid rgba(240,238,233,.18)",
-                  borderRadius: "9px",
-                  padding: "10px 12px",
-                  background: "rgba(240,238,233,.06)",
-                  color: "#F0EEE9",
-                  fontFamily: "inherit",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: "pointer",
+                  gap: "10px",
+                  padding: "0 14px",
+                  borderRadius: "999px",
+                  border: `1px solid ${v.srvBorder ?? ""}`,
+                  fontSize: "13px",
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: `${v.srvDot ?? ""}` }} />
+                <span style={{ color: "#B7B1A4" }}>Servidor</span>
+                <span style={{ fontWeight: "600" }}>{txt(v.srvName)}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                  <path d="m6 9 6 6 6-6" />
                 </svg>
-                Tela cheia
               </button>
+              {v.srvOpen ? (
+                <div
+                  data-nk-pmenu="1"
+                  style={{
+                    position: "absolute",
+                    top: "52px",
+                    right: "0",
+                    zIndex: 5,
+                    width: "min(340px,100%)",
+                    padding: "8px",
+                    borderRadius: "14px",
+                    background: "#1A1714",
+                    border: "1px solid rgba(219,175,87,.25)",
+                    boxShadow: "0 20px 50px rgba(0,0,0,.6)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      letterSpacing: ".2em",
+                      textTransform: "uppercase",
+                      color: "#B7B1A4",
+                      padding: "8px 10px 6px",
+                    }}
+                  >
+                    {txt(v.srvHead)}
+                  </span>
+                  {asList(v.servers).map((r, $index) => (
+                    <button
+                      key={$index}
+                      type="button"
+                      className="nk-hover-srvitem"
+                      onClick={r?.pick}
+                      style={{
+                        all: "unset",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "10px",
+                        borderRadius: "8px",
+                        background: `${r?.bg ?? ""}`,
+                      }}
+                    >
+                      <span
+                        style={{ width: "7px", height: "7px", borderRadius: "50%", background: `${r?.dot ?? ""}`, flexShrink: "0" }}
+                      />
+                      <span style={{ display: "flex", flexDirection: "column", gap: "1px", flex: "1" }}>
+                        <span style={{ fontSize: "14px", color: `${r?.color ?? ""}` }}>{txt(r?.name)}</span>
+                        <span style={{ fontSize: "12px", color: "#8F897D" }}>{txt(r?.sub)}</span>
+                      </span>
+                      {r?.on ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DBAF57" strokeWidth="2.6">
+                          <path d="M5 12l5 5 9-10" />
+                        </svg>
+                      ) : null}
+                    </button>
+                  ))}
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "1.45",
+                      color: "#8F897D",
+                      padding: "8px 10px 4px",
+                      borderTop: "1px solid rgba(240,238,233,.07)",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Lembramos o servidor que funcionou para você.
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div
@@ -2782,6 +2855,39 @@ function render(v) {
               </>
             ) : null}{" "}
           </div>
+          {v.showVersions ? (
+            <div
+              style={{
+                width: "100%",
+                maxWidth: `${v.stageMax ?? ""}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <span style={{ fontSize: "12px", color: "#8F897D" }}>{txt(v.srvProv)}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", fontSize: "13px", color: "#B7B1A4" }}>
+                <span>Vídeo não carregou ou travou?</span>
+                <button
+                  type="button"
+                  className="nk-hover-1e3fwvz"
+                  onClick={v.nextSrv}
+                  style={{ all: "unset", cursor: "pointer", color: "#DBAF57", fontWeight: "600" }}
+                >
+                  Tentar outro servidor
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  className="nk-hover-1e3fwvz"
+                  onClick={v.openReport}
+                  style={{ all: "unset", cursor: "pointer", color: "#B7B1A4" }}
+                >
+                  Reportar problema
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <main
           style={{
@@ -4201,6 +4307,9 @@ class RealPlayerLogic extends PlayerLogic {
     this.onResize();
     this.uiTimer = setInterval(this.uiStep, 500);
     this.wireVideo();
+    this.unsubscribeLocale = subscribeLocale(() => {
+      mediaApi.playback(this.episodeId).then((pb) => this.setState({ pb })).catch(() => {});
+    });
     this.boot();
   }
 
@@ -4214,6 +4323,7 @@ class RealPlayerLogic extends PlayerLogic {
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("pagehide", this.onLeave);
     document.removeEventListener("visibilitychange", this.onVisibility);
+    if (this.unsubscribeLocale) this.unsubscribeLocale();
   }
 
   get video() {
@@ -4246,7 +4356,7 @@ class RealPlayerLogic extends PlayerLogic {
     this.Hls = Hls;
     const ranked = rankSources(pb.sources, browserSupport(this.video, Hls));
     this.setState({ pb, ranked, ep: index + 1 });
-    document.title = `${pb.work.title} · Episódio ${pb.episode.number} — NekoFlow`;
+    document.title = `${pb.work.title} · ${translate(`Episódio ${pb.episode.number}`, getLocale())} — NekoFlow`;
 
     if (session.loggedIn) {
       api.get("/api/me/preferences")
@@ -4282,11 +4392,18 @@ class RealPlayerLogic extends PlayerLogic {
     const preferred = rankByPreference(candidates, prefs).sort(
       (a, b) => preferenceScore(b, prefs) - preferenceScore(a, prefs) || (a.embedUrl ? 1 : 0) - (b.embedUrl ? 1 : 0),
     )[0];
-    const notice = substitutionNotice(preferred, prefs, languageName);
-    if (notice) this.flashLong(notice);
-    const src = preferred && !preferred.embedUrl ? preferred : preferred ? null : pickSource(ranked);
+    let preferredSrc = preferred;
+    if (preferred) {
+      const v = versionOf(preferred);
+      const remembered = rememberedProvider(pb.work.id, v.key);
+      const same = remembered && candidates.find((x) => versionOf(x).key === v.key && providerOf(x) === remembered);
+      if (same) preferredSrc = same;
+    }
+    const notice = substitutionNotice(preferredSrc, prefs, languageName);
+    if (notice) this.flashLong(translate(notice, getLocale()));
+    const src = preferredSrc && !preferredSrc.embedUrl ? preferredSrc : preferredSrc ? null : pickSource(ranked);
     if (!src) {
-      const embed = preferred && preferred.embedUrl ? preferred : ranked.find((s) => s.embedUrl);
+      const embed = preferredSrc && preferredSrc.embedUrl ? preferredSrc : ranked.find((s) => s.embedUrl);
       if (embed) {
         this.setState({
           loading: false,
@@ -4526,6 +4643,60 @@ class RealPlayerLogic extends PlayerLogic {
     });
   }
 
+  /** Versões do episódio e servidores da versão atual (guia "Idiomas e Servidores"). */
+  versionVals() {
+    const s = this.state;
+    const prefs = this.prefs || normalizePreferences({});
+    const groups = groupVersions(s.ranked, (x) => preferenceScore(x, prefs));
+    const cur = groups.find((g) => g.servers.some((r) => r.source.id === s.src)) || groups[0];
+    if (!cur || !groups.some((g) => g.servers.some((r) => r.source.embedUrl))) return { showVersions: false };
+    const idx = Math.max(0, cur.servers.findIndex((r) => r.source.id === s.src));
+    const server = cur.servers[idx];
+    const workId = s.pb ? s.pb.work.id : "";
+    const go = (r) => {
+      rememberProvider(workId, cur.key, r.provider);
+      this.setState({ srvOpen: false });
+      this.setSource(r.source.id);
+    };
+    return {
+      showVersions: true,
+      versions: groups.map((g) => {
+        const on = g.key === cur.key;
+        return {
+          label: g.label,
+          on,
+          bg: on ? "#DBAF57" : "transparent",
+          color: on ? "#1A1714" : "#F0EEE9",
+          pick: () => {
+            if (on) return;
+            const remembered = rememberedProvider(workId, g.key);
+            const r = g.servers.find((x) => x.provider === remembered) || g.servers[0];
+            this.setState({ srvOpen: false });
+            this.setSource(r.source.id);
+          },
+        };
+      }),
+      toggleSrv: () => this.setState({ srvOpen: !s.srvOpen, menu: null, eps: false }),
+      srvOpen: !!s.srvOpen,
+      srvBorder: s.srvOpen ? "#DBAF57" : "rgba(240,238,233,.2)",
+      // O site não verifica o estado dos servidores externos: ponto neutro, sem "funcionando".
+      srvDot: "#8F897D",
+      srvName: server.name.replace("Servidor ", ""),
+      srvProv: server.provider,
+      srvHead: `${cur.label} · ${cur.servers.length} ${cur.servers.length > 1 ? "servidores" : "servidor"}`,
+      servers: cur.servers.map((r, i) => ({
+        name: r.name,
+        sub: r.provider,
+        dot: "#8F897D",
+        on: i === idx,
+        bg: i === idx ? "rgba(219,175,87,.1)" : "transparent",
+        color: i === idx ? "#DBAF57" : "#F0EEE9",
+        pick: () => go(r),
+      })),
+      nextSrv: () => go(cur.servers[(idx + 1) % cur.servers.length]),
+    };
+  }
+
   /** Aviso que fica mais tempo na tela (substituição de idioma). */
   flashLong(text) {
     clearTimeout(this.tt);
@@ -4721,11 +4892,15 @@ class RealPlayerLogic extends PlayerLogic {
     const src = s.ranked.find((x) => x.id === s.src) || null;
     const bg = (u) => (u ? `url("${u}")` : "none");
     // Títulos técnicos de importação ("T1 EP16") aparecem como "Episódio 16".
-    const unitLabel = (u) =>
+    const unitLabel = (u) => translate(
       u.title && !/^T\d+\s*EP\d+$/i.test(u.title.trim()) && !/^(episódio|episode)\s*\d+$/i.test(u.title.trim())
         ? u.title
-        : `Episódio ${u.number}`;
-    const crumb = pb ? `${pb.episode.seasonTitle} · Episódio ${unit.number}` : "Carregando…";
+        : `Episódio ${u.number}`,
+      getLocale(),
+    );
+    const crumb = pb
+      ? `${pb.work.title} · ${translate(`Episódio ${unit.number}`, getLocale())}`
+      : translate("Carregando…", getLocale());
     const myProg = s.unitProg;
     const nextU = pb && pb.next;
     const prevU = pb && pb.previous;
@@ -4821,7 +4996,7 @@ class RealPlayerLogic extends PlayerLogic {
         done: !!(p && p.completed) && !isCur,
         hasPct: !(p && p.completed) && pctE > 0.02,
         pctW: `${Math.round(pctE * 100)}%`,
-        bgImg: bg(null),
+        bgImg: bg(u.thumbnail),
         pos: "center",
         ring: isCur ? "#DBAF57" : "transparent",
         titleColor: isCur ? "#DBAF57" : u.available ? "#F0EEE9" : "#8F897D",
@@ -4900,14 +5075,8 @@ class RealPlayerLogic extends PlayerLogic {
       demoBanner: false,
       realVideo: !s.embedUrl,
       embedUrl: s.embedUrl,
-      showEmbedSources: !!s.embedUrl && s.ranked.filter((x) => x.embedUrl).length > 1,
-      embedSources: s.ranked
-        .filter((x) => x.embedUrl)
-        .map((x) => ({
-          label: [x.label, sourceLanguageSummary(x)].filter(Boolean).join(" · "),
-          on: s.src === x.id,
-          pick: () => this.setSource(x.id),
-        })),
+      // Guia "Idiomas e Servidores": versão (legendado/dublado + idioma) e servidor separados.
+      ...this.versionVals(),
       commentsOn: false,
       videoRef: this.videoRef,
       videoPoster: pb ? pb.work.banner : null,
@@ -4918,7 +5087,7 @@ class RealPlayerLogic extends PlayerLogic {
       origCta: pb && pb.adaptation ? `Ver o ${pb.adaptation.kind === "manga" ? "mangá" : "original"} →` : "",
       origText: pb && pb.adaptation ? `Este anime adapta ${pb.adaptation.title}.` : "",
       crumb,
-      crumbShort: pb ? `${pb.episode.seasonTitle} · Episódio ${unit.number}` : "",
+      crumbShort: pb ? `${pb.work.title} · ${translate(`Episódio ${unit.number}`, getLocale())}` : "",
       savedText,
       frameBg: "none",
       frameDim: 1,
@@ -5026,7 +5195,7 @@ class RealPlayerLogic extends PlayerLogic {
         ["speed", "Velocidade", spName],
       ].map(([k, l, val]) => ({ label: l, value: val, open: () => this.setState({ sub: k }) })),
       epList,
-      seasonLabel: pb ? pb.episode.seasonTitle : "",
+      seasonLabel: pb ? pb.work.title : "",
       ep: { n: unit.number, title: unitLabel(unit) },
       chips: [
         dur ? `${Math.round(dur / 60)} min` : null,
