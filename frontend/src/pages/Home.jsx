@@ -7,29 +7,47 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
-import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { getLocale } from "../i18n/locale";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 
 const hrefOf = (id, title) => getWorkUrl({ id, title, kind: "anime" });
 
+/** Páginas visíveis no paginador: primeira, última e vizinhas da atual; null = reticências. */
+export function pagesAround(page, total) {
+  const keep = new Set([0, total - 1, page - 1, page, page + 1]);
+  const out = [];
+  for (let p = 0; p < total; p++) {
+    if (keep.has(p)) out.push(p);
+    else if (out[out.length - 1] !== null) out.push(null);
+  }
+  return out;
+}
+
 class HomeLogic extends DCLogic {
   state = { data: null, active: 0, t: 0, paused: false };
   rowRef = React.createRef();
+  recentRef = React.createRef();
   DUR = 9000;
   componentDidMount() {
-    Promise.all([api.get("/api/content/home"), api.get("/api/catalog/all")])
-      .then(([data, catalog]) => this.setState({ data: {
-        ...data,
-        hero: mergeCatalogList(data.hero, catalog, () => false),
-        season: mergeCatalogList(data.season, catalog, () => false),
-        recent: mergeCatalogList(data.recent, catalog, () => false),
-      } }));
+    // Conteúdo real: destaque curado, temporada vigente e episódios recentes (3 fileiras).
+    this.recentSize = this.fitRecent();
+    api.get(`/api/v1/home?lang=${encodeURIComponent(getLocale())}&size=${this.recentSize}`)
+      .then((data) => this.setState({ data, recentPage: data.recent }))
+      .catch(() => this.setState({ data: { hero: [], season: [], recent: { items: [] } } }));
+    this.onResize = () => {
+      const size = this.fitRecent();
+      if (size !== this.recentSize) {
+        this.recentSize = size;
+        this.loadRecent(0);
+      }
+    };
+    window.addEventListener("resize", this.onResize);
     this.loadMine();
     this.onPersonal = () => this.loadMine();
     window.addEventListener("nk:personal", this.onPersonal);
     this.timer = setInterval(() => {
-      if (this.state.paused || !this.state.data) return;
+      if (this.state.paused || !this.state.data || !this.state.data.hero.length) return;
       const t = this.state.t + 150;
       if (t >= this.DUR) this.setState((s) => ({ t: 0, active: (s.active + 1) % s.data.hero.length }));
       else this.setState({ t });
@@ -53,7 +71,19 @@ class HomeLogic extends DCLogic {
       .then(([cont, lib]) => this.setState({ cont, lib: lib.items }))
       .catch(() => {});
   }
+  /** Colunas que cabem na grade (minmax 260px, gap 16px) × 3 fileiras. */
+  fitRecent() {
+    const el = this.recentRef.current;
+    const width = el ? el.clientWidth : Math.max(260, (window.innerWidth || 1280) - 96);
+    return Math.max(1, Math.floor((width + 16) / 276)) * 3;
+  }
+  loadRecent(page) {
+    api.get(`/api/v1/home/recent?page=${page}&size=${this.recentSize}`)
+      .then((recentPage) => this.setState({ recentPage }))
+      .catch(() => {});
+  }
   componentWillUnmount() {
+    window.removeEventListener("resize", this.onResize);
     window.removeEventListener("nk:personal", this.onPersonal);
     clearInterval(this.timer);
     document.removeEventListener("scroll", this.onScroll, { capture: true });
@@ -72,6 +102,7 @@ class HomeLogic extends DCLogic {
     const lib = this.state.lib || [];
     const mine = loggedIn ? lib.find((x) => x.id === h.id) : null;
     const resumable = !!(mine && mine.hasProgress && !mine.done && mine.status !== "concluido");
+    const rp = this.state.recentPage || {};
     return {
       loggedIn,
       guest: !loggedIn,
@@ -110,11 +141,32 @@ class HomeLogic extends DCLogic {
         bar: i === active ? `${Math.min(100, (t / this.DUR) * 100)}%` : "0%",
         select: () => this.setState({ active: i, t: 0 }),
       })),
+      seasonLabel: (d && d.seasonLabel) || "Outono 2026",
       season: d ? d.season.map((a) => ({ ...a, href: hrefOf(a.id, a.title) })) : [],
       cont: loggedIn ? this.state.cont || [] : [],
-      recent: d
-        ? d.recent.map((r) => ({ ...r, href: hrefOf(r.id, r.title), epShort: r.ep.replace("Episódio ", "EP ") }))
-        : [],
+      recent: asList(rp.items).map((r) => ({
+        ...r,
+        href: r.episodeId ? `/player?episode=${r.episodeId}` : hrefOf(r.id, r.title),
+        epShort: r.ep.replace("Episódio ", "EP "),
+      })),
+      recentRef: this.recentRef,
+      showPager: (rp.totalPages || 0) > 1,
+      pagerLabel: `${(rp.page || 0) + 1} / ${rp.totalPages || 1}`,
+      pages: pagesAround(rp.page || 0, rp.totalPages || 0).map((p) =>
+        p == null
+          ? { label: "…", gap: true }
+          : {
+              label: String(p + 1),
+              on: p === rp.page,
+              bg: p === rp.page ? "#DBAF57" : "transparent",
+              color: p === rp.page ? "#1A1714" : "#F0EEE9",
+              go: () => this.loadRecent(p),
+            },
+      ),
+      prevDisabled: !(rp.page > 0),
+      nextDisabled: !((rp.page || 0) + 1 < (rp.totalPages || 0)),
+      recentPrev: () => rp.page > 0 && this.loadRecent(rp.page - 1),
+      recentNext: () => (rp.page || 0) + 1 < (rp.totalPages || 0) && this.loadRecent((rp.page || 0) + 1),
       rowRef: this.rowRef,
       scrollPrev: () => this.scroll(-1),
       scrollNext: () => this.scroll(1),
@@ -554,7 +606,7 @@ function render(v) {
                           color: "#DBAF57",
                         }}
                       >
-                        Outono 2026
+                        {txt(v.seasonLabel)}
                       </span>
                       <h2
                         style={{
@@ -889,6 +941,7 @@ function render(v) {
                   </div>
                   <div
                     className="nk-grid-1"
+                    ref={v.recentRef}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
@@ -1012,6 +1065,88 @@ function render(v) {
                       </React.Fragment>
                     ))}
                   </div>
+                  {v.showPager ? (
+                    <nav
+                      aria-label="Páginas de episódios recentes"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "8px" }}
+                    >
+                      <button
+                        className="nk-hover-tdhed"
+                        onClick={v.recentPrev}
+                        disabled={v.prevDisabled}
+                        aria-label="Página anterior"
+                        style={{
+                          all: "unset",
+                          cursor: v.prevDisabled ? "default" : "pointer",
+                          opacity: v.prevDisabled ? 0.35 : 1,
+                          width: "38px",
+                          height: "38px",
+                          borderRadius: "50%",
+                          border: "1px solid rgba(219,175,87,.3)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#F0EEE9",
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="m15 18-6-6 6-6" />
+                        </svg>
+                      </button>
+                      {asList(v.pages).map((p, $index) =>
+                        p?.gap ? (
+                          <span key={$index} style={{ color: "#8F897D", padding: "0 4px" }}>
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={$index}
+                            onClick={p?.go}
+                            aria-current={p?.on ? "page" : undefined}
+                            style={{
+                              all: "unset",
+                              cursor: "pointer",
+                              minWidth: "38px",
+                              height: "38px",
+                              borderRadius: "999px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontFamily: "'JetBrains Mono',monospace",
+                              fontSize: "13px",
+                              background: `${p?.bg ?? ""}`,
+                              color: `${p?.color ?? ""}`,
+                            }}
+                          >
+                            {txt(p?.label)}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        className="nk-hover-tdhed"
+                        onClick={v.recentNext}
+                        disabled={v.nextDisabled}
+                        aria-label="Próxima página"
+                        style={{
+                          all: "unset",
+                          cursor: v.nextDisabled ? "default" : "pointer",
+                          opacity: v.nextDisabled ? 0.35 : 1,
+                          width: "38px",
+                          height: "38px",
+                          borderRadius: "50%",
+                          border: "1px solid rgba(219,175,87,.3)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#F0EEE9",
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </button>
+                    </nav>
+                  ) : null}
                 </section>
               </div>
             </>
