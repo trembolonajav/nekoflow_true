@@ -37,6 +37,8 @@ class ExplorarLogic extends DCLogic {
     decade: null,
     minScore: null,
     vertical: false,
+    dubPt: false,
+    dubbed: null,
     epRange: null,
     sort: "pop",
     limit: 24,
@@ -60,6 +62,7 @@ class ExplorarLogic extends DCLogic {
       decade: p.get("decada"),
       minScore: p.get("nota") ? Number(p.get("nota")) : null,
       vertical: p.get("vertical") === "1",
+      dubPt: p.get("dublado") === "pt-br",
       epRange: p.get("episodios"),
       sort: p.get("ordem") || "pop",
     });
@@ -73,6 +76,10 @@ class ExplorarLogic extends DCLogic {
         origin: w.origin ?? null, studio: w.studio || "", pop: w.pop || 1,
       })) });
     });
+    // Obras com dublagem PT-BR realmente disponível (fontes ativas), para o filtro.
+    api.get("/api/v1/works/dubbed?lang=pt-BR")
+      .then((ids) => this.setState({ dubbed: new Set(ids) }))
+      .catch(() => this.setState({ dubbed: new Set() }));
     this.loadMine();
   }
   /** Lista e favoritos da conta (fonte única), para os botões rápidos dos cards. */
@@ -110,6 +117,7 @@ class ExplorarLogic extends DCLogic {
     if (s.decade) p.set("decada", s.decade);
     if (s.minScore) p.set("nota", s.minScore);
     if (s.vertical) p.set("vertical", "1");
+    if (s.dubPt) p.set("dublado", "pt-br");
     if (s.epRange) p.set("episodios", s.epRange);
     if (s.sort !== "pop") p.set("ordem", s.sort);
     try {
@@ -155,6 +163,7 @@ class ExplorarLogic extends DCLogic {
       }
       if (s.minScore && !(x.score >= s.minScore * 10)) return false;
       if (isRead && s.vertical && !x.webtoon) return false;
+      if (s.dubPt && !isRead && !(s.dubbed && s.dubbed.has(x.id))) return false;
       if (s.kind === "animes" && s.epRange) {
         const [a, b] = eps[s.epRange];
         if (!x.eps || x.eps < a || x.eps > b) return false;
@@ -291,6 +300,11 @@ class ExplorarLogic extends DCLogic {
           pick: () => this.toggleOne("epRange", v),
         })),
       });
+    if (!isRead)
+      groups.push({
+        label: "Dublagem",
+        opts: [{ label: "Dublado em PT-BR", ...chip(s.dubPt), pick: () => this.set({ dubPt: !s.dubPt }) }],
+      });
     if (isRead)
       groups.push({
         label: "Formato de leitura",
@@ -309,6 +323,7 @@ class ExplorarLogic extends DCLogic {
         .map(([k, v]) => ({ label: v, remove: () => this.set({ [k]: null }) })),
       ...(s.minScore ? [{ label: `★ ${s.minScore}+`, remove: () => this.set({ minScore: null }) }] : []),
       ...(isRead && s.vertical ? [{ label: "Rolagem vertical", remove: () => this.set({ vertical: false }) }] : []),
+      ...(!isRead && s.dubPt ? [{ label: "Dublado em PT-BR", remove: () => this.set({ dubPt: false }) }] : []),
     ];
     const allKinds = [
       ["todos", "Todos"],
@@ -356,6 +371,7 @@ class ExplorarLogic extends DCLogic {
           decade: null,
           minScore: null,
           vertical: false,
+          dubPt: false,
           epRange: null,
         }),
       countLabel: loaded ? `${list.length} ${list.length === 1 ? "obra" : "obras"}` : "Carregando…",
