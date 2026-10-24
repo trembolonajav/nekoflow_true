@@ -2,6 +2,7 @@
 /* eslint-disable */
 import React from "react";
 import { DCLogic, defineDC, txt, asList, css } from "../dc/runtime";
+import LanguageSelector from "./LanguageSelector";
 
 class FooterLogic extends DCLogic {}
 
@@ -164,9 +165,12 @@ function render(v) {
           }}
         >
           <span>© 2026 Nekoflow. Todos os direitos reservados.</span>
-          <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ width: "6px", height: "6px", transform: "rotate(45deg)", border: "1px solid #DBAF57" }} />
-            Feito para quem ama boas histórias.
+          <span style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ width: "6px", height: "6px", transform: "rotate(45deg)", border: "1px solid #DBAF57" }} />
+              Feito para quem ama boas histórias.
+            </span>
+            <LanguageSelector placement="footer" />
           </span>
         </div>
       </footer>
