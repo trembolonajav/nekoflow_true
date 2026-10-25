@@ -343,8 +343,11 @@ export function installDocumentLocalization() {
     if (!canonical.has(node) || (priorApplied != null && raw !== priorApplied)) canonical.set(node, raw);
     const original = canonical.get(node);
     const trimmed = original.trim();
-    if (!trimmed || translate(trimmed) === trimmed) return;
-    const next = original.replace(trimmed, translate(trimmed));
+    if (!trimmed) return;
+    // Voltar ao português restaura o texto canônico (antes ficava preso no idioma anterior).
+    const translated = translate(trimmed);
+    if (translated === trimmed && !applied.has(node)) return;
+    const next = translated === trimmed ? original : original.replace(trimmed, translated);
     applied.set(node, next);
     if (node.data !== next) node.data = next;
   };

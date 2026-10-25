@@ -7,7 +7,7 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
-import { getLocale } from "../i18n/locale";
+import { getLocale, subscribeLocale } from "../i18n/locale";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 
@@ -32,9 +32,9 @@ class HomeLogic extends DCLogic {
   componentDidMount() {
     // Conteúdo real: destaque curado, temporada vigente e episódios recentes (3 fileiras).
     this.recentSize = this.fitRecent();
-    api.get(`/api/v1/home?lang=${encodeURIComponent(getLocale())}&size=${this.recentSize}`)
-      .then((data) => this.setState({ data, recentPage: data.recent }))
-      .catch(() => this.setState({ data: { hero: [], season: [], recent: { items: [] } } }));
+    this.loadHome();
+    // Sinopses do destaque vêm no idioma do site: trocar o idioma recarrega a Home.
+    this.offLocale = subscribeLocale(() => this.loadHome());
     this.onResize = () => {
       const size = this.fitRecent();
       if (size !== this.recentSize) {
@@ -77,6 +77,11 @@ class HomeLogic extends DCLogic {
     const width = el ? el.clientWidth : Math.max(260, (window.innerWidth || 1280) - 96);
     return Math.max(1, Math.floor((width + 16) / 276)) * 3;
   }
+  loadHome() {
+    api.get(`/api/v1/home?lang=${encodeURIComponent(getLocale())}&size=${this.recentSize}`)
+      .then((data) => this.setState({ data, recentPage: data.recent }))
+      .catch(() => this.setState({ data: { hero: [], season: [], recent: { items: [] } } }));
+  }
   loadRecent(page) {
     api.get(`/api/v1/home/recent?page=${page}&size=${this.recentSize}`)
       .then((recentPage) => this.setState({ recentPage }))
@@ -84,6 +89,7 @@ class HomeLogic extends DCLogic {
   }
   componentWillUnmount() {
     window.removeEventListener("resize", this.onResize);
+    if (this.offLocale) this.offLocale();
     window.removeEventListener("nk:personal", this.onPersonal);
     clearInterval(this.timer);
     document.removeEventListener("scroll", this.onScroll, { capture: true });
