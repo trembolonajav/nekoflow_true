@@ -6,3 +6,7 @@ target/
 .idea/
 .vscode/
 frontend/design-generated/
+.artifact-work/
+audit/
+tools/__pycache__/
+*.py[cod]

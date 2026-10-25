@@ -21,7 +21,7 @@ public class AniListClient {
     static final URI ENDPOINT = URI.create("https://graphql.anilist.co");
     /** Campos da ficha: os mesmos que as páginas do design exibem. */
     private static final String QUERY = """
-            query($id:Int){Media(id:$id){id type format status episodes chapters volumes duration season seasonYear
+            query($id:Int){Media(id:$id){id idMal type format status episodes chapters volumes duration season seasonYear
             averageScore isAdult countryOfOrigin source siteUrl description(asHtml:false)
             title{romaji english native} synonyms bannerImage coverImage{extraLarge large}
             startDate{year month day} endDate{year month day} genres

@@ -55,11 +55,16 @@ public class FibAnimeCatalogSeeder implements ApplicationRunner {
         int expectedWorks = root.path("works").size();
         int expectedSeasons = 0;
         int expectedEpisodes = 0;
-        int expectedSources = root.path("sourceCount").asInt();
+        int expectedSources = 0;
         for (JsonNode work : root.path("works")) {
-            expectedSeasons += work.path("seasons").size();
-            expectedEpisodes += work.path("episodeCount").asInt();
+            for (JsonNode season : work.path("seasons")) {
+                if (!seedSeasonCompatible(work.path("title").asText(), season.path("title").asText())) continue;
+                expectedSeasons++;
+                expectedEpisodes += season.path("episodes").size();
+                for (JsonNode episode : season.path("episodes")) expectedSources += episode.path("sources").size();
+            }
         }
+        quarantineMismatchedSeasons(root);
         if (alreadyIntegrated(expectedWorks, expectedSeasons, expectedEpisodes, expectedSources)) {
             log.info("FIB Anime já integrado: {} obras, ao menos {} temporadas, {} episódios e {} fontes",
                     expectedWorks, expectedSeasons, expectedEpisodes, expectedSources);
@@ -76,6 +81,11 @@ public class FibAnimeCatalogSeeder implements ApplicationRunner {
             long workId = upsertWork(source);
             workCount++;
             for (JsonNode season : source.path("seasons")) {
+                if (!seasonBelongsToWork(workId, source.path("title").asText(), season.path("title").asText())) {
+                    log.warn("FIB Anime: temporada em quarentena por divergência de obra: {} -> {}",
+                            source.path("title").asText(), season.path("title").asText());
+                    continue;
+                }
                 UUID seasonId = resolveSeasonId(workId, source.path("slug").asText(), season.path("number").asInt());
                 upsertSeason(workId, seasonId, season);
                 seasonCount++;
@@ -116,6 +126,58 @@ public class FibAnimeCatalogSeeder implements ApplicationRunner {
     }
 
     private record MapCounts(long seasons, long episodes, long mediaSources) {}
+
+    private boolean seasonBelongsToWork(long workId, String workTitle, String seasonTitle) {
+        if (seedSeasonCompatible(workTitle, seasonTitle)) return true;
+        String normalized = CatalogTitlePolicy.norm(seasonTitle);
+        return jdbc.sql("SELECT title FROM work_title WHERE work_id=?")
+                .param(workId).query(String.class).list().stream()
+                .map(CatalogTitlePolicy::norm).anyMatch(normalized::equals);
+    }
+
+    private static boolean seedSeasonCompatible(String workTitle, String seasonTitle) {
+        if (CatalogTitlePolicy.sameSeries(workTitle, seasonTitle)) return true;
+        // Títulos oficiais em idiomas diferentes para a mesma obra.
+        return CatalogTitlePolicy.norm(workTitle).equals("keroro")
+                && CatalogTitlePolicy.norm(seasonTitle).equals("sgt frog");
+    }
+
+    /** Desativa associações claramente cruzadas no seed legado, sem apagar dados do usuário. */
+    private void quarantineMismatchedSeasons(JsonNode root) {
+        int quarantined = 0;
+        for (JsonNode source : root.path("works")) {
+            String slug = source.path("slug").asText();
+            Long workId = jdbc.sql("""
+                    SELECT work_id FROM external_identifier WHERE provider='FIBANIME' AND external_id=?
+                    ORDER BY work_id LIMIT 1""").param(externalId(slug)).query(Long.class).optional().orElse(null);
+            if (workId == null) continue;
+            for (JsonNode season : source.path("seasons")) {
+                if (seasonBelongsToWork(workId, source.path("title").asText(), season.path("title").asText())) continue;
+                for (JsonNode episode : season.path("episodes")) {
+                    String page = text(episode, "sourcePageUrl");
+                    if (page == null) continue;
+                    jdbc.sql("""
+                            UPDATE episode_source es SET enabled=false,updated_at=now()
+                            FROM episode e JOIN season s ON s.id=e.season_id
+                            WHERE es.episode_id=e.id AND s.work_id=:work AND e.source_page_url=:page
+                              AND es.provider_id=:provider""")
+                            .param("work", workId).param("page", page).param("provider", FIB_MEDIA_PROVIDER_ID).update();
+                    jdbc.sql("""
+                            UPDATE episode e SET availability='UNAVAILABLE'
+                            FROM season s WHERE e.season_id=s.id AND s.work_id=:work AND e.source_page_url=:page
+                              AND NOT EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id=e.id AND es.enabled)""")
+                            .param("work", workId).param("page", page).update();
+                }
+                jdbc.sql("""
+                        UPDATE season s SET visibility='DRAFT' WHERE s.work_id=:work AND s.sort_position=:position
+                          AND NOT EXISTS (SELECT 1 FROM episode e JOIN episode_source es ON es.episode_id=e.id
+                                          WHERE e.season_id=s.id AND es.enabled)""")
+                        .param("work", workId).param("position", season.path("number").asInt()).update();
+                quarantined++;
+            }
+        }
+        if (quarantined > 0) log.warn("FIB Anime: {} temporadas cruzadas colocadas em quarentena", quarantined);
+    }
 
     /**
      * Uma importação anterior casou animes com mangás de mesmo título e criou temporadas em

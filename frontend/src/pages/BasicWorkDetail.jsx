@@ -261,7 +261,7 @@ function UnitGrid({ work, units, animation, loggedIn }) {
         return (
           <article className={`nk-unit-card${done ? " is-done" : ""}`} key={key}>
             <div className="nk-unit-thumb">
-              {unit.thumbnail_url || work.coverUrl ? <img src={unit.thumbnail_url || work.coverUrl} alt="" loading="lazy" /> : <span>N</span>}
+              {unit.thumbnail_url ? <img src={unit.thumbnail_url} alt="" loading="lazy" /> : <span>N</span>}
               <b>{animation ? "EP" : "CAP"} {unit.display_number}</b>
               {!!languageBadges.length && <span className="nk-unit-languages">{languageBadges.map((badge) => <i key={badge}>{badge}</i>)}</span>}
             </div>

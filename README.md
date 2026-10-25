@@ -2,6 +2,11 @@
 
 Plataforma de animes e leituras construída a partir do protótipo do Claude Design.
 
+O projeto já funciona como uma aplicação integrada: catálogo normalizado, contas, biblioteca,
+progresso sincronizado, player/leitor, painel editorial, importação de fontes externas e interface
+multilíngue. O PostgreSQL é a fonte de verdade; os arquivos em `resources/seed` são snapshots
+idempotentes usados para reconstruir e enriquecer o ambiente.
+
 | Camada   | Tecnologia                                         | Pasta       |
 |----------|----------------------------------------------------|-------------|
 | Frontend | React 18 + Vite + React Router                     | `frontend/` |
@@ -9,6 +14,28 @@ Plataforma de animes e leituras construída a partir do protótipo do Claude Des
 | Banco    | PostgreSQL 16                                      | (Docker)    |
 | Infra    | Docker Compose (Postgres, API, nginx e Mailpit local) | raiz        |
 | Design   | Arquivos originais exportados do Claude Design     | `design/`   |
+
+## Estado atual
+
+- **Catálogo real:** obras, títulos alternativos, temporadas, episódios, edições, capítulos,
+  relações e identificadores externos normalizados no PostgreSQL.
+- **Home dinâmica:** destaques curados, novidades da temporada, continuações e episódios recentes
+  vêm do backend, com paginação e atualização ao trocar o idioma.
+- **Importação de anime:** catálogo FIB Anime e snapshot sazonal HiAnime integrados de forma
+  idempotente, com validação de identidade, quarentena de associações divergentes e auditoria.
+- **Metadados editoriais:** AniList fornece identidade, títulos, sinopse, banner, personagens,
+  elenco, relações e recomendações; Jikan/MAL e TVMaze complementam episódios quando há vínculo.
+- **Player real:** HLS, MP4, links e embeds externos, múltiplas versões/servidores, preferência
+  lembrada por dispositivo, troca de fonte, idiomas e reporte de falha.
+- **Leitor real:** capítulos publicados com páginas importadas ou fornecidas por provedor,
+  navegação contínua e progresso persistente.
+- **Conta e biblioteca:** cadastro, sessão segura, favoritos, acompanhamento, listas, histórico,
+  continuar assistindo/lendo e sincronização entre dispositivos.
+- **Administração:** solicitações, publicações, catálogo, importação editorial, usuários e auditoria,
+  com permissões de moderador, editor e administrador validadas no servidor.
+- **Idiomas:** interface, fichas e episódios em português do Brasil, inglês e espanhol, mantendo
+  idioma do site separado das preferências de áudio e legenda.
+- **Responsividade:** navegação e fluxos principais adaptados para desktop, tablet e celular.
 
 ## Subir tudo com Docker
 
@@ -58,8 +85,8 @@ cd backend && mvn test
 | Leituras                   | `/leituras`                 | `pages/Leituras.jsx`                  |
 | Obra (anime)               | `/animes/:slug`             | `pages/WorkRoute.jsx`                 |
 | Obra (leitura)             | `/leituras/:slug`           | `pages/WorkRoute.jsx`                 |
-| Leitor demonstrativo       | `/leitor?obra=ID&cap=N`     | `pages/Leitor.jsx`                    |
-| Player demonstrativo       | `/player?obra=ID&ep=N`      | `pages/Player.jsx`                    |
+| Leitor                     | `/leitor?chapter=UUID&edition=UUID` | `pages/Leitor.jsx`             |
+| Player                     | `/player?episode=UUID`       | `pages/Player.jsx`                    |
 | Conta / Minha biblioteca   | `/conta?aba=...` (privada)  | `pages/Conta.jsx`                     |
 | Entrar / Criar conta       | `/entrar` e `/criar-conta` (`?next=` volta à origem) | `pages/Entrar.jsx` |
 | Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
@@ -98,6 +125,60 @@ Uma única fonte para cada informação (detalhes em `docs/matriz-integracao.md`
   confirmação de e-mail e recuperação com tokens temporários de uso único. O React nunca guarda
   JWT ou senha no `localStorage`.
 
+## Catálogo, fontes e integridade
+
+O NekoFlow não usa o título como identidade definitiva. Cada obra possui um ID interno e pode ter
+identificadores AniList, MAL, FIB Anime e HiAnime. Títulos em romaji permanecem canônicos; nomes em
+inglês, japonês e sinônimos são aliases pesquisáveis.
+
+Os seeders podem ser executados repetidamente sem duplicar obras, episódios ou fontes. Antes de
+publicar mídia, eles verificam vínculos externos e compatibilidade entre obra e temporada. Dados
+ambíguos são ignorados ou colocados em quarentena, em vez de anexar episódios ao anime errado.
+
+Fontes de mídia preservam tipo, provedor, prioridade, idioma de áudio, idioma de legenda,
+proveniência e estado. O NekoFlow não copia vídeos de provedores externos: HLS/MP4 autorizados são
+reproduzidos no player e embeds continuam hospedados pelo respectivo provedor.
+
+### Importação HiAnime
+
+`tools/import_hianime_season_csv.py` combina uma lista sazonal, AniList e a API não oficial HiAnime.
+O resultado versionado é `backend/src/main/resources/seed/hianime-catalog.json`, aplicado no boot
+pelo `HiAnimeCatalogSeeder`. A importação atual é um snapshot auditado; sincronização periódica por
+worker e operação pelo painel administrativo são a próxima etapa.
+
+Consulte `docs/hianime-season-import.md` para parâmetros, limites e política de idiomas.
+
+## Localização e traduções
+
+Há três dimensões independentes:
+
+1. **Idioma do site:** `pt-BR`, `en` ou `es`, escolhido no globo do cabeçalho/rodapé e persistido no
+   navegador.
+2. **Áudio preferido:** usado para ordenar versões disponíveis no player.
+3. **Legenda preferida:** usada para escolher legendas sem alterar o idioma da interface.
+
+O frontend traduz navegação, filtros, conta, fichas, player, leitor e mensagens de erro. No backend,
+`work_translation` e `episode_translation` guardam textos localizados com fonte e estado de revisão.
+Quando não existe tradução, a aplicação mostra o texto original e informa isso ao usuário.
+
+O pipeline `tools/catalog_localization_pipeline.py`:
+
+- associa obras com AniList/MAL sem confiar apenas no primeiro resultado textual;
+- obtém títulos, sinopses, datas e imagens reais de episódios quando a fonte existe;
+- traduz sinopses localmente para PT-BR e espanhol;
+- protege títulos próprios e nomes durante a tradução;
+- nunca reutiliza capa ou banner da obra como miniatura falsa de episódio;
+- produz um relatório de cobertura antes de gerar o snapshot;
+- grava o resultado em `backend/src/main/resources/seed/catalog-localizations.json`.
+
+O `CatalogLocalizationSeeder` aplica o snapshot sem sobrescrever traduções editoriais revisadas.
+Casos revisados manualmente ficam em migrações Flyway, como Boku no Hero e Black Clover 2. O
+`CatalogIntegritySeeder` normaliza nomes genéricos de temporada e remove previews falsos de forma
+reversível.
+
+Caches, modelos locais de tradução, planilhas e saídas de auditoria vivem em `.artifact-work/` e
+`audit/` e não são enviados ao Git. Eles podem ser reconstruídos pelas ferramentas em `tools/`.
+
 ## Mobile
 
 Abaixo de 768px: navegação inferior com as cinco seções (oculta no Leitor e no Player em tela
@@ -125,7 +206,12 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
 - `docs/protocol-02-integration.md` — rotas, limites e integração da navegação real;
 - `docs/protocol-03-auth-audit.md` — linha de base anterior à autenticação completa;
 - `docs/protocol-03-authentication.md` — contrato, segurança, configuração e resultados;
-- `docs/visual-baseline.md` — rotas e viewports usados na verificação visual.
+- `docs/protocol-04-completion.md` — catálogo dinâmico e fluxo editorial;
+- `docs/protocol-05-library-progress.md` — biblioteca, histórico e progresso sincronizado;
+- `docs/protocol-06-real-media.md` — reprodução, leitura e importação editorial;
+- `docs/fibanime-cobertura.md` — cobertura e critérios da integração FIB Anime;
+- `docs/visual-baseline.md` — rotas e viewports usados na verificação visual;
+- `docs/hianime-season-import.md` — importação sazonal por CSV, AniList e HiAnime.
 
 ## O que ainda não existe
 
@@ -133,3 +219,5 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
   apresenta como indisponíveis, sem simular sucesso.
 - Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
 - Acessibilidade (WCAG) ficou fora deste escopo.
+- A sincronização contínua de novos episódios ainda não possui worker; HiAnime é importado por
+  snapshot auditado.

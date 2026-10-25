@@ -108,8 +108,12 @@ public class AniListSyncService {
                         "O AniList não encontrou esta obra."));
         Synopsis s = clean(media.description());
         String romaji = text(media.raw().path("title"), "romaji");
+        String displayTitle = CatalogTitlePolicy.canonicalSeriesTitle(romaji);
         String english = text(media.raw().path("title"), "english");
         String nativeTitle = text(media.raw().path("title"), "native");
+        if (s.text() == null) {
+            s = inheritedPrequelSynopsis(media.raw());
+        }
         String before = jdbc.sql("SELECT jsonb_build_object('synopsis', synopsis_full, 'banner', banner)::text FROM work WHERE id = ?")
                 .param(workId).query(String.class).single();
         jdbc.sql("""
@@ -122,7 +126,7 @@ public class AniListSyncService {
                                 banner = COALESCE(banner, CAST(? AS text)),
                                 anilist_synced_at = now(), updated_at = now()
                 WHERE id = ?""")
-                .params(romaji, s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
+                .params(displayTitle, s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
                 .update();
         if (s.text() != null) {
             jdbc.sql("""
@@ -162,6 +166,40 @@ public class AniListSyncService {
         out.put("synopsisSource", s.attribution());
         out.put("banner", media.bannerImage());
         return out;
+    }
+
+    /**
+     * O AniList às vezes deixa a ficha de uma continuação sem descrição. Nesse caso usamos a
+     * descrição inglesa do PREQUEL imediato, sempre identificada como herança editorial. Mídia,
+     * episódios e imagens nunca são herdados por esta regra.
+     */
+    private Synopsis inheritedPrequelSynopsis(com.fasterxml.jackson.databind.JsonNode raw) throws Exception {
+        for (var edge : raw.path("relations").path("edges")) {
+            if (!"PREQUEL".equals(edge.path("relationType").asText())
+                    || !"ANIME".equals(edge.path("node").path("type").asText())) continue;
+            long prequelId = edge.path("node").path("id").asLong(0);
+            if (prequelId <= 0) continue;
+            String local = jdbc.sql("""
+                    SELECT COALESCE(t.synopsis_full,w.synopsis_full)
+                    FROM work w
+                    LEFT JOIN work_translation t ON t.work_id=w.id AND t.language='en'
+                    WHERE EXISTS (SELECT 1 FROM external_identifier x WHERE x.work_id=w.id
+                                  AND x.provider='ANILIST' AND x.external_id=?)
+                      AND COALESCE(t.synopsis_full,w.synopsis_full) IS NOT NULL
+                    ORDER BY w.id LIMIT 1""").param(Long.toString(prequelId))
+                    .query(String.class).optional().orElse(null);
+            if (local != null && !local.isBlank()) {
+                return new Synopsis(local, "AniList · sinopse herdada da obra anterior " + prequelId);
+            }
+            var prequel = client.fetch(prequelId).orElse(null);
+            if (prequel != null) {
+                Synopsis found = clean(prequel.description());
+                if (found.text() != null) {
+                    return new Synopsis(found.text(), "AniList · sinopse herdada da obra anterior " + prequelId);
+                }
+            }
+        }
+        return new Synopsis(null, null);
     }
 
     private void upsertTitle(long workId, String title, String type, String language) {
