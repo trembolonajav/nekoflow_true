@@ -56,7 +56,8 @@ public class SecurityConfig {
                                 "/actuator/health").permitAll()
                         .requestMatchers("/api/v1/me/**").authenticated()
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**", "/api/admin/catalog/**")
+                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**", "/api/admin/catalog/**",
+                                "/api/admin/sync/**")
                         .hasRole("EDITOR")
                         .requestMatchers("/api/admin/**").hasRole("MODERATOR")
                         .requestMatchers("/api/**").authenticated()

@@ -23,6 +23,8 @@ idempotentes usados para reconstruir e enriquecer o ambiente.
   vêm do backend, com paginação e atualização ao trocar o idioma.
 - **Importação de anime:** catálogo FIB Anime e snapshot sazonal HiAnime integrados de forma
   idempotente, com validação de identidade, quarentena de associações divergentes e auditoria.
+- **Sincronização contínua:** um worker consulta obras atualizadas no HiAnime a cada 15 minutos,
+  publica deltas de vínculos confirmados e envia exceções para revisão no painel administrativo.
 - **Metadados editoriais:** AniList fornece identidade, títulos, sinopse, banner, personagens,
   elenco, relações e recomendações; Jikan/MAL e TVMaze complementam episódios quando há vínculo.
 - **Player real:** HLS, MP4, links e embeds externos, múltiplas versões/servidores, preferência
@@ -143,8 +145,18 @@ reproduzidos no player e embeds continuam hospedados pelo respectivo provedor.
 
 `tools/import_hianime_season_csv.py` combina uma lista sazonal, AniList e a API não oficial HiAnime.
 O resultado versionado é `backend/src/main/resources/seed/hianime-catalog.json`, aplicado no boot
-pelo `HiAnimeCatalogSeeder`. A importação atual é um snapshot auditado; sincronização periódica por
-worker e operação pelo painel administrativo são a próxima etapa.
+pelo `HiAnimeCatalogSeeder`. Depois da carga inicial, o `HiAnimeSyncService` consulta a listagem de
+obras recentemente atualizadas a cada 15 minutos, compara episódios pelo identificador externo e
+grava somente o delta. A trava no PostgreSQL impede duas execuções concorrentes.
+
+Obras que já passaram pela validação do snapshot começam monitoradas e podem publicar
+automaticamente. Host desconhecido, fonte ausente ou falha de importação entra na caixa de revisão
+do `/admin?aba=sync`. O painel também permite executar uma busca manual, pausar uma obra, alternar
+entre publicação automática e revisão, aprovar/ignorar candidatos e consultar o histórico.
+
+O worker usa os endpoints HTML/AJAX públicos consumidos pelo próprio site HiAnime. A origem é
+configurável por `HIANIME_ORIGIN` e nenhuma credencial é enviada ao navegador. O NekoFlow guarda
+somente referências de embeds em hosts autorizados; não baixa nem retransmite os vídeos.
 
 Consulte `docs/hianime-season-import.md` para parâmetros, limites e política de idiomas.
 
@@ -212,6 +224,7 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
 - `docs/fibanime-cobertura.md` — cobertura e critérios da integração FIB Anime;
 - `docs/visual-baseline.md` — rotas e viewports usados na verificação visual;
 - `docs/hianime-season-import.md` — importação sazonal por CSV, AniList e HiAnime.
+- `docs/hianime-continuous-sync.md` — worker de 15 minutos e operação da aba Sincronização.
 
 ## O que ainda não existe
 
@@ -219,5 +232,3 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
   apresenta como indisponíveis, sem simular sucesso.
 - Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
 - Acessibilidade (WCAG) ficou fora deste escopo.
-- A sincronização contínua de novos episódios ainda não possui worker; HiAnime é importado por
-  snapshot auditado.

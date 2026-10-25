@@ -12,6 +12,7 @@ const ROLE_LABEL = { USER: "Usuário", MODERATOR: "Moderador", EDITOR: "Editor",
 const can = (min) => RANK[session.user.role] >= RANK[min];
 
 const TABS = [
+  ["sync", "Sincronização", "EDITOR"],
   ["requests", "Solicitações", "MODERATOR"],
   ["releases", "Publicações", "EDITOR"],
   ["catalog", "Catálogo", "EDITOR"],
@@ -24,7 +25,7 @@ const errText = (e) => (e && e.body && e.body.message) || "Não foi possível co
 export default function Admin() {
   const initial = new URLSearchParams(location.search).get("aba");
   const tabs = TABS.filter(([, , min]) => can(min));
-  const [tab, setTab] = useState(tabs.some(([k]) => k === initial) ? initial : "requests");
+  const [tab, setTab] = useState(tabs.some(([k]) => k === initial) ? initial : tabs[0][0]);
   const pick = (k) => {
     setTab(k);
     history.replaceState(null, "", `?aba=${k}`);
@@ -62,6 +63,7 @@ export default function Admin() {
             </button>
           ))}
         </nav>
+        {tab === "sync" && <Synchronization />}
         {tab === "requests" && <Requests />}
         {tab === "releases" && <Releases />}
         {tab === "catalog" && <Catalog />}
@@ -70,6 +72,197 @@ export default function Admin() {
       </div>
     </Shell>
   );
+}
+
+// ---- sincronização HiAnime ------------------------------------------------------
+
+const SYNC_FILTERS = [
+  ["", "Pendências"],
+  ["READY", "Prontos"],
+  ["REVIEW", "Revisão"],
+  ["FAILED", "Falhas"],
+  ["PUBLISHED", "Publicados"],
+  ["IGNORED", "Ignorados"],
+];
+
+const fmtDate = (value) =>
+  value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—";
+
+function Synchronization() {
+  const [view, setView] = useState("inbox");
+  const [dashboard, setDashboard] = useState(null);
+  const [runs, setRuns] = useState([]);
+  const [works, setWorks] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [filter, setFilter] = useState("");
+  const [busy, setBusy] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  const load = useCallback(() => {
+    Promise.all([
+      api.get("/api/admin/sync/dashboard"),
+      api.get("/api/admin/sync/runs"),
+      api.get("/api/admin/sync/works"),
+      api.get(`/api/admin/sync/candidates?status=${filter}`),
+    ])
+      .then(([d, r, w, c]) => {
+        setDashboard(d);
+        setRuns(r);
+        setWorks(w);
+        setCandidates(filter ? c : c.filter((item) => ["READY", "REVIEW", "FAILED"].includes(item.status)));
+      })
+      .catch((e) => setMessage({ ok: false, text: errText(e) }));
+  }, [filter]);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  const runNow = () => {
+    setBusy("run");
+    setMessage(null);
+    api
+      .post("/api/admin/sync/runs", {})
+      .then(() => {
+        setMessage({ ok: true, text: "Busca iniciada. O painel será atualizado automaticamente." });
+        setTimeout(load, 1200);
+      })
+      .catch((e) => setMessage({ ok: false, text: errText(e) }))
+      .finally(() => setBusy(null));
+  };
+
+  const decide = (candidate, action) => {
+    setBusy(candidate.id);
+    setMessage(null);
+    api
+      .post(`/api/admin/sync/candidates/${candidate.id}/${action}`, {})
+      .then(() => {
+        setMessage({ ok: true, text: action === "approve" ? "Episódio publicado." : "Atualização ignorada." });
+        load();
+      })
+      .catch((e) => setMessage({ ok: false, text: errText(e) }))
+      .finally(() => setBusy(null));
+  };
+
+  const setting = (work, patch) => {
+    const next = { enabled: !!work.enabled, autoPublish: !!work.auto_publish, ...patch };
+    setBusy(work.work_id);
+    api
+      .put(`/api/admin/sync/works/${work.work_id}/settings`, next)
+      .then(load)
+      .catch((e) => setMessage({ ok: false, text: errText(e) }))
+      .finally(() => setBusy(null));
+  };
+
+  const health = dashboard?.health || {};
+  const last = dashboard?.lastRun || {};
+  return (
+    <section style={{ display: "grid", gap: "18px" }}>
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 420px" }}>
+          <span style={{ display: "block", fontFamily: F.serif, fontSize: "28px" }}>Sincronização HiAnime</span>
+          <span style={{ fontSize: "13px", color: C.muted }}>
+            Busca automática a cada 15 minutos. Vínculos confirmados podem publicar; exceções aguardam revisão.
+          </span>
+        </div>
+        <button disabled={busy === "run" || !dashboard?.enabled} onClick={runNow} style={btn("primary", busy === "run" || !dashboard?.enabled)}>
+          {busy === "run" ? "Iniciando…" : "Buscar atualizações agora"}
+        </button>
+      </div>
+
+      {dashboard && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "10px" }}>
+          <SyncMetric label="Estado da origem" value={health.status || "UNKNOWN"} tone={health.status === "HEALTHY" ? C.green : health.status === "DOWN" ? C.red : C.amber} />
+          <SyncMetric label="Obras monitoradas" value={dashboard.monitoredWorks} />
+          <SyncMetric label="Publicação automática" value={dashboard.autoPublishWorks} />
+          <SyncMetric label="Aguardando revisão" value={dashboard.pendingReview} tone={dashboard.pendingReview ? C.amber : C.text} />
+          <SyncMetric label="Publicados hoje" value={dashboard.publishedToday} tone={C.green} />
+          <SyncMetric label="Última execução" value={last.status || "—"} sub={fmtDate(last.finished_at || last.started_at)} />
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {[["inbox", "Caixa de entrada"], ["works", "Obras monitoradas"], ["runs", "Execuções"]].map(([key, text]) => (
+          <button key={key} onClick={() => setView(key)} style={chip(view === key)}>{text}</button>
+        ))}
+      </div>
+
+      {message && <span style={{ fontSize: "13px", color: message.ok ? C.green : C.red }}>{message.text}</span>}
+
+      {view === "inbox" && (
+        <div style={{ display: "grid", gap: "10px" }}>
+          <div className="nk-scroll-x" style={{ display: "flex", gap: "7px", overflowX: "auto" }}>
+            {SYNC_FILTERS.map(([key, text]) => <button key={key} onClick={() => setFilter(key)} style={chip(filter === key)}>{text}</button>)}
+          </div>
+          {candidates.length === 0 && <Empty text="Nenhuma atualização neste filtro." />}
+          {candidates.map((candidate) => (
+            <div key={candidate.id} style={{ ...card, display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
+              {candidate.cover && <img src={candidate.cover} alt="" style={{ width: 46, height: 64, objectFit: "cover", borderRadius: 6 }} />}
+              <span style={{ display: "grid", gap: 3, flex: "1 1 300px" }}>
+                <strong style={{ fontSize: "15px" }}>{candidate.work_title}</strong>
+                <span style={{ fontSize: "13px", color: C.muted }}>
+                  Episódio {candidate.episode_number}{candidate.title ? ` · ${candidate.title}` : ""}
+                </span>
+                <span style={{ fontSize: "11px", color: C.faint }}>
+                  {candidate.source_count} fonte(s) · confiança {candidate.confidence}% · {candidate.reason || "vínculo confirmado"} · {fmtDate(candidate.discovered_at)}
+                </span>
+              </span>
+              <span style={pill(candidate.status === "PUBLISHED" ? C.green : candidate.status === "FAILED" ? C.red : C.amber)}>{candidate.status}</span>
+              {["READY", "REVIEW", "FAILED"].includes(candidate.status) && (
+                <div style={{ display: "flex", gap: 7 }}>
+                  {candidate.reason !== "NON_STANDARD_EPISODE" && (
+                    <button disabled={busy === candidate.id} onClick={() => decide(candidate, "approve")} style={btn("primary", busy === candidate.id)}>Publicar</button>
+                  )}
+                  <button disabled={busy === candidate.id} onClick={() => decide(candidate, "ignore")} style={btn("secondary", busy === candidate.id)}>Ignorar</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === "works" && (
+        <div style={{ display: "grid", gap: "8px" }}>
+          {works.map((work) => (
+            <div key={work.work_id} style={{ ...card, padding: "12px 14px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {work.cover && <img src={work.cover} alt="" style={{ width: 34, height: 48, objectFit: "cover", borderRadius: 4 }} />}
+              <span style={{ display: "grid", gap: 2, flex: "1 1 280px" }}>
+                <strong style={{ fontSize: "14px" }}>{work.title}</strong>
+                <span style={{ fontSize: "11px", color: C.faint }}>HiAnime: {work.hianime_id} · último EP {work.latest_episode || "—"} · verificado {fmtDate(work.last_checked_at)}</span>
+                {work.last_error && <span style={{ fontSize: "11px", color: C.red }}>{work.last_error}</span>}
+              </span>
+              <button disabled={busy === work.work_id} onClick={() => setting(work, { enabled: !work.enabled })} style={chip(!!work.enabled)}>{work.enabled ? "Monitorando" : "Pausada"}</button>
+              <button disabled={busy === work.work_id || !work.enabled} onClick={() => setting(work, { autoPublish: !work.auto_publish })} style={chip(!!work.auto_publish)}>{work.auto_publish ? "Auto publicar" : "Revisão manual"}</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === "runs" && (
+        <div style={{ display: "grid", gap: "8px" }}>
+          {runs.length === 0 && <Empty text="Nenhuma sincronização executada." />}
+          {runs.map((run) => (
+            <div key={run.id} style={{ ...card, padding: "12px 14px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={pill(run.status === "COMPLETED" ? C.green : run.status === "FAILED" ? C.red : C.amber)}>{run.status}</span>
+              <span style={{ flex: "1 1 260px", fontSize: "13px" }}>{run.trigger_type === "MANUAL" ? "Execução manual" : "Execução agendada"} · {fmtDate(run.created_at)}</span>
+              <span style={{ fontSize: "12px", color: C.muted }}>{run.checked_works} obras · {run.discovered_count} descobertos · {run.published_count} publicados · {run.error_count} erros</span>
+              {run.error_message && <span style={{ flexBasis: "100%", fontSize: "11px", color: C.red }}>{run.error_message}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SyncMetric({ label: text, value, sub, tone = C.text }) {
+  return <div style={{ ...card, padding: "13px 14px", display: "grid", gap: 4 }}>
+    <span style={{ fontSize: "11px", color: C.muted }}>{text}</span>
+    <strong style={{ fontFamily: F.serif, fontSize: "22px", color: tone }}>{value ?? "—"}</strong>
+    {sub && <span style={{ fontSize: "10px", color: C.faint }}>{sub}</span>}
+  </div>;
 }
 
 // ---- solicitações --------------------------------------------------------------

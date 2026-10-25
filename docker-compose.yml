@@ -35,6 +35,8 @@ services:
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       MEDIA_STORAGE_DIR: /data/media
       MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-dev-only-nekoflow-media-secret}
+      HIANIME_SYNC_ENABLED: ${HIANIME_SYNC_ENABLED:-true}
+      HIANIME_ORIGIN: ${HIANIME_ORIGIN:-https://hianime.at}
     volumes:
       - media:/data/media
     ports:

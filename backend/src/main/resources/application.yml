@@ -29,6 +29,13 @@ nekoflow:
     public-prefix: /media
   anilist:
     sync-on-boot: ${ANILIST_SYNC_ON_BOOT:true}
+  hianime:
+    enabled: ${HIANIME_SYNC_ENABLED:true}
+    origin: ${HIANIME_ORIGIN:https://hianime.at}
+    sync-interval-ms: ${HIANIME_SYNC_INTERVAL_MS:900000}
+    initial-delay-ms: ${HIANIME_SYNC_INITIAL_DELAY_MS:90000}
+    recent-pages: ${HIANIME_SYNC_RECENT_PAGES:2}
+    request-timeout-seconds: ${HIANIME_API_TIMEOUT_SECONDS:20}
 
 spring:
   application:

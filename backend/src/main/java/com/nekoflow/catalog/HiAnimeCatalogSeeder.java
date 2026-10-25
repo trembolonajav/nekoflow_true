@@ -67,13 +67,26 @@ public class HiAnimeCatalogSeeder implements ApplicationRunner {
             }
             JsonNode season = source.path("season");
             UUID seasonId = resolveSeason(workId, source, season);
+            int workSources = 0;
             for (JsonNode episode : season.path("episodes")) {
-                sources += upsertEpisode(seasonId, source, episode);
+                int imported = upsertEpisode(seasonId, source, episode);
+                workSources += imported;
+                sources += imported;
                 episodes++;
             }
+            if (workSources > 0) enableContinuousSync(workId, seasonId);
         }
         log.info("HiAnime sazonal integrado: {} obras, {} episódios e {} players externos; {} vínculos em quarentena",
                 works, episodes, sources, rejected);
+    }
+
+    /** Registra somente vínculos já validados, preservando escolhas posteriores do editor. */
+    private void enableContinuousSync(long workId, UUID seasonId) {
+        jdbc.sql("""
+                INSERT INTO hianime_sync_work(work_id,season_id,enabled,auto_publish)
+                VALUES (?,?,true,true)
+                ON CONFLICT(work_id) DO UPDATE SET season_id=EXCLUDED.season_id,updated_at=now()
+                """).params(workId, seasonId).update();
     }
 
     private boolean mediaMatchesMetadata(JsonNode source) {
