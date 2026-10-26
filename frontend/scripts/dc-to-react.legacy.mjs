@@ -52,6 +52,7 @@ const SCREENS = {
   ObraLeitura: { name: "ObraLeitura", route: "/obra-leitura", dir: "pages" },
   Leitor: { name: "Leitor", route: "/leitor", dir: "pages" },
   Player: { name: "Player", route: "/player", dir: "pages" },
+  Admin: { name: "AdminPainel", route: "/admin", dir: "pages" },
   Header: { name: "Header", route: null, dir: "components" },
   Footer: { name: "Footer", route: null, dir: "components" },
 };
