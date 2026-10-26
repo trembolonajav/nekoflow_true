@@ -1,15 +1,16 @@
-// Origem: design/claude-design/Admin.dc.html (Claude Design). Cópia literal do painel;
-// únicos acréscimos: logo e "Voltar ao site" levam de volta à navegação do site.
+// Origem: design/claude-design/Admin.dc.html (Claude Design). Template literal do painel;
+// acréscimos: logo e "Voltar ao site" levam de volta ao site, e a lógica lê os dados reais
+// de /api/admin/panel (presença, audiência, sincronização, pendências e usuários).
 /* eslint-disable */
 import React from "react";
 import { DCLogic, defineDC, txt, asList, css } from "../dc/runtime";
+import { api } from "../lib/api";
 
 class AdminPainelLogic extends DCLogic {
   state = {
     tab: "overview",
     period: "hoje",
-    online: 184,
-    player: 61,
+    data: null,
     pf: "all",
     ef: "all",
     user: 0,
@@ -17,23 +18,34 @@ class AdminPainelLogic extends DCLogic {
     running: false,
     added: {},
     done: {},
-    extra: [],
+    events: {},
     toast: null,
   };
   componentDidMount() {
     const t = new URLSearchParams(location.search).get("aba");
     if (t) this.setState({ tab: t });
-    this.iv = setInterval(
-      () =>
-        this.setState((s) => ({
-          online: Math.max(150, s.online + Math.round(Math.random() * 10 - 5)),
-          player: Math.max(40, s.player + Math.round(Math.random() * 6 - 3)),
-        })),
-      3000,
-    );
+    this.load();
+    // "Online agora" e a sincronização mudam sozinhos: atualiza a cada 30 s.
+    this.iv = setInterval(() => this.load(), 30000);
   }
   componentWillUnmount() {
     clearInterval(this.iv);
+  }
+  load(period = this.state.period) {
+    return api
+      .get(`/api/admin/panel?period=${period}`)
+      .then((data) => {
+        this.setState({ data, period });
+        const u = asList(data.users)[this.state.user] || asList(data.users)[0];
+        if (u && !this.state.events[u.id]) this.loadEvents(u.id);
+      })
+      .catch(() => this.flash("Não foi possível carregar o painel"));
+  }
+  loadEvents(id) {
+    api
+      .get(`/api/admin/panel/users/${id}/events`)
+      .then((list) => this.setState((s) => ({ events: { ...s.events, [id]: list } })))
+      .catch(() => {});
   }
   flash(t) {
     clearTimeout(this.tt);
@@ -47,170 +59,6 @@ class AdminPainelLogic extends DCLogic {
     } catch (e) {}
     window.scrollTo(0, 0);
   }
-  PEND = [
-    [
-      "crit",
-      "Episódio 10 de Kaiju No. 8 (2ª temporada) aguardando revisão",
-      "Host desconhecido no embed: streamtape.to. Publicar ou descartar.",
-      "Sincronização",
-      "auto",
-      "12 min",
-      "Revisar",
-    ],
-    [
-      "crit",
-      "Dandadan ep. 7 sem servidor funcionando",
-      "Teste automático falhou nos 2 embeds · 9 trocas de servidor na última hora",
-      "Fontes",
-      "auto",
-      "34 min",
-      "Trocar fonte",
-    ],
-    [
-      "med",
-      "Solo Leveling 2ª temporada sem legenda PT-BR nos eps. 9–12",
-      "Existem EN sub e EN dub. 41 pessoas abriram e saíram em menos de 1 min",
-      "Legendas",
-      "auto",
-      "2 d",
-      "Abrir obra",
-    ],
-    [
-      "med",
-      '"Frieren dublado" buscado 38 vezes',
-      "A obra existe, mas sem versão dublada cadastrada",
-      "Catálogo",
-      "auto",
-      "1 d",
-      "Abrir obra",
-    ],
-    [
-      "med",
-      "Pedido: Blue Lock 2ª temporada",
-      "17 usuários pediram · aberta por @kaio_r",
-      "Solicitações",
-      "auto",
-      "3 d",
-      "Responder",
-    ],
-    [
-      "med",
-      "Comentário denunciado no ep. 1 de Solo Leveling",
-      "Spoiler sem marcação · 4 denúncias",
-      "Denúncias",
-      "auto",
-      "5 h",
-      "Moderar",
-    ],
-    ["low", "Sinopse só em inglês: 23 obras", "Vieram do AniList sem tradução", "Catálogo", "auto", "6 d", "Ver lista"],
-    [
-      "low",
-      "Revisar banner do destaque da semana",
-      "Trocar arte de Kaiju No. 8 antes de sexta",
-      "Manual",
-      "manual",
-      "1 d",
-      "Abrir Home",
-    ],
-  ];
-  RUNS = [
-    [
-      "Hoje 20:30",
-      "auto",
-      "38 s",
-      [
-        ["Kaiju No. 8 · 2ª temporada", "Ep. 10", "review"],
-        ["Shangri-La Frontier · 2ª temporada", "Ep. 22", "pub"],
-      ],
-    ],
-    ["Hoje 20:15", "auto", "31 s", []],
-    ["Hoje 20:00", "auto", "44 s", [["Dandadan", "Ep. 7 · revalidado", "pub"]]],
-    ["Hoje 19:45", "auto", "—", "fail"],
-    ["Hoje 19:30", "auto", "29 s", []],
-    [
-      "Hoje 19:12",
-      "manual",
-      "52 s",
-      [
-        ["Solo Leveling · 2ª temporada", "Ep. 12", "pub"],
-        ["Re:Zero · 3ª temporada", "Ep. 16", "pub"],
-        ["Ao no Hako", "Ep. 3 especial", "review"],
-      ],
-    ],
-    ["Hoje 19:00", "auto", "33 s", []],
-  ];
-  USERS = [
-    [
-      "Marina Alves",
-      "MA",
-      "player",
-      "Assistindo Frieren · ep. 14",
-      "Membro desde mar 2026 · #1042 · usuário",
-      ["126 h", "com player aberto"],
-      ["218", "episódios marcados como vistos"],
-      ["31", "capítulos lidos"],
-      ["17:24", "última atividade"],
-    ],
-    [
-      "Kaio Ribeiro",
-      "KR",
-      "online",
-      "Navegando em Explorar",
-      "Membro desde jan 2026 · #0877 · moderador",
-      ["64 h", "com player aberto"],
-      ["102", "episódios"],
-      ["210", "capítulos"],
-      ["agora", "última atividade"],
-    ],
-    [
-      "Lia Tanaka",
-      "LT",
-      "player",
-      "Lendo Solo Leveling · cap. 112",
-      "Membro desde ago 2026 · #1611 · usuário",
-      ["12 h", "com player aberto"],
-      ["19", "episódios"],
-      ["144", "capítulos"],
-      ["agora", "última atividade"],
-    ],
-    [
-      "Rafa Costa",
-      "RC",
-      "off",
-      "Visto há 2 h",
-      "Membro desde mai 2026 · #1220 · usuário",
-      ["88 h", "com player aberto"],
-      ["160", "episódios"],
-      ["0", "capítulos"],
-      ["18:40", "última atividade"],
-    ],
-    [
-      "Duda Mendes",
-      "DM",
-      "off",
-      "Visto ontem",
-      "Membro desde out 2026 · #1702 · usuário",
-      ["3 h", "com player aberto"],
-      ["5", "episódios"],
-      ["8", "capítulos"],
-      ["ontem", "última atividade"],
-    ],
-  ];
-  EVENTS = [
-    [
-      "17:24",
-      "play",
-      "Frieren · Ep. 14",
-      "Legendado PT-BR · Servidor 1 (Blogger) · player aberto 18 min 40 s, aba visível",
-    ],
-    ["17:05", "play", "Frieren · Ep. 13 marcado como visto", "Clicou em Próximo episódio aos 23 min"],
-    ["17:02", "search", 'Busca: "bleach dublado"', "2 resultados · clicou em Bleach: Thousand-Year Blood War"],
-    ["16:58", "nav", "Clique no destaque da Home", "Banner 1 · Kaiju No. 8"],
-    ["16:52", "server", "Trocou de servidor", "Dandadan ep. 7 · Servidor 1 → Servidor 2 após 40 s"],
-    ["16:41", "read", "Solo Leveling · Capítulo 112", "Vertical · leu 100% · 14 min"],
-    ["16:20", "comment", "Comentou em Solo Leveling · Ep. 1", '"A animação da luta final ficou absurda"'],
-    ["16:12", "nav", "Entrou pelo celular", "Android · Chrome · sessão iniciada"],
-  ];
   MODS = {
     catalog: [
       "Conteúdo",
@@ -353,7 +201,10 @@ class AdminPainelLogic extends DCLogic {
   };
   renderVals() {
     const s = this.state;
-    const pendAll = [...s.extra, ...this.PEND.map((p, i) => ({ id: "p" + i, p }))].filter((x) => !s.done[x.id]);
+    const d = s.data || {};
+    const pendAll = asList(d.pend)
+      .map((x) => ({ id: x.key, x, p: [x.prio, x.title, x.detail, x.kind, x.origin, x.age, x.action] }))
+      .filter((x) => !s.done[x.id]);
     const pendCount = pendAll.length,
       crit = pendAll.filter((x) => x.p[0] === "crit").length;
     const NAV = [
@@ -410,39 +261,43 @@ class AdminPainelLogic extends DCLogic {
       estimado: ["rgba(219,175,87,.45)", "#DBAF57", "estimado"],
       atenção: ["rgba(217,115,91,.5)", "#E08A72", "atenção"],
     };
-    const mult = { hoje: 1, "7d": 6.4, "30d": 26 }[s.period];
     const fmt = (n) =>
       n >= 10000
         ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1).replace(".", ",")} mil`
         : Math.round(n).toLocaleString("pt-BR");
+    const pct = (n) => `${(n || 0).toFixed(1).replace(".", ",")}%`;
     const live = s.period === "hoje";
+    const on = d.online || { total: 0, browse: 0, player: 0, read: 0 };
+    const k = d.kpis || {};
+    const before = k.playersBefore;
+    const delta =
+      live && before > 0
+        ? `${k.players >= before ? "+" : ""}${Math.round(((k.players - before) / before) * 100)}% que ontem`
+        : live
+          ? "hoje"
+          : "no período";
     const kpis = [
       {
         label: "Online agora",
-        value: String(s.online),
-        sub: `${s.player} no player · ${Math.round(s.online * 0.14)} lendo`,
+        value: String(on.total),
+        sub: `${on.player} no player · ${on.read} lendo`,
         live: true,
         color: "#F0EEE9",
       },
-      {
-        label: "Players abertos",
-        value: fmt(3120 * mult),
-        sub: live ? "+12% que ontem" : "no período",
-        color: "#F0EEE9",
-      },
+      { label: "Players abertos", value: fmt(k.players || 0), sub: delta, color: "#F0EEE9" },
       {
         label: "Tempo com player aberto",
-        value: `${fmt(1480 * mult)} h`,
+        value: `${(k.playerHours || 0) < 10 ? (k.playerHours || 0).toFixed(1).replace(".", ",") : fmt(k.playerHours)} h`,
         sub: "estimado · aba visível",
         color: "#F0EEE9",
       },
       {
         label: "Usuários ativos",
-        value: fmt(1960 * (live ? 1 : mult * 0.55)),
-        sub: `${live ? 212 : Math.round(212 * mult)} novos cadastros`,
+        value: fmt(k.activeUsers || 0),
+        sub: `${k.signups || 0} novos cadastros`,
         color: "#F0EEE9",
       },
-      { label: "Trocas de servidor", value: "6,8%", sub: "dos players abertos", color: "#DBAF57" },
+      { label: "Trocas de servidor", value: pct(k.switchRate), sub: "dos players abertos", color: "#DBAF57" },
       {
         label: "Pendências críticas",
         value: String(crit),
@@ -450,122 +305,105 @@ class AdminPainelLogic extends DCLogic {
         color: crit ? "#E08A72" : "#7FB77E",
       },
     ];
-    const n = live ? 24 : s.period === "7d" ? 7 : 30;
-    const vals = Array.from({ length: n }, (_, i) =>
-      live
-        ? 0.25 + 0.75 * Math.pow(Math.sin(((i - 5) / 24) * Math.PI), 2) * (i > 17 ? 1.1 : 0.85)
-        : 0.55 + 0.35 * Math.abs(Math.sin(i * 1.3)) + (i % 7 >= 5 ? 0.15 : 0),
-    );
-    const mx = Math.max(...vals);
-    const bars = vals.map((v, i) => ({
-      play: `${(v / mx) * 38}%`,
-      browse: `${(v / mx) * 54}%`,
-      tip: live ? `${String(i).padStart(2, "0")}h` : `dia ${i + 1}`,
+    const rawBars = asList(d.bars);
+    const mx = Math.max(1, ...rawBars.map((b) => b.play + b.browse));
+    const bars = rawBars.map((b) => ({
+      play: `${(b.play / mx) * 92}%`,
+      browse: `${(b.browse / mx) * 92}%`,
+      tip: `${b.tip} · ${b.play} no player · ${b.browse} navegando`,
     }));
+    const pickLabels = (idx) => idx.filter((i) => rawBars[i]).map((i) => rawBars[i].label);
     const barLabels = live
       ? ["00h", "06h", "12h", "18h", "23h"]
       : s.period === "7d"
-        ? ["seg", "qua", "sex", "dom"]
-        : ["1", "8", "15", "22", "30"];
-    const T = [
-      ["Kaiju No. 8 · 2ª temporada", "Anime · em lançamento", 48200, 6120, 4380, "71%"],
-      ["Solo Leveling · 2ª temporada", "Anime · completo", 39100, 5210, 3990, "83%"],
-      ["Dandadan", "Anime · em lançamento", 30400, 3340, 2410, "64%"],
-      ["Solo Leveling", "Manhwa · leitura", 21800, 2950, 2700, "88%"],
-      ["Frieren", "Anime · completo", 19600, 1820, 1540, "79%"],
-      ["Ao no Hako", "Anime · em lançamento", 17200, 980, 640, "42%"],
-    ];
-    const top = T.map(([name, kind, imp, clk, plays, next], i) => ({
-      rank: i + 1,
-      name,
-      kind,
-      imp: fmt(imp * mult),
-      clk: fmt(clk * mult),
-      ctr: `${((clk / imp) * 100).toFixed(1).replace(".", ",")}%`,
-      plays: fmt(plays * mult),
-      next,
-      nextColor: parseInt(next) < 50 ? "#E08A72" : "#F0EEE9",
+        ? pickLabels([0, 2, 4, rawBars.length - 1])
+        : pickLabels([0, 7, 14, 21, rawBars.length - 1]);
+    const top = asList(d.top).map((t, i) => {
+      const next = t.plays ? Math.round((t.nexts / t.plays) * 100) : null;
+      return {
+        rank: i + 1,
+        name: t.name,
+        kind: t.kind,
+        imp: fmt(t.imp),
+        clk: fmt(t.clk),
+        ctr: t.imp ? pct((t.clk / t.imp) * 100) : "—",
+        plays: fmt(t.plays),
+        next: next == null ? "—" : `${next}%`,
+        nextColor: next != null && next < 50 ? "#E08A72" : "#F0EEE9",
+      };
+    });
+    const servers = asList(d.servers).map((x) => ({
+      name: x.name,
+      sub: `${x.sub} · trocas`,
+      dot: x.rate < 8 ? "#7FB77E" : x.rate < 15 ? "#DBAF57" : "#E08A72",
+      swap: pct(x.rate),
     }));
-    const servers = [
-      ["Blogger", "Legendado PT-BR · 1 servidor por episódio", "#7FB77E", "3,1%"],
-      ["ZokoAnime", "Legendado e dublado EN", "#7FB77E", "5,4%"],
-      ["HD-1 · MegaPlay", "Legendado e dublado EN · lento desde 19:40", "#DBAF57", "14,2%"],
-    ].map(([name, sub, dot, swap]) => ({ name, sub: `${sub} · trocas`, dot, swap }));
-    const misses = [
-      ["frieren dublado", 38],
-      ["blue lock 2", 17],
-      ["one punch man 3", 14],
-      ["omniscient reader manhwa", 9],
-      ["haikyuu filme", 6],
-    ].map(([q, c]) => ({
+    const misses = asList(d.misses).map(({ q, n: c }) => ({
       q,
       n: c,
       label: s.added[q] ? "Na lista" : "Criar pendência",
       color: s.added[q] ? "#7FB77E" : "#DBAF57",
       add: () => {
         if (s.added[q]) return;
-        this.setState({
-          added: { ...s.added, [q]: 1 },
-          extra: [
-            {
-              id: "q" + q,
-              p: [
-                "med",
-                `Buscado sem resultado: "${q}"`,
-                `${c} buscas no período`,
-                "Catálogo",
-                "auto",
-                "agora",
-                "Abrir busca",
-              ],
-            },
-            ...s.extra,
-          ],
-        });
-        this.flash("Pendência criada");
+        api
+          .post("/api/admin/panel/tasks", {
+            key: `search:${q}`,
+            title: `Buscado sem resultado: "${q}"`,
+            detail: `${c} buscas no período`,
+            priority: "med",
+          })
+          .then(() => {
+            this.setState((st) => ({ added: { ...st.added, [q]: 1 } }));
+            this.flash("Pendência criada");
+            this.load();
+          })
+          .catch(() => this.flash("Não foi possível criar a pendência"));
       },
     }));
     const runMeta = (r) => {
-      if (r[3] === "fail")
+      if (r.status === "FAILED")
         return {
-          summary: "Falhou: HiAnime não respondeu (timeout 20 s). Nova tentativa às 20:00",
+          summary: `Falhou: ${r.error || "a consulta não terminou"}`,
           color: "#E08A72",
           dot: "#E08A72",
           items: [],
         };
-      const it = r[3];
+      if (r.status === "RUNNING" || r.status === "QUEUED")
+        return { summary: "Executando…", color: "#B7B1A4", dot: "#DBAF57", items: [] };
+      const it = asList(r.items);
       if (!it.length) return { summary: "Nenhum episódio novo", color: "#B7B1A4", dot: "#4A433B", items: [] };
-      const pub = it.filter((x) => x[2] === "pub").length,
+      const pub = it.filter((x) => x.res === "pub").length,
         rev = it.length - pub;
       return {
         summary: `${it.length} ${it.length > 1 ? "episódios encontrados" : "episódio encontrado"} · ${pub} publicado${pub !== 1 ? "s" : ""}${rev ? ` · ${rev} para revisão` : ""}`,
         color: "#F0EEE9",
         dot: rev ? "#DBAF57" : "#7FB77E",
-        items: it.map(([anime, ep, res]) => ({
+        items: it.map(({ anime, ep, res }) => ({
           anime,
           ep,
-          res: res === "pub" ? "Publicado" : "Aguardando revisão",
-          color: res === "pub" ? "#7FB77E" : "#DBAF57",
-          border: res === "pub" ? "rgba(127,183,126,.4)" : "rgba(219,175,87,.4)",
+          res: res === "pub" ? "Publicado" : res === "fail" ? "Falhou" : "Aguardando revisão",
+          color: res === "pub" ? "#7FB77E" : res === "fail" ? "#E08A72" : "#DBAF57",
+          border: res === "pub" ? "rgba(127,183,126,.4)" : res === "fail" ? "rgba(217,115,91,.5)" : "rgba(219,175,87,.4)",
         })),
       };
     };
-    const runs = this.RUNS.map((r, i) => {
+    const RUNS = asList(d.runs);
+    const runs = RUNS.map((r, i) => {
       const m = runMeta(r);
       return {
         ...m,
-        when: r[0],
-        trigger: r[1] === "auto" ? "automática" : "manual",
-        dur: r[2],
+        when: r.when,
+        trigger: r.trigger === "auto" ? "automática" : "manual",
+        dur: r.dur,
         hasItems: m.items.length > 0,
         open: s.openRun === i && m.items.length > 0,
         rot: s.openRun === i ? "180deg" : "0deg",
         toggle: () => this.setState({ openRun: s.openRun === i ? -1 : i }),
       };
     });
-    const runsShort = this.RUNS.slice(0, 5).map((r) => {
+    const runsShort = RUNS.slice(0, 5).map((r) => {
       const m = runMeta(r);
-      return { t: r[0].replace("Hoje ", ""), summary: m.summary, color: m.color };
+      return { t: r.when.replace("Hoje ", ""), summary: m.summary, color: m.color };
     });
     const PC = { crit: ["Crítica", "#E08A72"], med: ["Média", "#DBAF57"], low: ["Baixa", "#B7B1A4"] };
     const kinds = ["Sincronização", "Fontes", "Legendas", "Catálogo", "Solicitações", "Denúncias", "Manual"];
@@ -584,33 +422,43 @@ class AdminPainelLogic extends DCLogic {
     const pend = pendAll
       .filter((x) => match(x, s.pf))
       .map((x) => {
-        const [pr, t, d, kind, origin, age, action] = x.p;
+        const [pr, t, det, kind, origin, age, action] = x.p;
         return {
-          prio: PC[pr][0],
-          pColor: PC[pr][1],
+          prio: (PC[pr] || PC.low)[0],
+          pColor: (PC[pr] || PC.low)[1],
           title: t,
-          detail: d,
+          detail: det,
           kind,
           origin: origin === "auto" ? "Automática" : "Manual",
           age,
           action,
-          act: () => this.flash(`Abriria: ${action.toLowerCase()}`),
+          act: () => (x.x.href ? (location.href = x.x.href) : this.flash("Edite a tarefa no painel operacional")),
           done: () => {
             this.setState({ done: { ...s.done, [x.id]: 1 } });
-            this.flash("Pendência resolvida");
+            api
+              .post("/api/admin/panel/tasks/resolve", { key: x.id })
+              .then(() => this.flash("Pendência resolvida"))
+              .catch(() => {
+                this.setState((st) => ({ done: { ...st.done, [x.id]: 0 } }));
+                this.flash("Não foi possível resolver");
+              });
           },
         };
       });
-    const u = this.USERS[s.user];
-    const dotC = { player: "#DBAF57", online: "#7FB77E", off: "#4A433B" };
-    const users = this.USERS.map((x, i) => ({
-      name: x[0],
-      ini: x[1],
-      now: x[3],
-      dot: dotC[x[2]],
-      pick: () => this.setState({ user: i, ef: "all" }),
-      bg: i === s.user ? "rgba(219,175,87,.08)" : "transparent",
-      edge: i === s.user ? "#DBAF57" : "transparent",
+    const USERS = asList(d.users);
+    const u = USERS[s.user] || USERS[0];
+    const dotC = { player: "#DBAF57", read: "#DBAF57", online: "#7FB77E", off: "#4A433B" };
+    const users = USERS.map((x, i) => ({
+      name: x.name,
+      ini: x.ini,
+      now: x.now,
+      dot: dotC[x.state] || dotC.off,
+      pick: () => {
+        this.setState({ user: i, ef: "all" });
+        this.loadEvents(x.id);
+      },
+      bg: x === u ? "rgba(219,175,87,.08)" : "transparent",
+      edge: x === u ? "#DBAF57" : "transparent",
     }));
     const ET = {
       play: ["Assistiu", "#DBAF57"],
@@ -628,39 +476,24 @@ class AdminPainelLogic extends DCLogic {
       ["nav", "Navegação"],
       ["comment", "Comentários"],
     ];
-    const shift = s.user * 2;
-    const events = this.EVENTS.filter(
-      (e) => s.ef === "all" || e[1] === s.ef || (s.ef === "play" && e[1] === "server"),
-    ).map((e) => ({
-      t: e[0].replace(/^(\d\d)/, (h) => String((+h + 24 - shift) % 24).padStart(2, "0")),
-      type: ET[e[1]][0],
-      color: ET[e[1]][1],
-      title: e[2],
-      detail: e[3],
+    const events = asList(u ? s.events[u.id] : [])
+      .filter((e) => s.ef === "all" || e.type === s.ef || (s.ef === "play" && e.type === "server"))
+      .map((e) => ({
+        t: e.t,
+        type: (ET[e.type] || ET.nav)[0],
+        color: (ET[e.type] || ET.nav)[1],
+        title: e.title,
+        detail: e.detail,
+      }));
+    const integ = d.providers || { list: [], running: false, next: "—" };
+    const providers = asList(integ.list).map((p) => ({
+      name: p.name,
+      role: p.role,
+      meta: p.meta,
+      dot: p.idle ? "#4A433B" : p.ok ? "#7FB77E" : "#E08A72",
+      border: p.name === "HiAnime" ? (p.ok ? "rgba(127,183,126,.25)" : "rgba(217,115,91,.5)") : "rgba(240,238,233,.06)",
     }));
-    const providers = [
-      {
-        name: "HiAnime",
-        role: "Episódios e embeds",
-        meta: "A cada 15 min · última 20:30 · 272 obras monitoradas",
-        dot: "#7FB77E",
-        border: "rgba(127,183,126,.25)",
-      },
-      {
-        name: "AniList",
-        role: "Fichas, imagens, temporada, relações",
-        meta: "A cada 6 h · última 18:00 · 0 erros",
-        dot: "#7FB77E",
-        border: "rgba(240,238,233,.06)",
-      },
-      {
-        name: "Leitura",
-        role: "Capítulos de mangá, manhwa e webtoon",
-        meta: "Sem provedor conectado · cadastro manual",
-        dot: "#4A433B",
-        border: "rgba(240,238,233,.06)",
-      },
-    ];
+    const hours = (h) => (h >= 10 ? `${Math.round(h)} h` : h > 0 ? `${h.toFixed(1).replace(".", ",")} h` : "0 h");
     return {
       nav,
       crumb,
@@ -676,7 +509,7 @@ class AdminPainelLogic extends DCLogic {
         ["30d", "30 dias"],
       ].map(([k, label]) => ({
         label,
-        pick: () => this.setState({ period: k }),
+        pick: () => this.load(k),
         bg: s.period === k ? "#DBAF57" : "transparent",
         color: s.period === k ? "#1A1714" : "#F0EEE9",
       })),
@@ -692,49 +525,47 @@ class AdminPainelLogic extends DCLogic {
       pend,
       pendEmpty: pend.length === 0,
       addManual: () => {
-        const id = "m" + Date.now();
-        this.setState({
-          extra: [
-            {
-              id,
-              p: [
-                "low",
-                "Nova tarefa manual",
-                "Descreva o que precisa ser feito",
-                "Manual",
-                "manual",
-                "agora",
-                "Editar",
-              ],
-            },
-            ...s.extra,
-          ],
-        });
-        this.flash("Tarefa criada");
+        const title = window.prompt("Nova tarefa manual: o que precisa ser feito?");
+        if (!title || !title.trim()) return;
+        api
+          .post("/api/admin/panel/tasks", { title: title.trim(), detail: "", priority: "low", kind: "Manual" })
+          .then(() => {
+            this.flash("Tarefa criada");
+            this.load();
+          })
+          .catch(() => this.flash("Não foi possível criar a tarefa"));
       },
       providers,
       runs,
-      syncState: s.running ? "Executando…" : "Próxima automática às 20:45",
+      syncState: s.running || integ.running ? "Executando…" : `Próxima automática às ${integ.next}`,
       runNow: () => {
-        if (s.running) return;
+        if (s.running || integ.running) return;
         this.setState({ running: true });
-        setTimeout(() => {
-          this.setState({ running: false });
-          this.flash("Busca manual concluída · nenhum episódio novo");
-        }, 1600);
+        api
+          .post("/api/admin/sync/runs", {})
+          .then(() => this.flash("Busca manual iniciada"))
+          .catch(() => this.flash("Não foi possível iniciar a busca"))
+          .finally(() => setTimeout(() => this.load().then(() => this.setState({ running: false })), 4000));
       },
       users,
-      cu: {
-        name: u[0],
-        ini: u[1],
-        meta: u[4],
-        kpis: [u[5], u[6], u[7], u[8]].map(([v, l], i) => ({
-          v,
-          l: ["Tempo no player", "Episódios", "Leitura", "Atividade"][i],
-          s: l,
-        })),
-        note: "Tempo no player é o tempo com o embed aberto e a aba visível. Leitura é exata, porque o leitor é nosso.",
-      },
+      cu: u
+        ? {
+            name: u.name,
+            ini: u.ini,
+            meta: u.meta,
+            kpis: [
+              [hours(u.hours), "com player aberto"],
+              [String(u.episodes), "episódios marcados como vistos"],
+              [String(u.chapters), "capítulos lidos"],
+              [u.last, "última atividade"],
+            ].map(([v, l], i) => ({
+              v,
+              l: ["Tempo no player", "Episódios", "Leitura", "Atividade"][i],
+              s: l,
+            })),
+            note: "Tempo no player é o tempo com o embed aberto e a aba visível. Leitura é exata, porque o leitor é nosso.",
+          }
+        : { name: "", ini: "", meta: "", kpis: [], note: "" },
       evFilters: efl.map(([k, label]) => ({
         label,
         pick: () => this.setState({ ef: k }),
