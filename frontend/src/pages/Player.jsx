@@ -20,6 +20,7 @@ import {
   rememberedProvider,
   rememberProvider,
 } from "../features/media/serverGroups";
+import { track } from "../features/telemetry/telemetry";
 import {
   normalizePreferences,
   rankByPreference,
@@ -4405,6 +4406,7 @@ class RealPlayerLogic extends PlayerLogic {
     if (!src) {
       const embed = preferredSrc && preferredSrc.embedUrl ? preferredSrc : ranked.find((s) => s.embedUrl);
       if (embed) {
+        this.trackSource(embed);
         this.setState({
           loading: false,
           external: false,
@@ -4419,6 +4421,7 @@ class RealPlayerLogic extends PlayerLogic {
       this.setState({ loading: false, external: true, error: true, playing: false, src: ext ? ext.id : null });
       return;
     }
+    this.trackSource(src);
     this.attach(src, startT, { ask: startT > 0 });
   }
 
@@ -4825,9 +4828,25 @@ class RealPlayerLogic extends PlayerLogic {
     if (u && u.available) this.goUnit(u.id);
   }
   goUnit(id) {
+    const pb = this.state.pb;
+    if (pb && pb.next && pb.next.id === id) {
+      track("next_click", { work: pb.work ? pb.work.legacyId ?? pb.work.id : null, episodeId: this.episodeId });
+    }
     this.report({ force: true });
     location.href = `/player?episode=${id}`;
   }
+  /** Audiência (painel): primeiro servidor = player aberto; depois, cada troca de servidor. */
+  trackSource(src, cur) {
+    const pb = this.state.pb;
+    const ref = { work: pb && pb.work ? pb.work.legacyId ?? pb.work.id : null, episodeId: this.episodeId };
+    if (!this.openTracked) {
+      this.openTracked = true;
+      track("player_open", { ...ref, provider: providerOf(src), version: versionOf(src).label });
+    } else if (cur && cur.id !== src.id) {
+      track("server_switch", { ...ref, from: providerOf(cur), to: providerOf(src), version: versionOf(src).label });
+    }
+  }
+
   setSource(id) {
     const s = this.state;
     const src = s.ranked.find((x) => x.id === id);
@@ -4835,6 +4854,7 @@ class RealPlayerLogic extends PlayerLogic {
     // Troca manual vale só para este episódio (as preferências globais não mudam), mas o
     // usuário é avisado quando o idioma do áudio ou da legenda muda.
     const cur = s.ranked.find((x) => x.id === s.src);
+    this.trackSource(src, cur);
     const langs = (x) => [...(x?.audioLanguages || []), "|", ...(x?.subtitleLanguages || [])].join(",");
     const langChanged = cur && src.id !== cur.id && langs(cur) !== langs(src);
     if (langChanged) {

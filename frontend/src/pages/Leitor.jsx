@@ -8,6 +8,7 @@ import { canonicalWorks } from "../features/catalog/workNavigation";
 import { session } from "../lib/session";
 import { mediaApi } from "../features/media/mediaApi";
 import { progressApi } from "../features/progress/progressApi";
+import { track } from "../features/telemetry/telemetry";
 
 class LeitorLogic extends DCLogic {
   SEGS = 24;
@@ -2284,6 +2285,7 @@ class RealLeitorLogic extends LeitorLogic {
       bm: this.allBm.filter((b) => b.chapterId && man.chapters.some((c) => c.id === b.chapterId)),
     });
     document.title = `${man.work.title} · Capítulo ${man.chapter.number} — NekoFlow`;
+    track("chapter_open", { work: man.work.legacyId ?? man.work.id, chapterId: this.chapterId });
 
     if (session.loggedIn) {
       this.loadUnits();

@@ -9,6 +9,7 @@ import { session, goLogin } from "../lib/session";
 import { getWorkUrl, normalizeSearch } from "../features/catalog/workNavigation";
 import { mergeCatalogList } from "../features/catalog/mergeCatalog";
 import { libraryApi } from "../features/library/libraryApi";
+import { track } from "../features/telemetry/telemetry";
 
 const quickBtn = (on) => ({
   all: "unset",
@@ -171,6 +172,15 @@ class ExplorarLogic extends DCLogic {
       return true;
     });
     const list = base.filter((x) => this.matchKind(x, s.kind));
+    // Busca para o painel (buscas sem resultado viram pendência): registra 1,5 s após parar de digitar.
+    if (ql && s.items.length && ql !== this.trackedQ) {
+      clearTimeout(this.qTimer);
+      const results = list.length;
+      this.qTimer = setTimeout(() => {
+        this.trackedQ = ql;
+        track("search", { q: s.q.trim().slice(0, 120), results });
+      }, 1500);
+    }
     const sorters = {
       pop: (a, b) => b.pop - a.pop,
       score: (a, b) => (b.score || 0) - (a.score || 0),
