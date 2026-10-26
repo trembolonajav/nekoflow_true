@@ -53,7 +53,7 @@ public class DemoSeeder implements ApplicationRunner {
 
     public DemoSeeder(JdbcClient jdbc, UserRepository users, WorkRepository works, PasswordEncoder encoder,
                       ObjectMapper mapper, @Value("${nekoflow.demo.enabled:true}") boolean enabled,
-                      @Value("${nekoflow.demo.password:nekoflow2026}") String password) {
+                      @Value("${nekoflow.demo.password:123456}") String password) {
         this.jdbc = jdbc;
         this.users = users;
         this.works = works;
@@ -66,12 +66,11 @@ public class DemoSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws IOException {
-        if (!enabled || users.findByLogin("marina").isPresent()) {
-            return;
-        }
+        if (!enabled) return;
         String hash = encoder.encode(password);
+        ensureDemoAdmin(hash);
+        if (users.findByLogin("marina").isPresent()) return;
         long marina = users.create("marina", "marina@nekoflow.local", "Marina", hash, Role.USER);
-        users.create("admin", "admin@nekoflow.local", "Equipe Nekoflow", hash, Role.ADMIN);
         long kenji = users.create("kenji", "kenji@nekoflow.local", "Kenji", hash, Role.USER);
 
         JsonNode conta = read("conta");
@@ -150,7 +149,29 @@ public class DemoSeeder implements ApplicationRunner {
         jdbc.sql("INSERT INTO request_supporter (request_id, user_id) VALUES (1042, ?) ON CONFLICT DO NOTHING")
                 .param(kenji).update();
 
-        log.info("Demonstração: contas marina, admin e kenji criadas (senha em NEKOFLOW_DEMO_PASSWORD)");
+        log.info("Demonstração: contas marina, nekoflow e kenji preparadas (senha em NEKOFLOW_DEMO_PASSWORD)");
+    }
+
+    /** Mantém uma credencial simples e previsível somente no ambiente de demonstração. */
+    private void ensureDemoAdmin(String hash) {
+        var oldAdmin = users.findByLogin("admin@nekoflow.local");
+        var preferred = users.findByLogin("nekoflow");
+        var account = oldAdmin.or(() -> preferred);
+        if (account.isEmpty()) {
+            users.create("nekoflow", "nekoflow@nekoflow.local", "Equipe Nekoflow", hash, Role.ADMIN);
+            return;
+        }
+        if (oldAdmin.isPresent() && preferred.isPresent() && oldAdmin.get().id() != preferred.get().id()) {
+            throw new IllegalStateException("O usuário de demonstração 'nekoflow' já pertence a outra conta");
+        }
+        long id = account.get().id();
+        jdbc.sql("""
+                UPDATE app_user SET username='nekoflow',email='nekoflow@nekoflow.local',
+                  display_name='Equipe Nekoflow',password_hash=?,role='ADMIN',status='ACTIVE',
+                  email_verified_at=COALESCE(email_verified_at,now()),failed_login_attempts=0,
+                  locked_until=NULL,updated_at=now() WHERE id=?""").params(hash, id).update();
+        jdbc.sql("DELETE FROM user_role WHERE user_id=?").param(id).update();
+        jdbc.sql("INSERT INTO user_role(user_id,role) VALUES (?,'ADMIN')").param(id).update();
     }
 
     private void entry(long user, long work, String status, OffsetDateTime at) {

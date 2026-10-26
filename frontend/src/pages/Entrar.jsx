@@ -93,7 +93,8 @@ class EntrarLogic extends DCLogic {
     const m = {};
     this.MODES.forEach((k) => (m[k] = k === s.mode));
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.email.trim());
-    const emailErr = s.emailTouched && !!s.email && !emailOk;
+    const loginOk = emailOk || /^[a-z0-9_.]{3,20}$/i.test(s.email.trim());
+    const emailErr = s.emailTouched && !!s.email && !(s.mode === "entrar" ? loginOk : emailOk);
     const u = s.user.trim().toLowerCase();
     const reserved = ["admin", "nekoflow", "suporte", "moderador", "marina"];
     let userMsg = "De 3 a 20 caracteres: letras, números, ponto ou _. Aparece no seu perfil.",
@@ -199,7 +200,7 @@ class EntrarLogic extends DCLogic {
       submitLogin: (e) => {
         e.preventDefault();
         if (s.loading) return;
-        if (!emailOk) {
+        if (!loginOk) {
           this.setState({ emailTouched: true });
           return;
         }
@@ -523,14 +524,14 @@ function render(v) {
                         </>
                       ) : null}
                       <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: "500" }}>E-mail</span>
+                        <span style={{ fontSize: "13px", fontWeight: "500" }}>E-mail ou usuário</span>
                         <input
-                          type="email"
-                          autoComplete="email"
+                          type="text"
+                          autoComplete="username"
                           value={val(v.email)}
                           onChange={v.onEmail}
                           onBlur={v.blurEmail}
-                          placeholder="seu@email.com"
+                          placeholder="nekoflow"
                           style={{
                             height: "48px",
                             borderRadius: "10px",
@@ -546,7 +547,7 @@ function render(v) {
                         {v.emailErr ? (
                           <>
                             <span style={{ fontSize: "12px", color: "#E08A7A" }}>
-                              Digite um e-mail válido, como nome@exemplo.com
+                              Digite um e-mail válido ou seu nome de usuário
                             </span>
                           </>
                         ) : null}

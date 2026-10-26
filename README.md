@@ -51,13 +51,13 @@ docker compose up -d --build
 - E-mails locais: http://localhost:9025 (Mailpit; não envia mensagens para a internet)
 
 Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
-padrão `nekoflow2026`):
+padrão `123456`):
 
 | Conta                  | Papel          | Para que serve                                         |
 |------------------------|----------------|--------------------------------------------------------|
 | `marina@nekoflow.local` | usuário        | biblioteca, histórico, avisos e pedidos do protótipo   |
 | `kenji@nekoflow.local`  | usuário        | segundo usuário (apoia o pedido #1042)                 |
-| `admin@nekoflow.local`  | administrador  | painel em `/admin`                                     |
+| `nekoflow`               | administrador  | painel em `/admin`                                     |
 
 Desligue as contas de demonstração com `NEKOFLOW_DEMO=false`.
 

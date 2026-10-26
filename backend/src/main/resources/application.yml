@@ -19,7 +19,7 @@ nekoflow:
     password: ${NEKOFLOW_BOOTSTRAP_ADMIN_PASSWORD:}
   demo:
     enabled: ${NEKOFLOW_DEMO:true}
-    password: ${NEKOFLOW_DEMO_PASSWORD:nekoflow2026}
+    password: ${NEKOFLOW_DEMO_PASSWORD:123456}
   media:
     # Arquivos de páginas importadas (volume compartilhado com o Nginx, que os entrega).
     storage-dir: ${MEDIA_STORAGE_DIR:./data/media}
