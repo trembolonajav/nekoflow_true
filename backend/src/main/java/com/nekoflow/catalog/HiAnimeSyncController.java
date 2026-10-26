@@ -28,6 +28,9 @@ public class HiAnimeSyncController {
 
     @GetMapping("/dashboard") public Map<String, Object> dashboard() { return sync.dashboard(); }
     @GetMapping("/runs") public List<Map<String, Object>> runs() { return sync.runs(); }
+    @GetMapping("/runs/{id}/items") public List<Map<String, Object>> runItems(@PathVariable UUID id) {
+        return sync.runItems(id);
+    }
     @GetMapping("/candidates") public List<Map<String, Object>> candidates(@RequestParam(defaultValue="") String status) {
         return sync.candidates(status);
     }

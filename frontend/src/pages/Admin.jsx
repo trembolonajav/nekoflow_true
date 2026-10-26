@@ -88,6 +88,13 @@ const SYNC_FILTERS = [
 const fmtDate = (value) =>
   value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—";
 
+const SYNC_OUTCOME = {
+  READY: "Encontrado",
+  REVIEW: "Aguardando revisão",
+  PUBLISHED: "Publicado",
+  FAILED: "Falhou",
+};
+
 function Synchronization() {
   const [view, setView] = useState("inbox");
   const [dashboard, setDashboard] = useState(null);
@@ -95,6 +102,8 @@ function Synchronization() {
   const [works, setWorks] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [filter, setFilter] = useState("");
+  const [openRun, setOpenRun] = useState(null);
+  const [runItems, setRunItems] = useState({});
   const [busy, setBusy] = useState(null);
   const [message, setMessage] = useState(null);
 
@@ -156,6 +165,19 @@ function Synchronization() {
       .finally(() => setBusy(null));
   };
 
+  const toggleRun = (run) => {
+    if (openRun === run.id) {
+      setOpenRun(null);
+      return;
+    }
+    setOpenRun(run.id);
+    if (!runItems[run.id]) {
+      api.get(`/api/admin/sync/runs/${run.id}/items`)
+        .then((items) => setRunItems((current) => ({ ...current, [run.id]: items })))
+        .catch((e) => setMessage({ ok: false, text: errText(e) }));
+    }
+  };
+
   const health = dashboard?.health || {};
   const last = dashboard?.lastRun || {};
   return (
@@ -180,8 +202,31 @@ function Synchronization() {
           <SyncMetric label="Aguardando revisão" value={dashboard.pendingReview} tone={dashboard.pendingReview ? C.amber : C.text} />
           <SyncMetric label="Publicados hoje" value={dashboard.publishedToday} tone={C.green} />
           <SyncMetric label="Última execução" value={last.status || "—"} sub={fmtDate(last.finished_at || last.started_at)} />
+          <SyncMetric label="Próxima consulta" value={dashboard.enabled ? `${dashboard.intervalMinutes} min` : "Desligada"} sub={fmtDate(dashboard.nextScheduledAt)} />
         </div>
       )}
+
+      {dashboard && <div style={{ ...card, padding: "15px 16px", display: "grid", gap: 10 }}>
+        <span style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <strong style={{ fontSize: 14 }}>Resultado da última consulta</strong>
+          <span style={{ fontSize: 11, color: C.faint }}>{fmtDate(last.finished_at || last.started_at || last.created_at)}</span>
+        </span>
+        {!last.id ? (
+          <span style={{ fontSize: 13, color: C.muted }}>Ainda não há uma consulta registrada.</span>
+        ) : last.status === "RUNNING" || last.status === "QUEUED" ? (
+          <span style={{ fontSize: 13, color: C.amber }}>Consulta em andamento…</span>
+        ) : last.status === "FAILED" ? (
+          <span style={{ fontSize: 13, color: C.red }}>A consulta falhou: {last.error_message || "verifique a saúde da origem"}</span>
+        ) : last.status === "SKIPPED" ? (
+          <span style={{ fontSize: 13, color: C.amber }}>{last.error_message || "Consulta dispensada porque outra execução estava ativa."}</span>
+        ) : (dashboard.lastRunItems || []).length === 0 ? (
+          <span style={{ fontSize: 13, color: C.muted }}>
+            Consulta concluída normalmente. Nenhum episódio novo foi encontrado nesta execução.
+          </span>
+        ) : (
+          <SyncRunItems items={dashboard.lastRunItems} />
+        )}
+      </div>}
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         {[["inbox", "Caixa de entrada"], ["works", "Obras monitoradas"], ["runs", "Execuções"]].map(([key, text]) => (
@@ -247,14 +292,48 @@ function Synchronization() {
             <div key={run.id} style={{ ...card, padding: "12px 14px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <span style={pill(run.status === "COMPLETED" ? C.green : run.status === "FAILED" ? C.red : C.amber)}>{run.status}</span>
               <span style={{ flex: "1 1 260px", fontSize: "13px" }}>{run.trigger_type === "MANUAL" ? "Execução manual" : "Execução agendada"} · {fmtDate(run.created_at)}</span>
-              <span style={{ fontSize: "12px", color: C.muted }}>{run.checked_works} obras · {run.discovered_count} descobertos · {run.published_count} publicados · {run.error_count} erros</span>
+              <span style={{ fontSize: "12px", color: C.muted }}>
+                {run.checked_works} obras · {run.discovered_count} novos · {run.published_count} publicados · {run.error_count} erros
+              </span>
+              <button onClick={() => toggleRun(run)} style={chip(openRun === run.id)}>
+                {openRun === run.id ? "Ocultar detalhes" : "Ver detalhes"}
+              </button>
               {run.error_message && <span style={{ flexBasis: "100%", fontSize: "11px", color: C.red }}>{run.error_message}</span>}
+              {openRun === run.id && <div style={{ flexBasis: "100%" }}>
+                {!runItems[run.id] ? (
+                  <span style={{ fontSize: 12, color: C.muted }}>Carregando resultado…</span>
+                ) : runItems[run.id].length === 0 ? (
+                  <span style={{ fontSize: 12, color: C.muted }}>
+                    Nenhuma atualização encontrada nesta consulta.
+                  </span>
+                ) : <SyncRunItems items={runItems[run.id]} />}
+              </div>}
             </div>
           ))}
         </div>
       )}
     </section>
   );
+}
+
+function SyncRunItems({ items }) {
+  return <div style={{ display: "grid", gap: 7 }}>
+    {items.map((item) => (
+      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 7, background: C.raised, flexWrap: "wrap" }}>
+        {item.cover && <img src={item.cover} alt="" style={{ width: 28, height: 39, objectFit: "cover", borderRadius: 3 }} />}
+        <span style={{ display: "grid", gap: 2, flex: "1 1 260px" }}>
+          <strong style={{ fontSize: 12 }}>{item.work_title}</strong>
+          <span style={{ fontSize: 11, color: C.muted }}>
+            Episódio {item.episode_number}{item.title ? ` · ${item.title}` : ""}{item.is_new ? " · novo" : " · revalidado"}
+          </span>
+          {item.reason && <span style={{ fontSize: 10, color: item.outcome === "FAILED" ? C.red : C.faint }}>{item.reason}</span>}
+        </span>
+        <span style={pill(item.outcome === "PUBLISHED" ? C.green : item.outcome === "FAILED" ? C.red : C.amber)}>
+          {SYNC_OUTCOME[item.outcome] || item.outcome}
+        </span>
+      </div>
+    ))}
+  </div>;
 }
 
 function SyncMetric({ label: text, value, sub, tone = C.text }) {

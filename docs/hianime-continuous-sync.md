@@ -40,9 +40,11 @@ Configuração principal:
 A aba `/admin?aba=sync` exige papel `EDITOR` e contém:
 
 - indicadores de saúde, obras monitoradas, pendências e publicações do dia;
+- confirmação da última consulta, previsão da próxima e mensagem explícita quando não há novidades;
 - caixa de entrada com aprovação e descarte;
 - configuração de monitoramento e publicação automática por obra;
 - histórico de execuções agendadas e manuais;
+- detalhes por execução com anime, episódio e resultado (publicado, revisão ou falha);
 - botão **Buscar atualizações agora**.
 
 O painel atualiza os dados operacionais a cada dez segundos enquanto está aberto. Isso não altera o
