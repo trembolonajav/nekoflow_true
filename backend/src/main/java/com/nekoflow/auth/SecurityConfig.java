@@ -43,7 +43,10 @@ public class SecurityConfig {
         csrfHandler.setCsrfRequestAttributeName(null);
         http
                 .csrf(c -> c.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(csrfHandler))
+                        .csrfTokenRequestHandler(csrfHandler)
+                        // Telemetria sai também por navigator.sendBeacon ao fechar a aba, que não envia
+                        // cabeçalho CSRF; o endpoint só grava eventos de audiência.
+                        .ignoringRequestMatchers("/api/v1/telemetry"))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 .addFilterBefore(new RoleRefreshFilter(users, securityContextRepository()),
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class)
@@ -51,7 +54,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/works/**",
                                 "/api/v1/genres", "/api/v1/franchises/**", "/api/v1/seasons/**",
-                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/v1/home", "/api/v1/home/**",
+                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/v1/home", "/api/v1/home/**", "/api/v1/telemetry",
                                 "/api/calendar",
                                 "/actuator/health").permitAll()
                         .requestMatchers("/api/v1/me/**").authenticated()
