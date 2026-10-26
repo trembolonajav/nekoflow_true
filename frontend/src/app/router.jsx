@@ -18,6 +18,7 @@ import Leitor, { defaults as leitorDefaults } from "../pages/Leitor";
 import Player, { defaults as playerDefaults } from "../pages/Player";
 import SolicitacaoDetalhe from "../pages/SolicitacaoDetalhe";
 import Admin from "../pages/Admin";
+import AdminPainel from "../pages/AdminPainel";
 import NotFound from "../pages/NotFound";
 import WorkRoute from "../pages/WorkRoute";
 import { canonicalWorks } from "../features/catalog/workNavigation";
@@ -127,7 +128,9 @@ export const routes = [
     defaults: {},
     auth: true,
   },
-  { path: routePaths.admin, Component: Admin, defaults: {}, staff: true },
+  // Painel do Claude Design (Admin.dc.html); o painel operacional anterior segue em /admin/operacao.
+  { path: routePaths.admin, Component: AdminPainel, defaults: {}, staff: true, nav: false },
+  { path: routePaths.adminOperations, Component: Admin, defaults: {}, staff: true },
   {
     path: routePaths.library,
     Component: alias(accountTab("lista")),

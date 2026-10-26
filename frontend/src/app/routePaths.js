@@ -16,6 +16,7 @@ export const routePaths = Object.freeze({
   player: "/player",
   requestDetail: "/solicitacoes/:id",
   admin: "/admin",
+  adminOperations: "/admin/operacao",
   library: "/biblioteca",
   continueWatching: "/continuar-assistindo",
   continueReading: "/continuar-lendo",
