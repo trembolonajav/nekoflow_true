@@ -71,7 +71,7 @@ public class WorkPresentationService {
         int available = (int) seasons.stream().flatMap(s -> ((List<Map<String, Object>>) s.get("eps")).stream())
                 .filter(e -> Boolean.TRUE.equals(e.get("available"))).count();
         String format = formatLabel(text(a, "format"), "ANIMATION");
-        Integer startYear = a.path("startDate").path("year").isInt() ? a.path("startDate").path("year").asInt() : w.year();
+        Integer startYear = a.path("startDate").path("year").isInt() ? Integer.valueOf(a.path("startDate").path("year").asInt()) : w.year();
         Integer endYear = a.path("endDate").path("year").isInt() ? a.path("endDate").path("year").asInt() : null;
         String years = years(startYear, endYear);
         String status = statusLabel(text(a, "status"), w.storyStatus());
@@ -280,7 +280,7 @@ public class WorkPresentationService {
         if ("MANGA".equals(text(a, "format")) && "KR".equals(text(a, "countryOfOrigin"))) {
             type = "Manhwa";
         }
-        Integer startYear = a.path("startDate").path("year").isInt() ? a.path("startDate").path("year").asInt() : w.year();
+        Integer startYear = a.path("startDate").path("year").isInt() ? Integer.valueOf(a.path("startDate").path("year").asInt()) : w.year();
         Integer endYear = a.path("endDate").path("year").isInt() ? a.path("endDate").path("year").asInt() : null;
         String status = statusLabel(text(a, "status"), w.storyStatus());
         d.put("editions", editions);
@@ -753,7 +753,7 @@ public class WorkPresentationService {
     }
 
     private static Integer startYearOf(JsonNode a, WorkRow w) {
-        return a.path("startDate").path("year").isInt() ? a.path("startDate").path("year").asInt() : w.year();
+        return a.path("startDate").path("year").isInt() ? Integer.valueOf(a.path("startDate").path("year").asInt()) : w.year();
     }
 
     private static String synopsisCredit(WorkRow w) {
