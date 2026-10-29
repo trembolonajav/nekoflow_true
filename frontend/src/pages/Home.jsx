@@ -83,7 +83,7 @@ class HomeLogic extends DCLogic {
       .catch(() => this.setState({ data: { hero: [], season: [], recent: { items: [] } } }));
   }
   loadRecent(page) {
-    api.get(`/api/v1/home/recent?page=${page}&size=${this.recentSize}`)
+    api.get(`/api/v1/home/recent?page=${page}&size=${this.recentSize}&lang=${encodeURIComponent(getLocale())}`)
       .then((recentPage) => this.setState({ recentPage }))
       .catch(() => {});
   }

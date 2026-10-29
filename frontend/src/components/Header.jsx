@@ -7,7 +7,8 @@ import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
 import { libraryApi } from "../features/library/libraryApi";
 import LanguageSelector from "./LanguageSelector";
-import { subscribeLocale } from "../i18n/locale";
+import { getLocale, subscribeLocale } from "../i18n/locale";
+import { availabilityNote, availableIn, languageSummary, showcaseLanguage } from "../features/catalog/contentLanguage";
 
 class HeaderLogic extends DCLogic {
   state = {
@@ -70,6 +71,9 @@ class HeaderLogic extends DCLogic {
     api.get("/api/catalog/all")
       .then((items) => {
         this.catalog = items.map((x) => ({ ...x, _t: this.norm(x.title), _a: this.norm(x.alt) }));
+        return languageSummary().then((summary) => (this.langSummary = summary));
+      })
+      .then(() => {
         this.forceUpdate();
       });
   }
@@ -232,7 +236,9 @@ class HeaderLogic extends DCLogic {
     if (open && this.catalog) {
       if (hasQ) found = this.search(q);
       else {
-        found = [...this.catalog].sort((a, b) => b.pop - a.pop).slice(0, 5);
+        // "Em alta" segue o idioma do site; a busca por texto mostra tudo, com o idioma no texto.
+        const showcase = showcaseLanguage(this.langSummary, getLocale());
+        found = this.catalog.filter((x) => availableIn(x, showcase)).sort((a, b) => b.pop - a.pop).slice(0, 5);
         trending = true;
       }
     }
@@ -248,7 +254,7 @@ class HeaderLogic extends DCLogic {
       return {
         ...x,
         ...this.hl(x.title, hasQ ? q : ""),
-        meta: metaOf(x),
+        meta: [metaOf(x), availabilityNote(x, getLocale())].filter(Boolean).join(" · "),
         typeLabel: kindLabel(x),
         href: hrefOf(x),
         bg: idx === sel ? "#221F1B" : "transparent",

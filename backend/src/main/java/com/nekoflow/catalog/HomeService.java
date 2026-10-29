@@ -11,6 +11,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,10 +41,12 @@ public class HomeService {
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
     private final JsonNode curation;
+    private final LanguageAvailabilityService languages;
 
-    public HomeService(JdbcClient jdbc, ObjectMapper mapper) throws IOException {
+    public HomeService(JdbcClient jdbc, ObjectMapper mapper, LanguageAvailabilityService languages) throws IOException {
         this.jdbc = jdbc;
         this.mapper = mapper;
+        this.languages = languages;
         try (InputStream in = new ClassPathResource("seed/home-curation.json").getInputStream()) {
             this.curation = mapper.readTree(in);
         }
@@ -53,9 +56,15 @@ public class HomeService {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("seasonLabel", curation.path("seasonLabel").asText());
         out.put("hero", hero(lang));
-        out.put("season", season());
-        out.put("recent", recent(0, size));
+        out.put("season", season(lang));
+        out.put("recent", recent(0, size, lang));
         return out;
+    }
+
+    /** Idioma do site que filtra a vitrine, ou null quando ele ainda tem pouco catálogo (mostra tudo). */
+    private String showcase(String lang) {
+        String site = LanguageAvailabilityService.siteLanguage(lang);
+        return languages.filters(site) ? site : null;
     }
 
     /** Destaques na ordem da curadoria; obras ausentes ou despublicadas ficam de fora. */
@@ -63,7 +72,7 @@ public class HomeService {
         List<Long> ids = new ArrayList<>();
         curation.path("hero").forEach(n -> ids.add(n.asLong()));
         Map<Long, Work> works = works("w.id IN (:ids)", Map.of("ids", ids));
-        Map<Long, Latest> latest = latest(ids);
+        Map<Long, Latest> latest = latest(ids, null);
         List<Map<String, Object>> out = new ArrayList<>();
         for (long id : ids) {
             Work w = works.get(id);
@@ -87,13 +96,17 @@ public class HomeService {
     }
 
     /** Obras da temporada vigente: curadoria primeiro, depois as que já têm episódio, por nota. */
-    List<Map<String, Object>> season() {
+    List<Map<String, Object>> season(String lang) {
+        String site = showcase(lang);
         List<Long> priority = new ArrayList<>();
         curation.path("seasonPriority").forEach(n -> priority.add(n.asLong()));
         Map<Long, Work> works = works("w.media_family='ANIMATION' AND s.payload->>'season'=:season "
                         + "AND s.payload->>'seasonYear'=:year",
                 Map.of("season", curation.path("season").asText(), "year", curation.path("seasonYear").asText()));
-        Map<Long, Latest> latest = latest(new ArrayList<>(works.keySet()));
+        Map<Long, Latest> latest = latest(new ArrayList<>(works.keySet()), site);
+        // Curadoria que só existe em outro idioma continua, com o idioma no texto.
+        Map<Long, Latest> elsewhere = site == null ? Map.of() : latest(priority.stream()
+                .filter(id -> works.containsKey(id) && !latest.containsKey(id)).toList(), null);
         List<Work> list = dedupe(works.values(), latest);
         list.removeIf(w -> !priority.contains(w.id) && !latest.containsKey(w.id));
         list.sort(Comparator.<Work>comparingInt(w -> priority.contains(w.id) ? priority.indexOf(w.id) : Integer.MAX_VALUE)
@@ -106,7 +119,9 @@ public class HomeService {
             Latest l = latest.get(w.id);
             String day = weekday(w.snapshot);
             String meta;
+            Latest other = elsewhere.get(w.id);
             if (l != null) meta = "Ep. " + l.number + (day == null ? "" : " · " + day);
+            else if (other != null) meta = "Ep. " + other.number + " · " + otherLanguages(w.id, site);
             else if ("MOVIE".equals(w.snapshot.path("format").asText())) meta = "Filme · em breve";
             else meta = "Em breve";
             m.put("meta", meta);
@@ -120,9 +135,10 @@ public class HomeService {
      * original_air_date; sem ela, é estimada pelo próximo episódio agendado no AniList (séries
      * semanais). Obras fora do ar há mais de 120 dias não são "recentes".
      */
-    public Map<String, Object> recent(int page, int size) {
+    public Map<String, Object> recent(int page, int size, String lang) {
+        String site = showcase(lang);
         Map<Long, Work> works = works("w.media_family='ANIMATION'", Map.of());
-        Map<Long, Latest> latest = latest(new ArrayList<>(works.keySet()));
+        Map<Long, Latest> latest = latest(new ArrayList<>(works.keySet()), site);
         Instant now = Instant.now();
         List<Map<String, Object>> all = new ArrayList<>();
         for (Work w : dedupe(works.values(), latest)) {
@@ -150,6 +166,7 @@ public class HomeService {
         out.put("size", size);
         out.put("totalElements", all.size());
         out.put("totalPages", (all.size() + size - 1) / size);
+        out.put("language", site);
         return out;
     }
 
@@ -178,26 +195,43 @@ public class HomeService {
     }
 
     /** Último episódio disponível da temporada mais adiantada de cada obra. */
-    private Map<Long, Latest> latest(List<Long> ids) {
+    /**
+     * Último episódio disponível de cada obra. Com site (idioma da vitrine), só conta episódio
+     * dublado ou legendado nesse idioma, e DUB/LEG passam a se referir a ele.
+     */
+    private Map<Long, Latest> latest(List<Long> ids, String site) {
         Map<Long, Latest> out = new HashMap<>();
         if (ids.isEmpty()) return out;
-        jdbc.sql("""
+        String inLanguage = site == null ? "" : """
+                 AND EXISTS(SELECT 1 FROM episode_source ls WHERE ls.episode_id=e.id AND ls.enabled
+                   AND (nk_site_lang(ls.audio_language)=:site OR nk_site_lang(ls.language)=:site))""";
+        var sql = jdbc.sql("""
                 SELECT DISTINCT ON (se.work_id) se.work_id, e.id::text AS id, e.display_number, e.thumbnail_url,
                        e.original_air_date, count(*) OVER (PARTITION BY se.id) AS season_count,
                        (SELECT string_agg(DISTINCT es.audio_language, ',') FROM episode_source es
-                        WHERE es.episode_id=e.id AND es.enabled) AS audio
+                        WHERE es.episode_id=e.id AND es.enabled) AS audio,
+                       (SELECT string_agg(DISTINCT es.language, ',') FROM episode_source es
+                        WHERE es.episode_id=e.id AND es.enabled) AS subs
                 FROM episode e JOIN season se ON se.id=e.season_id
-                WHERE se.work_id IN (:ids) AND se.visibility='PUBLISHED' AND\s""" + AVAILABLE + """
+                WHERE se.work_id IN (:ids) AND se.visibility='PUBLISHED' AND\s""" + AVAILABLE + inLanguage + """
 
                 ORDER BY se.work_id, se.sort_position DESC, e.sort_position DESC""")
-                .param("ids", ids)
-                .query((rs, n) -> {
+                .param("ids", ids);
+        if (site != null) sql = sql.param("site", site);
+        sql.query((rs, n) -> {
                     String audio = rs.getString("audio");
                     boolean dub = false;
                     boolean original = audio == null;
                     for (String a : audio == null ? new String[0] : audio.split(",")) {
-                        if (ORIGINAL_AUDIO.contains(a)) original = true;
+                        if (site != null) {
+                            if (site.equals(LanguageAvailabilityService.siteLanguage(a))) dub = true;
+                        } else if (ORIGINAL_AUDIO.contains(a)) original = true;
                         else dub = true;
+                    }
+                    if (site != null) {
+                        String subs = rs.getString("subs");
+                        original = subs != null && Arrays.stream(subs.split(","))
+                                .anyMatch(x -> site.equals(LanguageAvailabilityService.siteLanguage(x)));
                     }
                     var date = rs.getDate("original_air_date");
                     out.put(rs.getLong("work_id"), new Latest(rs.getString("id"), rs.getString("display_number"),
@@ -209,6 +243,17 @@ public class HomeService {
     }
 
     /** Obras repetidas (mesmo ID do AniList, ex.: importação do FIB): fica a com mais episódios. */
+    private static final Map<String, String> LANGUAGE_NAME =
+            Map.of("pt-BR", "em português", "en", "em inglês", "es", "em espanhol");
+
+    /** "em inglês" / "em inglês e espanhol" para obra da curadoria sem versão no idioma da vitrine. */
+    private String otherLanguages(long workId, String site) {
+        List<String> names = languages.of(workId).keySet().stream().filter(l -> !l.equals(site))
+                .map(LANGUAGE_NAME::get).toList();
+        if (names.isEmpty()) return "em outro idioma";
+        return names.size() == 1 ? names.get(0) : names.get(0) + " e " + names.get(1).replace("em ", "");
+    }
+
     private static List<Work> dedupe(Iterable<Work> works, Map<Long, Latest> latest) {
         Map<String, Work> best = new LinkedHashMap<>();
         List<Work> out = new ArrayList<>();

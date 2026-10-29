@@ -28,6 +28,7 @@ class WorkMergeIntegrationTest {
     @Autowired JdbcClient jdbc;
     @Autowired WorkIdentityService identity;
     @Autowired WorkMergeService merges;
+    @Autowired LanguageAvailabilityService languages;
 
     @Test
     void sameAniListAnimeIsMergedAddingServersInsteadOfOverwriting() {
@@ -120,6 +121,26 @@ class WorkMergeIntegrationTest {
         source(ep, "https://other.test/es", "Outra", "es-MX", "en-US");
         assertThat(jdbc.sql("SELECT audio_language || '/' || language FROM episode_source WHERE episode_id=? ORDER BY source_url")
                 .param(ep).query(String.class).list()).containsExactly("ja/pt-BR", "es-419/en");
+    }
+
+    @Test
+    void availabilityAddsUpEverySourceBySiteLanguage() {
+        work(990051, "anime", "ANIMATION", "TV", "Teste Vitrine", "teste-vitrine");
+        UUID ep = episode(season(990051, 1), 1);
+        source(ep, "https://a.test/dub", "Fonte A", "pt-BR", null);
+        source(ep, "https://b.test/leg", "Fonte B", "ja", "en");
+        source(ep, "https://c.test/raw", "Fonte C", "ja", null);
+        work(990052, "manga", "READING", "COMIC", "Teste Vitrine Leitura", "teste-vitrine-leitura");
+        chapter(edition(990052, "Español — Teste", "es-419"), 1, "https://d.test/1");
+
+        languages.refresh();
+
+        assertThat(languages.of(990051)).containsExactlyInAnyOrderEntriesOf(Map.of("pt-BR", "dub", "en", "sub"));
+        assertThat(languages.of(990052)).isEqualTo(Map.of("es", "read"));
+        // Poucas obras num idioma: ele ainda não filtra a vitrine.
+        assertThat(languages.filters("es")).isFalse();
+        assertThat(LanguageAvailabilityService.siteLanguage("PT_br")).isEqualTo("pt-BR");
+        assertThat(LanguageAvailabilityService.siteLanguage("pt-PT")).isNull();
     }
 
     // ------------------------------------------------------------------------------------------

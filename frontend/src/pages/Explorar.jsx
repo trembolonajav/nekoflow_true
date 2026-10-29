@@ -10,6 +10,14 @@ import { getWorkUrl, normalizeSearch } from "../features/catalog/workNavigation"
 import { mergeCatalogList } from "../features/catalog/mergeCatalog";
 import { libraryApi } from "../features/library/libraryApi";
 import { track } from "../features/telemetry/telemetry";
+import { getLocale, subscribeLocale } from "../i18n/locale";
+import {
+  availabilityNote,
+  availableIn,
+  languageLabels,
+  languageSummary,
+  showcaseLanguage,
+} from "../features/catalog/contentLanguage";
 
 const quickBtn = (on) => ({
   all: "unset",
@@ -40,6 +48,8 @@ class ExplorarLogic extends DCLogic {
     vertical: false,
     dubPt: false,
     dubbed: null,
+    allLangs: false,
+    langSummary: null,
     epRange: null,
     sort: "pop",
     limit: 24,
@@ -64,6 +74,7 @@ class ExplorarLogic extends DCLogic {
       minScore: p.get("nota") ? Number(p.get("nota")) : null,
       vertical: p.get("vertical") === "1",
       dubPt: p.get("dublado") === "pt-br",
+      allLangs: p.get("idioma") === "todos",
       epRange: p.get("episodios"),
       sort: p.get("ordem") || "pop",
     });
@@ -81,7 +92,13 @@ class ExplorarLogic extends DCLogic {
     api.get("/api/v1/works/dubbed?lang=pt-BR")
       .then((ids) => this.setState({ dubbed: new Set(ids) }))
       .catch(() => this.setState({ dubbed: new Set() }));
+    // Idioma do site decide a vitrine; a busca por texto mostra tudo.
+    languageSummary().then((langSummary) => this.setState({ langSummary }));
+    this.offLocale = subscribeLocale(() => this.forceUpdate());
     this.loadMine();
+  }
+  componentWillUnmount() {
+    if (this.offLocale) this.offLocale();
   }
   /** Lista e favoritos da conta (fonte única), para os botões rápidos dos cards. */
   loadMine() {
@@ -119,6 +136,7 @@ class ExplorarLogic extends DCLogic {
     if (s.minScore) p.set("nota", s.minScore);
     if (s.vertical) p.set("vertical", "1");
     if (s.dubPt) p.set("dublado", "pt-br");
+    if (s.allLangs) p.set("idioma", "todos");
     if (s.epRange) p.set("episodios", s.epRange);
     if (s.sort !== "pop") p.set("ordem", s.sort);
     try {
@@ -152,8 +170,12 @@ class ExplorarLogic extends DCLogic {
     const decades = { "2020s": [2020, 2099], "2010s": [2010, 2019], "2000s": [2000, 2009], "Antes de 2000": [0, 1999] };
     const eps = { "Até 13": [0, 13], "14 a 26": [14, 26], "Mais de 26": [27, 9999] };
     const ql = normalizeSearch(s.q);
+    const locale = getLocale();
+    const showcase = s.allLangs || ql ? null : showcaseLanguage(s.langSummary, locale);
+    const langText = languageLabels(locale);
     const base = s.items.filter((x) => {
       if (ql && !normalizeSearch(x.title + " " + x.alt + " " + x.studio).includes(ql)) return false;
+      if (!availableIn(x, showcase)) return false;
       if (s.genres.length && !s.genres.every((g) => x.genres.includes(g))) return false;
       if (s.themes.length && !s.themes.every((t) => x.themes.includes(t))) return false;
       if (s.status && x.status !== s.status) return false;
@@ -223,7 +245,7 @@ class ExplorarLogic extends DCLogic {
       toggleFav: (e) => this.quick(e, () => libraryApi.favorite(x.id, !favSet.has(x.id))),
       href: getWorkUrl(x),
       typeLabel: label(x),
-      meta: meta(x),
+      meta: [meta(x), availabilityNote(x, locale, { onlyMissing: true })].filter(Boolean).join(" · "),
       hasScore: !!x.score,
       scoreLabel: x.score ? (x.score / 10).toFixed(1).replace(".", ",") : "",
     }));
@@ -315,6 +337,14 @@ class ExplorarLogic extends DCLogic {
         label: "Dublagem",
         opts: [{ label: "Dublado em PT-BR", ...chip(s.dubPt), pick: () => this.set({ dubPt: !s.dubPt }) }],
       });
+    if (s.langSummary && showcaseLanguage(s.langSummary, locale))
+      groups.push({
+        label: "Idioma",
+        opts: [
+          { label: langText.only, ...chip(!s.allLangs), pick: () => this.set({ allLangs: false }) },
+          { label: langText.all, ...chip(s.allLangs), pick: () => this.set({ allLangs: true }) },
+        ],
+      });
     if (isRead)
       groups.push({
         label: "Formato de leitura",
@@ -334,6 +364,7 @@ class ExplorarLogic extends DCLogic {
       ...(s.minScore ? [{ label: `★ ${s.minScore}+`, remove: () => this.set({ minScore: null }) }] : []),
       ...(isRead && s.vertical ? [{ label: "Rolagem vertical", remove: () => this.set({ vertical: false }) }] : []),
       ...(!isRead && s.dubPt ? [{ label: "Dublado em PT-BR", remove: () => this.set({ dubPt: false }) }] : []),
+      ...(showcase ? [{ label: langText.only, remove: () => this.set({ allLangs: true }) }] : []),
     ];
     const allKinds = [
       ["todos", "Todos"],
@@ -384,7 +415,11 @@ class ExplorarLogic extends DCLogic {
           dubPt: false,
           epRange: null,
         }),
-      countLabel: loaded ? `${list.length} ${list.length === 1 ? "obra" : "obras"}` : "Carregando…",
+      countLabel: loaded
+        ? `${list.length} ${list.length === 1 ? "obra" : "obras"}${
+            s.langSummary && !showcaseLanguage(s.langSummary, locale) && !ql ? ` · ${langText.few}` : ""
+          }`
+        : "Carregando…",
       results,
       hasResults: list.length > 0,
       empty: loaded && list.length === 0,

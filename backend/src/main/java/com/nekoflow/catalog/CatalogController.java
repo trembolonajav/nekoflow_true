@@ -15,9 +15,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class CatalogController {
 
     private final WorkRepository works;
+    private final LanguageAvailabilityService languages;
 
-    public CatalogController(WorkRepository works) {
+    public CatalogController(WorkRepository works, LanguageAvailabilityService languages) {
         this.works = works;
+        this.languages = languages;
     }
 
     @GetMapping("/search")
@@ -29,6 +31,7 @@ public class CatalogController {
     /** Catálogo completo no formato da busca global (inclui obras cadastradas pela equipe). */
     @GetMapping("/all")
     public List<Map<String, Object>> all() {
+        Map<Long, Map<String, String>> langs = languages.byWork();
         return works.search("", 100_000).stream().map(w -> {
             Map<String, Object> m = new java.util.LinkedHashMap<>();
             m.put("id", w.id());
@@ -44,6 +47,8 @@ public class CatalogController {
             m.put("pop", w.popularity() == null ? 1 : w.popularity());
             m.put("status", w.airingStatus());
             m.put("href", w.href());
+            // Idiomas do site em que dá para ver/ler: {"pt-BR":"dub,sub","en":"sub"}; vazio = nada disponível ainda.
+            m.put("langs", langs.getOrDefault(w.id(), Map.of()));
             return m;
         }).toList();
     }

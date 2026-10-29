@@ -34,21 +34,25 @@ public class WorkMergeService {
     private final TransactionTemplate tx;
     private final AuditLog audit;
     private final ObjectMapper json;
+    private final LanguageAvailabilityService languages;
 
     public WorkMergeService(JdbcClient jdbc, WorkIdentityService identity, TransactionTemplate tx, AuditLog audit,
-                            ObjectMapper json) {
+                            ObjectMapper json, LanguageAvailabilityService languages) {
         this.jdbc = jdbc;
         this.identity = identity;
         this.tx = tx;
         this.audit = audit;
         this.json = json;
+        this.languages = languages;
     }
 
     /** units: id da temporada/edição da duplicata → id da temporada/edição da principal, "NEW" ou "SKIP". */
     public record Request(long targetId, long sourceId, Map<String, String> units) {}
 
     public Map<String, Object> merge(Request r, Long actor) {
-        return tx.execute(st -> doMerge(r, actor));
+        Map<String, Object> out = tx.execute(st -> doMerge(r, actor));
+        languages.refresh();
+        return out;
     }
 
     /** Funde todos os grupos de confiança alta com a proposta padrão. */
@@ -62,13 +66,15 @@ public class WorkMergeService {
             for (Object s : (List<?>) c.get("sources")) {
                 Map<?, ?> source = (Map<?, ?>) s;
                 try {
-                    merge(new Request(target, ((Number) source.get("id")).longValue(), Map.of()), actor);
+                    Request r = new Request(target, ((Number) source.get("id")).longValue(), Map.of());
+                    tx.execute(st -> doMerge(r, actor));
                     merged++;
                 } catch (RuntimeException e) {
                     failed.add(source.get("title") + ": " + e.getMessage());
                 }
             }
         }
+        if (merged > 0) languages.refresh();
         return Map.of("merged", merged, "failed", failed);
     }
 
