@@ -5,6 +5,7 @@
 import React from "react";
 import { DCLogic, defineDC, txt, asList, css } from "../dc/runtime";
 import { api } from "../lib/api";
+import DuplicatesQueue from "../features/admin/DuplicatesQueue";
 
 class AdminPainelLogic extends DCLogic {
   state = {
@@ -502,6 +503,7 @@ class AdminPainelLogic extends DCLogic {
       isPend: s.tab === "pend",
       isSync: s.tab === "sync",
       isUsers: s.tab === "users",
+      isCatalog: s.tab === "catalog",
       isPlanned: !!mod,
       periods: [
         ["hoje", "Hoje"],
@@ -1964,6 +1966,7 @@ function render(v) {
               </div>
             </>
           ) : null}
+          {v.isCatalog ? <DuplicatesQueue /> : null}
           {v.isPlanned ? (
             <>
               <p style={{ margin: "0", maxWidth: "760px", fontSize: "15px", lineHeight: "1.6", color: "#D9D5CC" }}>
