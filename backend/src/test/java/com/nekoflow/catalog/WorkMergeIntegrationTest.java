@@ -112,6 +112,16 @@ class WorkMergeIntegrationTest {
         assertThat(cluster(990031)).isNull();
     }
 
+    @Test
+    void languageCodesAreNormalizedWhateverTheSourceWrites() {
+        work(990041, "anime", "ANIMATION", "TV", "Teste Idioma", "teste-idioma");
+        UUID ep = episode(season(990041, 1), 1);
+        source(ep, "https://fib.test/ja-jp", "FIB Anime", "ja-JP", "PT_br");
+        source(ep, "https://other.test/es", "Outra", "es-MX", "en-US");
+        assertThat(jdbc.sql("SELECT audio_language || '/' || language FROM episode_source WHERE episode_id=? ORDER BY source_url")
+                .param(ep).query(String.class).list()).containsExactly("ja/pt-BR", "es-419/en");
+    }
+
     // ------------------------------------------------------------------------------------------
 
     private Map<?, ?> cluster(long id) {
