@@ -6,6 +6,7 @@ import React from "react";
 import { DCLogic, defineDC, txt, asList, css } from "../dc/runtime";
 import { api } from "../lib/api";
 import DuplicatesQueue from "../features/admin/DuplicatesQueue";
+import ServerHealth from "../features/admin/ServerHealth";
 
 class AdminPainelLogic extends DCLogic {
   state = {
@@ -1966,6 +1967,7 @@ function render(v) {
               </div>
             </>
           ) : null}
+          {v.isSync ? <ServerHealth /> : null}
           {v.isCatalog ? <DuplicatesQueue /> : null}
           {v.isPlanned ? (
             <>

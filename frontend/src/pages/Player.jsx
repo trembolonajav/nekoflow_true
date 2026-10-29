@@ -4841,9 +4841,18 @@ class RealPlayerLogic extends PlayerLogic {
     const ref = { work: pb && pb.work ? pb.work.legacyId ?? pb.work.id : null, episodeId: this.episodeId };
     if (!this.openTracked) {
       this.openTracked = true;
-      track("player_open", { ...ref, provider: providerOf(src), version: versionOf(src).label });
+      track("player_open", { ...ref, provider: providerOf(src), version: versionOf(src).label, sourceId: src.id });
     } else if (cur && cur.id !== src.id) {
-      track("server_switch", { ...ref, from: providerOf(cur), to: providerOf(src), version: versionOf(src).label });
+      // fromVersion/ids alimentam a saúde dos servidores: trocar dentro da mesma versão é desistir do servidor.
+      track("server_switch", {
+        ...ref,
+        from: providerOf(cur),
+        to: providerOf(src),
+        version: versionOf(src).label,
+        fromVersion: versionOf(cur).label,
+        fromId: cur.id,
+        toId: src.id,
+      });
     }
   }
 

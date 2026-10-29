@@ -29,6 +29,7 @@ class WorkMergeIntegrationTest {
     @Autowired WorkIdentityService identity;
     @Autowired WorkMergeService merges;
     @Autowired LanguageAvailabilityService languages;
+    @Autowired com.nekoflow.media.ServerHealthService health;
 
     @Test
     void sameAniListAnimeIsMergedAddingServersInsteadOfOverwriting() {
@@ -141,6 +142,40 @@ class WorkMergeIntegrationTest {
         assertThat(languages.filters("es")).isFalse();
         assertThat(LanguageAvailabilityService.siteLanguage("PT_br")).isEqualTo("pt-BR");
         assertThat(LanguageAvailabilityService.siteLanguage("pt-PT")).isNull();
+    }
+
+    @Test
+    void linkPeopleGiveUpOnBecomesSuspectAndOpensATask() {
+        work(990061, "anime", "ANIMATION", "TV", "Teste Saude", "teste-saude");
+        UUID ep = episode(season(990061, 1), 1);
+        source(ep, "https://quebrado.test/e/1", "Quebrado", "pt-BR", null);
+        source(ep, "https://bom.test/e/1", "Bom", "pt-BR", null);
+        UUID broken = jdbc.sql("SELECT id FROM episode_source WHERE source_url LIKE 'https://quebrado%'").query(UUID.class).single();
+        UUID good = jdbc.sql("SELECT id FROM episode_source WHERE source_url LIKE 'https://bom%'").query(UUID.class).single();
+        for (int i = 0; i < 3; i++) {
+            UUID session = UUID.randomUUID();
+            event(session, "player_open", "{\"sourceId\":\"" + broken + "\",\"version\":\"Dublado PT-BR\"}");
+            event(session, "server_switch", "{\"fromId\":\"" + broken + "\",\"toId\":\"" + good
+                    + "\",\"version\":\"Dublado PT-BR\",\"fromVersion\":\"Dublado PT-BR\"}");
+        }
+        // Trocar de versão (dublado → legendado) não é desistir do servidor.
+        UUID other = UUID.randomUUID();
+        event(other, "player_open", "{\"sourceId\":\"" + good + "\"}");
+        event(other, "server_switch", "{\"fromId\":\"" + good + "\",\"toId\":\"" + broken
+                + "\",\"version\":\"Legendado PT-BR\",\"fromVersion\":\"Dublado PT-BR\"}");
+
+        health.refresh();
+
+        assertThat(health.of(broken, "https://quebrado.test/e/1")).containsEntry("status", "suspect").containsEntry("rank", 3);
+        assertThat(health.of(good, "https://bom.test/e/1")).containsEntry("rank", 0);
+        assertThat(jdbc.sql("SELECT status FROM admin_task WHERE task_key=?").param("source:" + broken).query(String.class).single())
+                .isEqualTo("open");
+        assertThat(count("SELECT count(*) FROM admin_task WHERE task_key=?", "source:" + good)).isZero();
+    }
+
+    private void event(UUID session, String type, String data) {
+        jdbc.sql("INSERT INTO analytics_event(session_id, type, data) VALUES (?, ?, CAST(? AS jsonb))")
+                .params(session, type, data).update();
     }
 
     // ------------------------------------------------------------------------------------------

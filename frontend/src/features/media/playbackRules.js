@@ -27,7 +27,7 @@ export function rankSources(sources, support) {
     .sort((a, b) => {
       const ka = a.playsInPlayer ? (a.compatible ? 0 : 2) : 1;
       const kb = b.playsInPlayer ? (b.compatible ? 0 : 2) : 1;
-      return ka - kb || a.priority - b.priority;
+      return ka - kb || (a.healthRank || 0) - (b.healthRank || 0) || a.priority - b.priority;
     });
 }
 

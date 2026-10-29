@@ -34,6 +34,14 @@ public class PlaybackService {
         this.signer = signer;
     }
 
+    private ServerHealthService health;
+
+    /** Saúde dos servidores (opcional nos testes que montam o serviço à mão). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setHealth(ServerHealthService health) {
+        this.health = health;
+    }
+
     record EpisodeRow(UUID id, String title, String number, Integer durationSeconds, String synopsis, UUID seasonId,
                       String seasonTitle, long workId, UUID workPublicId, String workTitle, String slug, String cover,
                       String banner) {
@@ -190,6 +198,12 @@ public class PlaybackService {
                 "priority", s.priority(), "playsInPlayer", nativeType, "capabilities", caps,
                 "audioLanguages", s.audioLanguage() == null ? List.of() : List.of(s.audioLanguage()),
                 "subtitleLanguages", subtitleLanguages, "maxHeight", s.maxHeight());
+        if (health != null) {
+            // Host instável ou link abandonado desce na lista de servidores (ver ServerHealthService).
+            Map<String, Object> h = health.of(s.id(), s.url());
+            v.put("health", h.get("status"));
+            v.put("healthRank", h.get("rank"));
+        }
         if ("EXTERNAL_LINK".equals(s.type())) {
             v.put("externalUrl", s.url()); // link público do provedor, aberto em nova aba
         }
