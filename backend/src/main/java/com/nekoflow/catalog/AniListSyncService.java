@@ -127,9 +127,11 @@ public class AniListSyncService {
                                 synopsis_language = CASE WHEN synopsis_full IS NULL AND CAST(? AS text) IS NOT NULL
                                                          THEN 'en' ELSE synopsis_language END,
                                 banner = COALESCE(banner, CAST(? AS text)),
+                                popularity = COALESCE(CAST(? AS integer), popularity),
                                 anilist_synced_at = now(), updated_at = now()
                 WHERE id = ?""")
-                .params(displayTitle, s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(), workId)
+                .params(displayTitle, s.text(), s.text(), s.attribution(), s.text(), media.bannerImage(),
+                        media.raw().path("popularity").isNumber() ? media.raw().path("popularity").asInt() : null, workId)
                 .update();
         if (s.text() != null) {
             jdbc.sql("""
