@@ -51,6 +51,13 @@ class AniListReadingLinkerTest {
     }
 
     @Test
+    void leadingArticleDoesNotMatter() {
+        var d = AniListReadingLinker.decide(Set.of("Youngest Son of the Swordmaster"), "MANHWA", null, 80,
+                List.of(c(149332, "MANGA", "KR", 2022, "Geomgawui Mangnae Adeul", "The Youngest Son of the Swordmaster")));
+        assertThat(d.anilistId()).isEqualTo(149332L);
+    }
+
+    @Test
     void shortGenericTitleNeedsTheYear() {
         var d = AniListReadingLinker.decide(Set.of("Gate"), "MANGA", null, 50,
                 List.of(c(9, "MANGA", "JP", 2011, "Gate")));

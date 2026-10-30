@@ -63,13 +63,13 @@ public class AniListReadingLinker {
     record Decision(String status, Long anilistId, Long malId, String reason) {}
 
     static Decision decide(Set<String> ours, String category, Integer year, int chapters, List<Candidate> found) {
-        Set<String> mine = ours.stream().map(CatalogTitlePolicy::norm).filter(t -> !t.isBlank()).collect(Collectors.toSet());
+        Set<String> mine = ours.stream().map(AniListReadingLinker::key).filter(t -> !t.isBlank()).collect(Collectors.toSet());
         List<Candidate> matched = new ArrayList<>();
         for (Candidate c : found) {
             if (c.format() == null || !COMIC_FORMATS.contains(c.format())) continue;
             if ("ONE_SHOT".equals(c.format()) && chapters > 2) continue;
             if (year != null && c.year() != null && Math.abs(year - c.year()) > 3) continue;
-            if (c.titles().stream().map(CatalogTitlePolicy::norm).noneMatch(mine::contains)) continue;
+            if (c.titles().stream().map(AniListReadingLinker::key).noneMatch(mine::contains)) continue;
             if (matched.stream().noneMatch(m -> m.id() == c.id())) matched.add(c);
         }
         if (matched.isEmpty()) return new Decision("NONE", null, null, "Nenhum título igual no AniList");
@@ -89,6 +89,11 @@ public class AniListReadingLinker {
             return new Decision("AMBIGUOUS", null, null, "Título curto demais para vincular sem o ano");
         }
         return new Decision("MATCHED", c.id(), c.malId(), "Título igual (" + c.format() + ", " + c.country() + ")");
+    }
+
+    /** Título comparável: normalizado e sem artigo inicial ("The Youngest Son…" = "Youngest Son…"). */
+    static String key(String title) {
+        return CatalogTitlePolicy.norm(title).replaceFirst("^(the|a|an) ", "");
     }
 
     private static Set<String> expectedCountries(String category) {
