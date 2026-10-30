@@ -224,6 +224,48 @@ function Cluster({ cluster, onChanged, flash }) {
   );
 }
 
+/** Vínculo seguro das leituras ao AniList: é ele que permite juntar o mesmo mangá vindo em idiomas diferentes. */
+function AniListLink({ onDone }) {
+  const [st, setSt] = useState(null);
+  const load = useCallback(() => api.get("/api/admin/catalog/duplicates/anilist-link").then(setSt).catch(() => {}), []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  useEffect(() => {
+    if (!st?.running) return undefined;
+    const t = setInterval(() => load().then(() => {}), 5000);
+    return () => clearInterval(t);
+  }, [st?.running, load]);
+  const wasRunning = React.useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && st && !st.running) onDone();
+    wasRunning.current = !!st?.running;
+  }, [st, onDone]);
+  if (!st) return null;
+  const start = () => api.post("/api/admin/catalog/duplicates/anilist-link", {}).then(setSt).catch(() => {});
+  return (
+    <div style={{ ...card, padding: "14px 16px", display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
+      <span style={{ flex: "1 1 420px", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <span style={{ fontSize: "14px", fontWeight: 500 }}>Leituras vinculadas ao AniList</span>
+        <span style={{ fontSize: "12px", color: "#B7B1A4", lineHeight: 1.5 }}>
+          {st.withoutAniList} leituras ainda sem AniList · {st.matched || 0} vinculadas automaticamente · {st.ambiguous || 0} ambíguas
+          (ficam para revisão) · {st.none || 0} sem correspondência · {st.pending} ainda não verificadas
+        </span>
+        {st.running ? (
+          <span style={{ ...mono, color: GOLD }}>
+            {st.phase}… {st.searched} buscadas{st.enriched ? ` · ${st.enriched} com dados trazidos` : ""}
+          </span>
+        ) : st.error ? (
+          <span style={{ fontSize: "12px", color: "#E08A72" }}>Parou: {st.error}</span>
+        ) : null}
+      </span>
+      <button style={button(true, st.running)} disabled={st.running || !st.pending} onClick={start}>
+        {st.running ? "Vinculando…" : st.pending ? `Vincular ${st.pending} leituras` : "Tudo verificado"}
+      </button>
+    </div>
+  );
+}
+
 export default function DuplicatesQueue() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -278,6 +320,7 @@ export default function DuplicatesQueue() {
         nos episódios e capítulos que já existem os servidores e espelhos da duplicata viram opções a mais. A duplicata
         fica oculta, o endereço antigo continua abrindo a principal e as próximas sincronizações já caem nela.
       </p>
+      <AniListLink onDone={load} />
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
         {[
           ["all", "Todos", clusters.length],

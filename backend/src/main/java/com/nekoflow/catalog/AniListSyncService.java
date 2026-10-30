@@ -5,6 +5,7 @@ import com.nekoflow.progress.ProgressException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -108,8 +109,10 @@ public class AniListSyncService {
                         "O AniList não encontrou esta obra."));
         Synopsis s = clean(media.description());
         String romaji = text(media.raw().path("title"), "romaji");
-        String displayTitle = CatalogTitlePolicy.canonicalSeriesTitle(romaji);
         String english = text(media.raw().path("title"), "english");
+        // Manhwa e manhua são conhecidos pelo nome em inglês ("Solo Leveling"), não pela romanização.
+        String displayTitle = CatalogTitlePolicy.canonicalSeriesTitle(
+                english != null && Set.of("KR", "CN", "TW").contains(text(media.raw(), "countryOfOrigin")) ? english : romaji);
         String nativeTitle = text(media.raw().path("title"), "native");
         if (s.text() == null) {
             s = inheritedPrequelSynopsis(media.raw());

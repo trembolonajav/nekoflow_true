@@ -20,10 +20,23 @@ public class WorkIdentityController {
 
     private final WorkIdentityService identity;
     private final WorkMergeService merges;
+    private final AniListReadingLinker linker;
 
-    public WorkIdentityController(WorkIdentityService identity, WorkMergeService merges) {
+    public WorkIdentityController(WorkIdentityService identity, WorkMergeService merges, AniListReadingLinker linker) {
         this.identity = identity;
         this.merges = merges;
+        this.linker = linker;
+    }
+
+    /** Vínculo seguro das leituras ao AniList: andamento e contagens. */
+    @GetMapping("/anilist-link")
+    public Map<String, Object> linkStatus() {
+        return linker.status();
+    }
+
+    @PostMapping("/anilist-link")
+    public Map<String, Object> link() {
+        return linker.start(true);
     }
 
     @GetMapping
