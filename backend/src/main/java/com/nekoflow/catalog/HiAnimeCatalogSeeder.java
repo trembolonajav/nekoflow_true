@@ -110,15 +110,14 @@ public class HiAnimeCatalogSeeder implements ApplicationRunner {
         String sourceId = text(source, "sourceAnimeId");
         if (sourceId == null) return;
         String page = "%/watch/" + sourceId + "%";
-        // A mesma URL pode ter sido classificada por outro provedor numa importação antiga.
-        // A identidade rejeitada é obra + página de origem; desativa todas as fontes desses
-        // episódios, independentemente do rótulo legado do provedor.
+        // A quarentena pertence ao provedor HiAnime. Outras fontes autorizadas do mesmo
+        // episódio (como Sushi Animes) continuam válidas e não podem ser desativadas.
         jdbc.sql("""
                 UPDATE episode_source SET enabled=false,updated_at=now()
-                WHERE episode_id IN (
+                WHERE provider_id=:provider AND episode_id IN (
                     SELECT e.id FROM episode e JOIN season s ON s.id=e.season_id
                     WHERE s.work_id=:work AND e.source_page_url LIKE :page)""")
-                .param("work", workId).param("page", page).update();
+                .param("provider", providerId).param("work", workId).param("page", page).update();
         jdbc.sql("""
                 UPDATE episode e SET availability='UNAVAILABLE'
                 FROM season s WHERE e.season_id=s.id AND s.work_id=:work

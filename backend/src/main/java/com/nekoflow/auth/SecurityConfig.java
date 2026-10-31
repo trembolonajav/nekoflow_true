@@ -54,7 +54,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/works/**",
                                 "/api/v1/genres", "/api/v1/franchises/**", "/api/v1/seasons/**",
-                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/v1/home", "/api/v1/home/**", "/api/v1/telemetry",
+                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/v1/providers/mangalivre/**",
+                                "/api/v1/providers/weebcentral-en/**", "/api/v1/providers/reading",
+                                "/api/v1/providers/tiamanhwa-ptbr/**", "/api/v1/providers/comix-en/**",
+                                "/api/v1/providers/manhwabuddy-en/**",
+                                "/api/v1/home", "/api/v1/home/**", "/api/v1/telemetry",
                                 "/api/calendar",
                                 "/actuator/health").permitAll()
                         .requestMatchers("/api/v1/me/**").authenticated()

@@ -1,12 +1,42 @@
 services:
+  comix-fetcher:
+    build: ./comix-fetcher
+    environment:
+      COMIX_FETCHER_SECRET: ${COMIX_FETCHER_SECRET:-dev-only-comix-fetcher-secret}
+    restart: unless-stopped
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8091/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  tia-fetcher:
+    build: ./tia-fetcher
+    environment:
+      TIA_FETCHER_SECRET: ${TIA_FETCHER_SECRET:-dev-only-tia-fetcher-secret}
+      TIA_HOST_ADAPTER_URL: ${TIA_HOST_ADAPTER_URL:-http://host.docker.internal:19091}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   mailpit:
     image: axllent/mailpit:v1.21
+    restart: unless-stopped
     ports:
       - "${MAILPIT_SMTP_PORT:-9026}:1025"
       - "${MAILPIT_UI_PORT:-9025}:8025"
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-nekoflow}
       POSTGRES_USER: ${DB_USER:-nekoflow}
@@ -23,6 +53,7 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-nekoflow}
       DB_USER: ${DB_USER:-nekoflow}
@@ -37,6 +68,22 @@ services:
       MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-dev-only-nekoflow-media-secret}
       HIANIME_SYNC_ENABLED: ${HIANIME_SYNC_ENABLED:-true}
       HIANIME_ORIGIN: ${HIANIME_ORIGIN:-https://hianime.at}
+      WEEBCENTRAL_EN_ENABLED: ${WEEBCENTRAL_EN_ENABLED:-true}
+      WEEBCENTRAL_EN_ORIGIN: ${WEEBCENTRAL_EN_ORIGIN:-https://weebcentral.com}
+      WEEBCENTRAL_EN_API_TIMEOUT_SECONDS: ${WEEBCENTRAL_EN_API_TIMEOUT_SECONDS:-20}
+      WEEBCENTRAL_EN_CACHE_TTL_SECONDS: ${WEEBCENTRAL_EN_CACHE_TTL_SECONDS:-120}
+      SUSHI_ANIMES_ENABLED: ${SUSHI_ANIMES_ENABLED:-true}
+      SUSHI_ANIMES_ORIGIN: ${SUSHI_ANIMES_ORIGIN:-https://sushianimes.com.br}
+      SUSHI_ANIMES_REQUEST_TIMEOUT_SECONDS: ${SUSHI_ANIMES_REQUEST_TIMEOUT_SECONDS:-25}
+      READING_PROVIDERS_TIMEOUT_SECONDS: ${READING_PROVIDERS_TIMEOUT_SECONDS:-20}
+      READING_PROVIDERS_CACHE_TTL_SECONDS: ${READING_PROVIDERS_CACHE_TTL_SECONDS:-120}
+      TIAMANHWA_ORIGIN: ${TIAMANHWA_ORIGIN:-https://tiamanhwa.com}
+      COMIX_ORIGIN: ${COMIX_ORIGIN:-https://comix.to}
+      MANHWABUDDY_ORIGIN: ${MANHWABUDDY_ORIGIN:-https://manhwabuddy.com}
+      TIAMANHWA_FETCHER_URL: ${TIAMANHWA_FETCHER_URL:-http://tia-fetcher:8090}
+      TIA_FETCHER_SECRET: ${TIA_FETCHER_SECRET:-dev-only-tia-fetcher-secret}
+      COMIX_FETCHER_URL: ${COMIX_FETCHER_URL:-http://comix-fetcher:8091}
+      COMIX_FETCHER_SECRET: ${COMIX_FETCHER_SECRET:-dev-only-comix-fetcher-secret}
     volumes:
       - media:/data/media
     ports:
@@ -46,9 +93,14 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      tia-fetcher:
+        condition: service_healthy
+      comix-fetcher:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     environment:
       MEDIA_SIGNING_SECRET: ${MEDIA_SIGNING_SECRET:-dev-only-nekoflow-media-secret}
     volumes:

@@ -139,8 +139,9 @@ public class WorkPresentationService {
                                                    WHEN split_part(t.language,'-',1) = split_part(:lang,'-',1) THEN 1
                                                    WHEN t.language = 'en' THEN 2 ELSE 3 END LIMIT 1), e.title) AS title,
                            e.duration_seconds,
-                           -- Só a miniatura do próprio episódio; sem ela, o card mostra o fundo neutro.
-                           e.thumbnail_url, e.original_air_date,
+                           -- Preview real quando existir; caso contrário usa arte editorial da obra.
+                           COALESCE(e.thumbnail_url, w.banner, se.poster_url, w.cover,
+                                    '/assets/nekoflow-logo.png'), e.original_air_date,
                            EXISTS (SELECT 1 FROM episode_source es WHERE es.episode_id = e.id AND es.enabled
                                    AND (es.available_from IS NULL OR es.available_from <= now())
                                    AND (es.available_until IS NULL OR es.available_until > now())) AS available,
@@ -165,7 +166,7 @@ public class WorkPresentationService {
                         e.put("id", rs.getObject(1, UUID.class));
                         e.put("title", episodeTitle(rs.getString(3), rs.getString(2)));
                         e.put("durationMin", rs.getObject(4) == null ? null : Math.round(rs.getInt(4) / 60.0));
-                        e.put("thumb", rs.getString(5)); // miniatura cadastrada; sem ela, fundo neutro
+                        e.put("thumb", rs.getString(5));
                         java.sql.Date aired = rs.getDate(6);
                         e.put("airDate", aired == null ? null : aired.toLocalDate().toString());
                         e.put("pos", "center");
@@ -356,8 +357,10 @@ public class WorkPresentationService {
         for (Map<String, Object> e : editions) {
             e.put("chapters", jdbc.sql("""
                     SELECT c.id, c.display_number, c.title, v.display_number AS volume,
-                           EXISTS (SELECT 1 FROM chapter_import i WHERE i.chapter_id = c.id AND i.edition_id = c.edition_id
-                                   AND i.status = 'PUBLISHED') AS readable,
+                           (EXISTS (SELECT 1 FROM chapter_import i WHERE i.chapter_id = c.id AND i.edition_id = c.edition_id
+                                    AND i.status = 'PUBLISHED')
+                            OR EXISTS (SELECT 1 FROM chapter_source s WHERE s.chapter_id=c.id AND s.enabled
+                                       AND s.provider IN ('Manga Livre','WeebCentral English'))) AS readable,
                            (SELECT s.source_url FROM chapter_source s WHERE s.chapter_id = c.id AND s.enabled
                             ORDER BY s.created_at LIMIT 1) AS external_url
                     FROM chapter c LEFT JOIN volume v ON v.id = c.volume_id

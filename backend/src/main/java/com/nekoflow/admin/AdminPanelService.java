@@ -37,9 +37,12 @@ public class AdminPanelService {
 
     private final JdbcClient jdbc;
     private final long syncIntervalMs;
+    private final IntegrationHealthService integrationHealth;
 
-    public AdminPanelService(JdbcClient jdbc, @Value("${nekoflow.hianime.sync-interval-ms:900000}") long syncIntervalMs) {
+    public AdminPanelService(JdbcClient jdbc, IntegrationHealthService integrationHealth,
+                             @Value("${nekoflow.hianime.sync-interval-ms:900000}") long syncIntervalMs) {
         this.jdbc = jdbc;
+        this.integrationHealth = integrationHealth;
         this.syncIntervalMs = syncIntervalMs;
     }
 
@@ -249,32 +252,13 @@ public class AdminPanelService {
     }
 
     private Map<String, Object> providers(Instant now) {
-        List<Map<String, Object>> out = new ArrayList<>();
         var last = jdbc.sql("SELECT created_at, status FROM hianime_sync_run ORDER BY created_at DESC LIMIT 1")
                 .query((rs, n) -> new Object[]{rs.getTimestamp(1).toInstant(), rs.getString(2)}).optional();
         var lastAuto = jdbc.sql("SELECT created_at FROM hianime_sync_run WHERE trigger_type<>'MANUAL' ORDER BY created_at DESC LIMIT 1")
                 .query(Timestamp.class).optional();
-        long watched = jdbc.sql("SELECT count(*) FROM hianime_sync_work WHERE enabled").query(Long.class).single();
-        String health = jdbc.sql("SELECT status FROM hianime_provider_health ORDER BY checked_at DESC LIMIT 1")
-                .query(String.class).optional().orElse(null);
-        long minutes = Math.max(1, syncIntervalMs / 60000);
-        boolean ok = health == null || Set.of("OK", "UP", "HEALTHY").contains(health.toUpperCase(Locale.ROOT));
-        out.add(Map.of("name", "HiAnime", "role", "Episódios e embeds",
-                "meta", "A cada " + minutes + " min · última " + last.map(r -> when((Instant) r[0], now, false)).orElse("—")
-                        + " · " + watched + " obras monitoradas",
-                "ok", ok));
-        var anilist = jdbc.sql("SELECT max(fetched_at), count(*) FROM work_anilist_snapshot")
-                .query((rs, n) -> new Object[]{rs.getTimestamp(1), rs.getLong(2)}).single();
-        out.add(Map.of("name", "AniList", "role", "Fichas, imagens, temporada, relações",
-                "meta", "A cada 30 min · última " + (anilist[0] == null ? "—" : when(((Timestamp) anilist[0]).toInstant(), now, false))
-                        + " · " + anilist[1] + " fichas",
-                "ok", true));
-        long chapters = jdbc.sql("SELECT count(*) FROM chapter").query(Long.class).single();
-        out.add(Map.of("name", "Leitura", "role", "Capítulos de mangá, manhwa e webtoon",
-                "meta", "Sem provedor conectado · cadastro manual · " + chapters + " capítulos", "ok", false, "idle", true));
         boolean running = last.map(r -> "RUNNING".equals(r[1]) || "QUEUED".equals(r[1])).orElse(false);
         String next = lastAuto.map(t -> t.toInstant().plusMillis(syncIntervalMs).atZone(BRT).format(HM)).orElse("—");
-        return Map.of("list", out, "running", running, "next", next);
+        return Map.of("list", integrationHealth.list(), "running", running, "next", next);
     }
 
     // ---- Pendências -------------------------------------------------------------------------

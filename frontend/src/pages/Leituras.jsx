@@ -7,23 +7,33 @@ import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
 import { getWorkUrl } from "../features/catalog/workNavigation";
-import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { getLocale, subscribeLocale } from "../i18n/locale";
 import { libraryApi } from "../features/library/libraryApi";
 import { progressApi } from "../features/progress/progressApi";
 
 const hrefOf = (x) => getWorkUrl(x);
 
 class LeiturasLogic extends DCLogic {
-  state = { items: null, tab: "todas", day: "sab", theme: "regressao" };
+  state = { items: null, featured: null, tab: "todas", day: null, today: "sab", theme: "regressao" };
   componentDidMount() {
     const p = new URLSearchParams(location.search).get("tipo");
     if (["mangas", "manhwas", "webtoons"].includes(p)) this.setState({ tab: p });
-    Promise.all([api.get("/api/content/leituras"), api.get("/api/catalog/all")])
-      .then(([items, catalog]) => this.setState({ items: mergeCatalogList(items, catalog, (x) => x.kind === "manga" || x.kind === "manhwa") }));
+    // Catálogo real no idioma do site (antes eram os dados de exemplo do design).
+    this.load();
+    this.offLocale = subscribeLocale(() => this.load());
     if (session.loggedIn)
       Promise.all([libraryApi.list({ size: 100 }), progressApi.continueReading()])
         .then(([lib, contV1]) => this.setState({ lib: lib.items, contV1 }))
         .catch(() => {});
+  }
+  componentWillUnmount() {
+    if (this.offLocale) this.offLocale();
+  }
+  load() {
+    api
+      .get(`/api/v1/home/reading?lang=${encodeURIComponent(getLocale())}`)
+      .then((d) => this.setState((s) => ({ items: d.items, featured: d.featured, today: d.today, day: s.day || d.today })))
+      .catch(() => this.setState({ items: [] }));
   }
   setTab(tab) {
     this.setState({ tab });
@@ -33,7 +43,8 @@ class LeiturasLogic extends DCLogic {
   }
   renderVals() {
     const loggedIn = this.props.loggedIn ?? true;
-    const { items, tab, day, theme } = this.state;
+    const { items, tab, theme, featured, today } = this.state;
+    const day = this.state.day || today;
     const all = items || [];
     const byTitle = (t) => all.find((x) => x.title === t) || all[0] || {};
     const typeLabel = (x) =>
@@ -83,19 +94,18 @@ class LeiturasLogic extends DCLogic {
         "Um jogador veterano acorda dentro do gacha que dominava, como um herói de uma estrela, e precisa guiar novatos até o topo de uma torre de cem andares.",
     };
     const ti = T[tab];
-    const f = byTitle(ti.feat);
+    const f = (featured && featured[tab]) || byTitle(ti.feat);
     const feat = {
       ...f,
       href: f.id ? hrefOf(f) : "#",
       hasBanner: !!f.banner,
       typeLabel: typeLabel(f),
-      synopsis: syn[f.title] || "",
+      synopsis: f.synopsis || syn[f.title] || "",
       score: f.score || "—",
-      chList: [0, 1, 2].map((i) => ({
-        n: (f.ch || 3) - i,
-        when: i === 0 ? f.when : `há ${i * 7} d`,
-        dot: i === 0 ? "#DBAF57" : "rgba(240,238,233,.25)",
-      })),
+      chList: (f.chapters && f.chapters.length
+        ? f.chapters
+        : [0, 1, 2].map((i) => ({ n: (f.ch || 3) - i, when: i === 0 ? f.when : "" }))
+      ).map((c, i) => ({ n: c.n, when: c.when, dot: i === 0 ? "#DBAF57" : "rgba(240,238,233,.25)" })),
     };
     const rest = pool.filter((x) => x.id !== f.id);
     // Continuar lendo: mesma fonte de progresso da Biblioteca e do Leitor.
@@ -119,7 +129,8 @@ class LeiturasLogic extends DCLogic {
         where: x.where,
         href: x.unitHref,
       }));
-    const updates = [...pool]
+    const updates = pool
+      .filter((x) => x.when)
       .sort((a, b) => a.hoursAgo - b.hoursAgo)
       .slice(0, 10)
       .map((x) => ({
@@ -141,9 +152,9 @@ class LeiturasLogic extends DCLogic {
         score: x.score || "—",
         numColor: i < 3 ? "#DBAF57" : "rgba(240,238,233,.35)",
       }));
-    const adaptations = ["Dandadan", "Sakamoto Days", "One-Punch Man"]
-      .map(byTitle)
+    const adaptations = all
       .filter((x) => x.anime)
+      .slice(0, 3)
       .map((x) => ({ ...x, href: hrefOf(x), animeBanner: x.anime.banner || x.anime.cover }));
     const TH = [
       ["regressao", "Regressão"],
@@ -174,7 +185,7 @@ class LeiturasLogic extends DCLogic {
         ...x,
         next: x.ch + 1,
         href: hrefOf(x),
-        badge: day === "sab" ? "HOJE" : D.find((d) => d[0] === day)[1].toUpperCase(),
+        badge: day === today ? "HOJE" : D.find((d) => d[0] === day)[1].toUpperCase(),
       }));
     return {
       loggedIn,
@@ -216,7 +227,7 @@ class LeiturasLogic extends DCLogic {
       })),
       days: D.map(([k, label]) => ({
         label,
-        sub: k === "sab" ? "hoje" : String(all.filter((x) => x.webtoon && x.day === k).length),
+        sub: k === today ? "hoje" : String(all.filter((x) => x.webtoon && x.day === k).length),
         pick: () => this.setState({ day: k }),
         bg: k === day ? "#DBAF57" : "transparent",
         color: k === day ? "#1A1714" : "#F0EEE9",

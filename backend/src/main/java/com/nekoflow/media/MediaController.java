@@ -46,7 +46,7 @@ public class MediaController {
         return playback.playback(episodeId, lang);
     }
 
-    @PostMapping("/api/v1/episodes/{episodeId}/playback/sources/{sourceId}/access")
+    @GetMapping("/api/v1/episodes/{episodeId}/playback/sources/{sourceId}/access")
     public Map<String, Object> access(@PathVariable UUID episodeId, @PathVariable UUID sourceId) {
         return playback.access(episodeId, sourceId);
     }

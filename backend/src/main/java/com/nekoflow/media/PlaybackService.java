@@ -27,11 +27,14 @@ public class PlaybackService {
     private final JdbcClient jdbc;
     private final MediaProviders providers;
     private final MediaUrlSigner signer;
+    private final SushiAnimesProvider sushi;
 
-    public PlaybackService(JdbcClient jdbc, MediaProviders providers, MediaUrlSigner signer) {
+    public PlaybackService(JdbcClient jdbc, MediaProviders providers, MediaUrlSigner signer,
+                           SushiAnimesProvider sushi) {
         this.jdbc = jdbc;
         this.providers = providers;
         this.signer = signer;
+        this.sushi = sushi;
     }
 
     private ServerHealthService health;
@@ -111,7 +114,13 @@ public class PlaybackService {
                 .filter(t -> providers.allows(provider, (String) t.get("url")))
                 .toList();
         Instant expires = signer.expiresAt();
-        return map("sourceId", s.id(), "type", s.type(), "url", s.url(), "expiresAt", expires,
+        boolean sushiSource = "SUSHI_ANIMES_CDN".equals(provider.code());
+        SushiAnimesProvider.ResolvedMedia resolved = sushiSource ? sushi.resolve(s.url()) : null;
+        String effectiveUrl = sushiSource
+                ? "/api/v1/episodes/" + episodeId + "/playback/sources/" + s.id() + "/stream"
+                : s.url();
+        String effectiveType = resolved == null ? s.type() : resolved.type();
+        return map("sourceId", s.id(), "type", effectiveType, "url", effectiveUrl, "expiresAt", expires,
                 "subtitles", subtitles);
     }
 

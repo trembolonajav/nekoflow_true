@@ -127,11 +127,11 @@ class MediaIntegrationTest {
         assertThat(p.path("next").path("id").asText()).isEqualTo(ep3.toString());
         assertThat(p.path("previous").isNull()).isTrue();
 
-        mvc.perform(post("/api/v1/episodes/" + ep1 + "/playback/sources/" + hls1 + "/access").with(csrf()))
+        mvc.perform(get("/api/v1/episodes/" + ep1 + "/playback/sources/" + hls1 + "/access"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").value("https://video.example.test/ep1/index.m3u8"))
                 .andExpect(jsonPath("$.expiresAt").exists());
-        mvc.perform(post("/api/v1/episodes/" + ep1 + "/playback/sources/" + external1 + "/access").with(csrf()))
+        mvc.perform(get("/api/v1/episodes/" + ep1 + "/playback/sources/" + external1 + "/access"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("SOURCE_NOT_PLAYABLE"));
     }
@@ -143,14 +143,14 @@ class MediaIntegrationTest {
         JsonNode p = body(mvc.perform(get("/api/v1/episodes/" + ep2 + "/playback")));
         assertThat(p.path("sources")).isEmpty();
         assertThat(p.path("availability").asText()).isEqualTo("UNAVAILABLE");
-        mvc.perform(post("/api/v1/episodes/" + ep2 + "/playback/sources/" + rogue + "/access").with(csrf()))
+        mvc.perform(get("/api/v1/episodes/" + ep2 + "/playback/sources/" + rogue + "/access"))
                 .andExpect(status().isNotFound());
-        mvc.perform(post("/api/v1/episodes/" + ep2 + "/playback/sources/" + insecure + "/access").with(csrf()))
+        mvc.perform(get("/api/v1/episodes/" + ep2 + "/playback/sources/" + insecure + "/access"))
                 .andExpect(status().isNotFound());
 
         jdbc.sql("UPDATE episode_source SET available_until = now() - interval '1 minute', available_from = now() - interval '1 day' WHERE id = ?")
                 .param(hls1).update();
-        mvc.perform(post("/api/v1/episodes/" + ep1 + "/playback/sources/" + hls1 + "/access").with(csrf()))
+        mvc.perform(get("/api/v1/episodes/" + ep1 + "/playback/sources/" + hls1 + "/access"))
                 .andExpect(status().isNotFound());
 
         jdbc.sql("UPDATE media_provider SET enabled = FALSE WHERE id = ?").param(videoProvider).update();

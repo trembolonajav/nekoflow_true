@@ -346,14 +346,23 @@ public class FibAnimeCatalogSeeder implements ApplicationRunner {
         if (selected.isEmpty()) {
             // Nenhuma fonte viva (todas responderam 4xx ou o link assinado venceu): o episódio
             // aparece como indisponível em vez de abrir um player quebrado.
-            jdbc.sql("UPDATE episode_source SET enabled = false, updated_at = now() WHERE episode_id = ? AND enabled")
-                    .param(episodeId).update();
-            jdbc.sql("UPDATE episode SET availability = 'UNAVAILABLE' WHERE id = ?").param(episodeId).update();
+            jdbc.sql("""
+                    UPDATE episode_source SET enabled = false, updated_at = now()
+                    WHERE episode_id = ? AND enabled AND provider_id = ?
+                    """).params(episodeId, FIB_MEDIA_PROVIDER_ID).update();
+            jdbc.sql("""
+                    UPDATE episode SET availability = 'UNAVAILABLE'
+                    WHERE id = ? AND NOT EXISTS (
+                      SELECT 1 FROM episode_source WHERE episode_id = ? AND enabled
+                    )
+                    """).params(episodeId, episodeId).update();
         } else {
             jdbc.sql("""
                     UPDATE episode_source SET enabled = false, updated_at = now()
-                    WHERE episode_id = :episode AND enabled AND NOT (source_url = ANY(string_to_array(:keep, CHR(31))))""")
+                    WHERE episode_id = :episode AND enabled AND provider_id = :provider
+                      AND NOT (source_url = ANY(string_to_array(:keep, CHR(31))))""")
                     .param("episode", episodeId)
+                    .param("provider", FIB_MEDIA_PROVIDER_ID)
                     .param("keep", String.join(String.valueOf((char) 31), selected))
                     .update();
         }

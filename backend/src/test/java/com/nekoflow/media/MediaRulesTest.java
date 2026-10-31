@@ -76,4 +76,22 @@ class MediaRulesTest {
         ChapterImportService.validate(List.of(), errors);
         assertThat(errors).containsExactly("Nenhuma imagem encontrada no envio.");
     }
+
+    @Test
+    void mangaLivreChapterSlugIsExtractedWithoutAcceptingArbitraryPaths() {
+        assertThat(ReaderService.chapterSlug(
+                "https://mangalivre.blog/capitulo/obra-capitulo-180/"))
+                .isEqualTo("obra-capitulo-180");
+        assertThat(ReaderService.chapterSlug("https://mangalivre.blog/manga/obra/")).isNull();
+        assertThat(ReaderService.chapterSlug("https://mangalivre.blog/capitulo/../admin")).isNull();
+    }
+
+    @Test
+    void weebCentralChapterIdIsExtractedWithoutAcceptingArbitraryPaths() {
+        assertThat(ReaderService.weebCentralChapterId(
+                "https://weebcentral.com/chapters/01J76XYWSM8ZJ49XB2V51HC9J4"))
+                .isEqualTo("01J76XYWSM8ZJ49XB2V51HC9J4");
+        assertThat(ReaderService.weebCentralChapterId("https://weebcentral.com/series/random")).isNull();
+        assertThat(ReaderService.weebCentralChapterId("javascript:alert(1)")).isNull();
+    }
 }

@@ -15,10 +15,18 @@ public class HomeController {
 
     private final HomeService home;
     private final LanguageAvailabilityService languages;
+    private final ReadingHomeService reading;
 
-    public HomeController(HomeService home, LanguageAvailabilityService languages) {
+    public HomeController(HomeService home, LanguageAvailabilityService languages, ReadingHomeService reading) {
         this.home = home;
         this.languages = languages;
+        this.reading = reading;
+    }
+
+    /** Home de Leituras: catálogo real no idioma do site (mangás, manhwas e webtoons). */
+    @GetMapping("/reading")
+    public Map<String, Object> reading(@RequestParam(defaultValue = "pt-BR") String lang) {
+        return reading.home(lang);
     }
 
     /** Quantas obras cada idioma do site tem e se ele já filtra a vitrine. */

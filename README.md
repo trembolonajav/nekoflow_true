@@ -25,6 +25,12 @@ idempotentes usados para reconstruir e enriquecer o ambiente.
   idempotente, com validação de identidade, quarentena de associações divergentes e auditoria.
 - **Sincronização contínua:** um worker consulta obras atualizadas no HiAnime a cada 15 minutos,
   publica deltas de vínculos confirmados e envia exceções para revisão no painel administrativo.
+- **API MangaLivre:** adaptador não oficial e somente leitura para catálogo, obras, capítulos e
+  páginas do leitor; contrato e exemplos em [`docs/mangalivre-unofficial-api.md`](docs/mangalivre-unofficial-api.md).
+- **API WeebCentral English:** adaptador não oficial separado para obras e capítulos em inglês;
+  contrato e exemplos em [`docs/weebcentral-english-unofficial-api.md`](docs/weebcentral-english-unofficial-api.md).
+- **APIs de leitura adicionais:** TiaManhwa PT-BR, Comix EN e ManhwaBuddy EN compartilham um
+  contrato normalizado; o painel administrativo testa a saúde de todas as integrações.
 - **Metadados editoriais:** AniList fornece identidade, títulos, sinopse, banner, personagens,
   elenco, relações e recomendações; Jikan/MAL e TVMaze complementam episódios quando há vínculo.
 - **Player real:** HLS, MP4, links e embeds externos, múltiplas versões/servidores, preferência
@@ -40,6 +46,14 @@ idempotentes usados para reconstruir e enriquecer o ambiente.
 - **Responsividade:** navegação e fluxos principais adaptados para desktop, tablet e celular.
 
 ## Subir tudo com Docker
+
+No primeiro preparo de uma máquina Windows, registre uma única vez o adaptador autorizado do TiaManhwa:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\install_tia_fetcher_startup.ps1
+```
+
+Essa instalação é permanente para o usuário: o adaptador inicia no login, reinicia em caso de falha e não precisa ser acionado novamente após reiniciar o Windows. Os containers também usam `restart: unless-stopped`.
 
 ```bash
 docker compose up -d --build
@@ -225,6 +239,8 @@ Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
 - `docs/visual-baseline.md` — rotas e viewports usados na verificação visual;
 - `docs/hianime-season-import.md` — importação sazonal por CSV, AniList e HiAnime.
 - `docs/hianime-continuous-sync.md` — worker de 15 minutos e operação da aba Sincronização.
+- `docs/weebcentral-english-unofficial-api.md` — API somente leitura de mangás e quadrinhos em inglês.
+- `docs/reading-provider-apis.md` — APIs de leitura do TiaManhwa, Comix e ManhwaBuddy e monitoramento de saúde.
 
 ## O que ainda não existe
 

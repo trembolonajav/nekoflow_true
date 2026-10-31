@@ -10,3 +10,6 @@ frontend/design-generated/
 audit/
 tools/__pycache__/
 *.py[cod]
+
+# Estado de execução local (cookies do tia-fetcher etc.)
+runtime/

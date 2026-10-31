@@ -18,6 +18,7 @@ class AdminPainelLogic extends DCLogic {
     user: 0,
     openRun: 0,
     running: false,
+    testing: {},
     added: {},
     done: {},
     events: {},
@@ -53,6 +54,26 @@ class AdminPainelLogic extends DCLogic {
     clearTimeout(this.tt);
     this.setState({ toast: t });
     this.tt = setTimeout(() => this.setState({ toast: null }), 2200);
+  }
+  testIntegration(code) {
+    if (!code || this.state.testing[code]) return;
+    this.setState((s) => ({ testing: { ...s.testing, [code]: true } }));
+    api
+      .post(`/api/admin/integrations/${code}/test`, {})
+      .then(() => this.load())
+      .then(() => this.flash("Integração testada"))
+      .catch(() => this.flash("O teste da integração falhou"))
+      .finally(() => this.setState((s) => ({ testing: { ...s.testing, [code]: false } })));
+  }
+  testAllIntegrations() {
+    if (this.state.testing.all) return;
+    this.setState((s) => ({ testing: { ...s.testing, all: true } }));
+    api
+      .post("/api/admin/integrations/test-all", {})
+      .then(() => this.load())
+      .then(() => this.flash("Todas as integrações foram testadas"))
+      .catch(() => this.flash("Não foi possível concluir todos os testes"))
+      .finally(() => this.setState((s) => ({ testing: { ...s.testing, all: false } })));
   }
   go(tab) {
     this.setState({ tab });
@@ -489,10 +510,15 @@ class AdminPainelLogic extends DCLogic {
       }));
     const integ = d.providers || { list: [], running: false, next: "—" };
     const providers = asList(integ.list).map((p) => ({
+      code: p.code,
       name: p.name,
       role: p.role,
       meta: p.meta,
-      dot: p.idle ? "#4A433B" : p.ok ? "#7FB77E" : "#E08A72",
+      status: p.status || "UNKNOWN",
+      message: p.message,
+      testing: !!s.testing[p.code],
+      test: () => this.testIntegration(p.code),
+      dot: p.status === "UNKNOWN" ? "#8F897D" : p.ok ? "#7FB77E" : "#E08A72",
       border: p.name === "HiAnime" ? (p.ok ? "rgba(127,183,126,.25)" : "rgba(217,115,91,.5)") : "rgba(240,238,233,.06)",
     }));
     const hours = (h) => (h >= 10 ? `${Math.round(h)} h` : h > 0 ? `${h.toFixed(1).replace(".", ",")} h` : "0 h");
@@ -539,6 +565,8 @@ class AdminPainelLogic extends DCLogic {
           .catch(() => this.flash("Não foi possível criar a tarefa"));
       },
       providers,
+      testingAll: !!s.testing.all,
+      testAll: () => this.testAllIntegrations(),
       runs,
       syncState: s.running || integ.running ? "Executando…" : `Próxima automática às ${integ.next}`,
       runNow: () => {
@@ -1520,6 +1548,25 @@ function render(v) {
                       </span>
                       <span style={{ fontSize: "13px", color: "#D9D5CC" }}>{txt(v?.role)}</span>
                       <span style={{ fontSize: "12px", color: "#8F897D" }}>{txt(v?.meta)}</span>
+                      {v?.message ? <span style={{ fontSize: "11px", color: v?.status === "DOWN" ? "#E08A72" : "#8F897D" }}>{txt(v?.message)}</span> : null}
+                      <button
+                        onClick={v?.test}
+                        disabled={v?.testing}
+                        style={{
+                          all: "unset",
+                          cursor: v?.testing ? "wait" : "pointer",
+                          alignSelf: "flex-start",
+                          marginTop: "2px",
+                          padding: "6px 10px",
+                          borderRadius: "999px",
+                          border: "1px solid rgba(219,175,87,.35)",
+                          color: "#DBAF57",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {v?.testing ? "Testando…" : "Testar API"}
+                      </button>
                     </div>
                   </React.Fragment>
                 ))}
@@ -1527,6 +1574,25 @@ function render(v) {
               <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "15px", fontWeight: "600", flex: "1" }}>Execuções</span>
                 <span style={{ fontSize: "12px", color: "#B7B1A4" }}>{txt(v.syncState)}</span>
+                <button
+                  onClick={v.testAll}
+                  disabled={v.testingAll}
+                  style={{
+                    all: "unset",
+                    cursor: v.testingAll ? "wait" : "pointer",
+                    height: "38px",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 16px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(127,183,126,.35)",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#7FB77E",
+                  }}
+                >
+                  {v.testingAll ? "Testando APIs…" : "Testar todas as APIs"}
+                </button>
                 <button
                   onClick={v.runNow}
                   style={{

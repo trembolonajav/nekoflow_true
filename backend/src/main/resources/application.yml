@@ -11,6 +11,11 @@ server:
         secure: ${SESSION_COOKIE_SECURE:false}
 
 nekoflow:
+  sushi-animes:
+    enabled: ${SUSHI_ANIMES_ENABLED:true}
+    origin: ${SUSHI_ANIMES_ORIGIN:https://sushianimes.com.br}
+    cdn-hosts: ${SUSHI_ANIMES_CDN_HOSTS:cdn-s01.pixel-sus-4k-image.com,cdn-sv01.maximaimg.online}
+    request-timeout-seconds: ${SUSHI_ANIMES_REQUEST_TIMEOUT_SECONDS:25}
   public-url: ${NEKOFLOW_PUBLIC_URL:http://localhost:9080}
   bootstrap-admin:
     enabled: ${NEKOFLOW_BOOTSTRAP_ADMIN:false}
@@ -36,6 +41,29 @@ nekoflow:
     initial-delay-ms: ${HIANIME_SYNC_INITIAL_DELAY_MS:90000}
     recent-pages: ${HIANIME_SYNC_RECENT_PAGES:2}
     request-timeout-seconds: ${HIANIME_API_TIMEOUT_SECONDS:20}
+  mangalivre:
+    enabled: ${MANGALIVRE_ENABLED:true}
+    origin: ${MANGALIVRE_ORIGIN:https://mangalivre.blog}
+    request-timeout-seconds: ${MANGALIVRE_API_TIMEOUT_SECONDS:20}
+    cache-ttl-seconds: ${MANGALIVRE_CACHE_TTL_SECONDS:120}
+  # Adaptador separado: todo o conteúdo deste provedor está em inglês.
+  weebcentral-en:
+    enabled: ${WEEBCENTRAL_EN_ENABLED:true}
+    origin: ${WEEBCENTRAL_EN_ORIGIN:https://weebcentral.com}
+    request-timeout-seconds: ${WEEBCENTRAL_EN_API_TIMEOUT_SECONDS:20}
+    cache-ttl-seconds: ${WEEBCENTRAL_EN_CACHE_TTL_SECONDS:120}
+  # APIs normalizadas de leitura. TiaManhwa e Comix são integrações não oficiais;
+  # ManhwaBuddy está identificado como parceria autorizada no inventário administrativo.
+  reading-providers:
+    request-timeout-seconds: ${READING_PROVIDERS_TIMEOUT_SECONDS:20}
+    cache-ttl-seconds: ${READING_PROVIDERS_CACHE_TTL_SECONDS:120}
+    tiamanhwa-origin: ${TIAMANHWA_ORIGIN:https://tiamanhwa.com}
+    comix-origin: ${COMIX_ORIGIN:https://comix.to}
+    manhwabuddy-origin: ${MANHWABUDDY_ORIGIN:https://manhwabuddy.com}
+    tiamanhwa-fetcher-url: ${TIAMANHWA_FETCHER_URL:}
+    tiamanhwa-fetcher-secret: ${TIA_FETCHER_SECRET:}
+    comix-fetcher-url: ${COMIX_FETCHER_URL:}
+    comix-fetcher-secret: ${COMIX_FETCHER_SECRET:}
 
 spring:
   application:

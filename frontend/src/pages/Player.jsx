@@ -4490,8 +4490,13 @@ class RealPlayerLogic extends PlayerLogic {
       video.appendChild(el);
     }
     const Hls = this.Hls;
+    const sourceType = access.type || src.type;
     const nativeHls = video.canPlayType("application/vnd.apple.mpegurl");
-    if (src.type === "HLS" && !nativeHls && Hls) {
+    const hlsJsSupported = !!(Hls && Hls.isSupported && Hls.isSupported());
+    // Chromium pode anunciar suporte nativo a HLS e ainda rejeitar manifests válidos
+    // (especialmente quando os segmentos usam extensões ofuscadas). Prefere hls.js;
+    // o suporte nativo fica como fallback para Safari e navegadores sem MSE.
+    if (sourceType === "HLS" && hlsJsSupported) {
       const hls = new Hls({ startPosition: startT, capLevelToPlayerSize: true, maxBufferLength: 30 });
       this.hls = hls;
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, d) =>
@@ -4523,7 +4528,7 @@ class RealPlayerLogic extends PlayerLogic {
       });
       hls.loadSource(access.url);
       hls.attachMedia(video);
-    } else if (src.type === "HLS" && !nativeHls) {
+    } else if (sourceType === "HLS" && !nativeHls) {
       this.fail("Este navegador não reproduz HLS.", true);
       return;
     } else {
@@ -4533,7 +4538,7 @@ class RealPlayerLogic extends PlayerLogic {
     // URL temporária: renova o acesso antes de expirar mantendo a posição.
     const ttl = Date.parse(access.expiresAt) - Date.now();
     clearTimeout(this.renewTimer);
-    if (ttl > 60_000 && src.type !== "HLS") {
+    if (ttl > 60_000 && sourceType !== "HLS") {
       this.renewTimer = setTimeout(() => {
         const t = this.video ? this.video.currentTime : this.state.t;
         this.attach(src, t, { autoplay: this.state.playing });

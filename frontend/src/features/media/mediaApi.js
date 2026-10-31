@@ -5,7 +5,7 @@ import { getLocale } from "../../i18n/locale";
 
 export const mediaApi = {
   playback: (episodeId) => api.get(`/api/v1/episodes/${episodeId}/playback?lang=${encodeURIComponent(getLocale())}`),
-  access: (episodeId, sourceId) => api.post(`/api/v1/episodes/${episodeId}/playback/sources/${sourceId}/access`),
+  access: (episodeId, sourceId) => api.get(`/api/v1/episodes/${episodeId}/playback/sources/${sourceId}/access`),
   manifest: (chapterId, editionId) => api.get(`/api/v1/chapters/${chapterId}/editions/${editionId}/manifest`),
   reportIssue: (body) => api.post("/api/v1/me/media-issues", body),
 };

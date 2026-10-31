@@ -124,6 +124,25 @@ class LeitorLogic extends DCLogic {
     if (w !== this.state.wide)
       this.setState({ wide: w, mode: !w && this.state.mode === "double" ? "single" : this.state.mode });
   };
+  touchStart = null;
+  onTouchStart = (event) => {
+    if (this.state.mode === "vertical" || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    this.touchStart = { x: touch.clientX, y: touch.clientY };
+  };
+  onTouchEnd = (event) => {
+    const start = this.touchStart;
+    this.touchStart = null;
+    if (!start || this.state.mode === "vertical" || event.changedTouches.length !== 1) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    event.preventDefault();
+    const forward = this.rtl() ? dx > 0 : dx < 0;
+    if (forward) this.fwd();
+    else this.back();
+  };
   onFs = () => this.setState({ fs: !!document.fullscreenElement });
   savePrefs(patch) {
     this.setState(patch, () => {
@@ -527,6 +546,8 @@ class LeitorLogic extends DCLogic {
         this.lastMove = Date.now();
         this.setState({ ctrl: !s.ctrl });
       },
+      onTouchStart: this.onTouchStart,
+      onTouchEnd: this.onTouchEnd,
       spread,
       spreadDir: rtl ? "row-reverse" : "row",
       pageH,
@@ -607,6 +628,13 @@ class LeitorLogic extends DCLogic {
       modeText: vertical
         ? "Rolagem vertical"
         : `${dbl ? "Página dupla" : "Página única"} · ${rtl ? "dir. → esq." : "esq. → dir."}`,
+      modeOptions: [
+        { label: "Contínuo", active: vertical, pick: () => this.setMode("vertical"), disabled: false },
+        { label: "Página", active: s.mode === "single", pick: () => this.setMode("single"), disabled: false },
+        { label: "Livro", active: dbl, pick: () => this.setMode("double"), disabled: !s.wide },
+      ],
+      cycleMode: () => this.setMode(vertical ? "single" : "vertical"),
+      compactModeLabel: vertical ? "Contínuo" : dbl ? "Livro" : "Página",
       openPicker: () => {
         this.setState({ panel: "pick", pickTab: "ch", ctrl: true });
         setTimeout(() => {
@@ -702,6 +730,8 @@ function render(v) {
       <div
         ref={v.rootRef}
         onMouseMove={v.wake}
+        onTouchStart={v.onTouchStart}
+        onTouchEnd={v.onTouchEnd}
         style={{
           position: "fixed",
           inset: "0",
@@ -1354,6 +1384,62 @@ function render(v) {
               </button>
             </div>
             <span style={{ flex: "1" }} />
+            {v.wide ? (
+              <div
+                role="group"
+                aria-label="Modo de leitura"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  padding: "3px",
+                  borderRadius: "10px",
+                  background: "#1A1714",
+                  border: "1px solid rgba(240,238,233,.1)",
+                }}
+              >
+                {asList(v.modeOptions).map((option, index) => (
+                  <button
+                    key={index}
+                    onClick={option.pick}
+                    disabled={option.disabled}
+                    aria-pressed={option.active}
+                    style={{
+                      border: "0",
+                      height: "32px",
+                      padding: "0 11px",
+                      borderRadius: "7px",
+                      background: option.active ? "#DBAF57" : "transparent",
+                      color: option.active ? "#1A1714" : "#B7B1A4",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      cursor: option.disabled ? "not-allowed" : "pointer",
+                      opacity: option.disabled ? ".4" : "1",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={v.cycleMode}
+                aria-label="Alternar modo de leitura"
+                style={{
+                  border: "1px solid rgba(219,175,87,.35)",
+                  height: "36px",
+                  padding: "0 10px",
+                  borderRadius: "9px",
+                  background: "#1A1714",
+                  color: "#DBAF57",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {txt(v.compactModeLabel)}
+              </button>
+            )}
             <span
               style={{ fontSize: "12px", color: "#8F897D", whiteSpace: "nowrap", display: `${v.syncDisplay ?? ""}` }}
             >
@@ -2214,6 +2300,7 @@ class RealLeitorLogic extends LeitorLogic {
     loadState: "loading",
     failed: {},
     retry: {},
+    pageDims: {},
     syncStatus: null,
     serverProg: null,
     unitProg: {},
@@ -2275,9 +2362,14 @@ class RealLeitorLogic extends LeitorLogic {
     const prefs = this.prefs || {};
     // Modo e direção da edição; o leitor só muda se a pessoa escolher outro aqui.
     const editionMode = man.readingMode === "VERTICAL" ? "vertical" : "single";
+    // Se o modo editorial mudou (por exemplo, páginas MangaLivre identificadas como
+    // segmentos contínuos), descarta somente o modo antigo salvo. Preferências feitas
+    // depois da mudança continuam sendo respeitadas.
+    const savedMode =
+      prefs.modeFor === man.editionId && prefs.readingMode === man.readingMode ? prefs.mode : null;
     this.setState({
       ...prefs,
-      mode: prefs.modeFor === man.editionId && prefs.mode ? prefs.mode : editionMode,
+      mode: savedMode || editionMode,
       dir: prefs.modeFor === man.editionId && prefs.dir ? prefs.dir : "auto",
       man,
       ch: index,
@@ -2355,8 +2447,24 @@ class RealLeitorLogic extends LeitorLogic {
 
   isWide(i) {
     const p = this.state.man && this.state.man.pages[i];
-    return !!p && (p.type === "DOUBLE" || p.width > p.height);
+    const measured = this.state.pageDims[i];
+    const width = measured?.width || p?.width;
+    const height = measured?.height || p?.height;
+    return !!p && (p.type === "DOUBLE" || width > height);
   }
+
+  pageLoaded = (i, event) => {
+    const image = event.currentTarget;
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+    if (width > 0 && height > 0) {
+      const current = this.state.pageDims[i];
+      if (!current || current.width !== width || current.height !== height) {
+        this.setState({ pageDims: { ...this.state.pageDims, [i]: { width, height } } });
+      }
+    }
+    if (this.state.failed[i]) this.setState({ failed: { ...this.state.failed, [i]: false } });
+  };
 
   /** Páginas mostradas juntas no modo duplo: capa sozinha, páginas duplas sozinhas. */
   spreadAt(i) {
@@ -2504,6 +2612,7 @@ class RealLeitorLogic extends LeitorLogic {
         mode: s.mode,
         dir: s.dir,
         modeFor: s.man ? s.man.editionId : null,
+        readingMode: s.man ? s.man.readingMode : null,
         fit: s.fit,
         zoom: s.zoom,
         theme: s.theme,
@@ -2601,10 +2710,13 @@ class RealLeitorLogic extends LeitorLogic {
     const pageVal = (p, i) => {
       const n = s.retry[i] || 0;
       const src = n ? `${p.url}${p.url.includes("?") ? "&" : "?"}r=${n}` : p.url;
+      const measured = s.pageDims[i];
+      const width = measured?.width || p.width;
+      const height = measured?.height || p.height;
       return {
         i,
-        ratio: `${p.width}/${p.height}`,
-        aspect: `${p.width}/${p.height}`,
+        ratio: `${width}/${height}`,
+        aspect: `${width}/${height}`,
         bg: "none",
         size: "contain",
         pos: "center",
@@ -2615,7 +2727,7 @@ class RealLeitorLogic extends LeitorLogic {
         position: p.position,
         eager: vertical ? i < 3 : true,
         failed: !!s.failed[i],
-        onLoad: () => s.failed[i] && this.setState({ failed: { ...this.state.failed, [i]: false } }),
+        onLoad: (event) => this.pageLoaded(i, event),
         onError: () => this.setState({ failed: { ...this.state.failed, [i]: true } }),
         retry: () => this.retryPage(i),
       };
@@ -2624,9 +2736,12 @@ class RealLeitorLogic extends LeitorLogic {
     const spreadIdx = this.spreadAt(Math.min(s.page, man.pages.length - 1));
     const spread = spreadIdx.map((i) => segs[i]);
     const landscape = spreadIdx.some((i) => this.isWide(i));
+    const firstPage = man.pages[spreadIdx[0]];
+    const firstDims = s.pageDims[spreadIdx[0]] || firstPage;
+    const mangaLivreContinuous = vertical && /manga livre/i.test(man.edition?.name || "");
     const pageH = landscape
       ? `calc(min(100vh - 40px, (100vw - 40px) * ${
-          man.pages[spreadIdx[0]].height / man.pages[spreadIdx[0]].width
+          firstDims.height / firstDims.width
         }) * ${zoom})`
       : base.pageH;
     const chName = (c) => `Capítulo ${c.number}`;
@@ -2676,6 +2791,7 @@ class RealLeitorLogic extends LeitorLogic {
       workHref: man.work.href,
       segs,
       spread,
+      colW: mangaLivreContinuous ? `calc(min(1400px, 100vw) * ${zoom})` : base.colW,
       pageH,
       chTitle: chName(man.chapter),
       endTitle: next ? "Capítulo concluído" : "Você chegou ao último capítulo disponível",

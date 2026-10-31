@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -48,6 +49,7 @@ public class AniListClient {
     public record Media(long id, String type, String description, String bannerImage, String cover,
                         String siteUrl, JsonNode raw) {
     }
+    public record Health(String status, long latencyMs) {}
 
     public Optional<Media> fetch(long id) throws Exception {
         String body = mapper.writeValueAsString(Map.of("query", QUERY, "variables", Map.of("id", id)));
@@ -71,6 +73,21 @@ public class AniListClient {
         }
         return Optional.of(new Media(m.path("id").asLong(), text(m, "type"), text(m, "description"),
                 text(m, "bannerImage"), text(m.path("coverImage"), "extraLarge"), text(m, "siteUrl"), m));
+    }
+
+    /** Teste mínimo da API GraphQL oficial, sem alterar nem sincronizar o catálogo. */
+    public Health health() throws Exception {
+        long started = System.nanoTime();
+        String query = "query{Page(page:1,perPage:1){media(type:ANIME,sort:POPULARITY_DESC){id}}}";
+        String body = mapper.writeValueAsString(Map.of("query", query, "variables", Map.of()));
+        HttpRequest request = HttpRequest.newBuilder(ENDPOINT).timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/json").header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) throw new IllegalStateException("AniList respondeu HTTP " + response.statusCode());
+        JsonNode media = mapper.readTree(response.body()).path("data").path("Page").path("media");
+        if (!media.isArray() || media.isEmpty()) throw new IllegalStateException("AniList não retornou mídia no teste.");
+        return new Health("UP", Duration.ofNanos(System.nanoTime() - started).toMillis());
     }
 
     private static String text(JsonNode node, String field) {
