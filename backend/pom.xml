@@ -18,6 +18,8 @@
 
   <properties>
     <java.version>17</java.version>
+    <!-- 1.21.4+ negocia a versão da API do Docker 29 (o 1.19 do Boot 3.3 usa a API 1.32, recusada no CI). -->
+    <testcontainers.version>1.21.4</testcontainers.version>
   </properties>
 
   <dependencies>
