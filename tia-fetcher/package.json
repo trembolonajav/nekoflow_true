@@ -1,0 +1,8 @@
+{
+  "name": "nekoflow-tia-fetcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Resolvedor autorizado e restrito do TiaManhwa",
+  "license": "UNLICENSED",
+  "dependencies": {}
+}

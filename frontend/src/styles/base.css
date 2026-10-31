@@ -15,3 +15,5 @@ html,body{height:100%;margin:0}
     animation-play-state: running !important; transition-duration: 0s !important;
   }
 }
+
+.nk-hover-srv:hover{border-color:#DBAF57 !important}.nk-hover-srvitem:hover{background:#221F1B !important}

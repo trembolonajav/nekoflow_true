@@ -6,6 +6,18 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { getWorkUrl, normalizeSearch } from "../features/catalog/workNavigation";
+import { mergeCatalogList } from "../features/catalog/mergeCatalog";
+import { libraryApi } from "../features/library/libraryApi";
+import { track } from "../features/telemetry/telemetry";
+import { getLocale, subscribeLocale } from "../i18n/locale";
+import {
+  availabilityNote,
+  availableIn,
+  languageLabels,
+  languageSummary,
+  showcaseLanguage,
+} from "../features/catalog/contentLanguage";
 
 const quickBtn = (on) => ({
   all: "unset",
@@ -34,47 +46,77 @@ class ExplorarLogic extends DCLogic {
     decade: null,
     minScore: null,
     vertical: false,
+    dubPt: false,
+    dubbed: null,
+    allLangs: false,
+    langSummary: null,
     epRange: null,
     sort: "pop",
     limit: 24,
   };
   componentDidMount() {
     const p = new URLSearchParams(location.search);
-    const k = p.get("tipo");
+    const requestedKind = p.get("tipo");
+    const k = this.props.initialKind
+      ? ["animes", "filmes"].includes(requestedKind)
+        ? requestedKind
+        : this.props.initialKind
+      : requestedKind;
     const q = p.get("q");
-    this.setState({ kind: k || "todos", q: q || "" });
+    this.setState({
+      kind: k || "todos",
+      q: q || "",
+      genres: (p.get("genero") || "").split(",").filter(Boolean),
+      themes: (p.get("tema") || "").split(",").filter(Boolean),
+      status: p.get("status"),
+      origin: p.get("origem"),
+      decade: p.get("decada"),
+      minScore: p.get("nota") ? Number(p.get("nota")) : null,
+      vertical: p.get("vertical") === "1",
+      dubPt: p.get("dublado") === "pt-br",
+      allLangs: p.get("idioma") === "todos",
+      epRange: p.get("episodios"),
+      sort: p.get("ordem") || "pop",
+    });
     // Catálogo editorial + obras cadastradas pela equipe (mesmo id, sem duplicar).
     Promise.all([
-      fetch("/api/content/explorar").then((r) => r.json()),
-      fetch("/api/catalog/all")
-        .then((r) => r.json())
-        .catch(() => []),
+      api.get("/api/content/explorar"),
+      api.get("/api/catalog/all").catch(() => []),
     ]).then(([items, all]) => {
-      const known = new Set(items.map((x) => x.id));
-      const extra = all
-        .filter((w) => !known.has(w.id) && w.id >= 900000000)
-        .map((w) => ({ ...w, genres: [], themes: [], score: null, origin: null, studio: "", pop: w.pop || 1 }));
-      this.setState({ items: [...items, ...extra] });
+      this.setState({ items: mergeCatalogList(items, all).map((w) => ({
+        ...w, genres: w.genres || [], themes: w.themes || [], score: w.score ?? null,
+        origin: w.origin ?? null, studio: w.studio || "", pop: w.pop || 1,
+      })) });
     });
+    // Obras com dublagem PT-BR realmente disponível (fontes ativas), para o filtro.
+    api.get("/api/v1/works/dubbed?lang=pt-BR")
+      .then((ids) => this.setState({ dubbed: new Set(ids) }))
+      .catch(() => this.setState({ dubbed: new Set() }));
+    // Idioma do site decide a vitrine; a busca por texto mostra tudo.
+    languageSummary().then((langSummary) => this.setState({ langSummary }));
+    this.offLocale = subscribeLocale(() => this.forceUpdate());
     this.loadMine();
+  }
+  componentWillUnmount() {
+    if (this.offLocale) this.offLocale();
   }
   /** Lista e favoritos da conta (fonte única), para os botões rápidos dos cards. */
   loadMine() {
     if (!session.loggedIn) return;
-    api
-      .get("/api/me/library")
-      .then((lib) => this.setState({ lib }))
+    libraryApi
+      .list({ size: 100 })
+      .then((lib) => this.setState({ lib: lib.items }))
       .catch(() => {});
-    api
-      .get("/api/me/favorites")
-      .then((favs) => this.setState({ favs: favs.map((f) => f.id) }))
+    libraryApi
+      .favorites({ size: 100 })
+      .then((favs) => this.setState({ favs: favs.items.map((f) => f.id) }))
       .catch(() => {});
   }
   quick(e, req) {
     e.preventDefault();
     e.stopPropagation();
     if (!session.loggedIn) return goLogin();
-    req
+    req()
       .then(() => {
         this.loadMine();
         window.dispatchEvent(new Event("nk:personal"));
@@ -87,6 +129,16 @@ class ExplorarLogic extends DCLogic {
     if (s.kind !== "todos") p.set("tipo", s.kind);
     if (s.q) p.set("q", s.q);
     if (s.genres.length) p.set("genero", s.genres.join(","));
+    if (s.themes.length) p.set("tema", s.themes.join(","));
+    if (s.status) p.set("status", s.status);
+    if (s.origin) p.set("origem", s.origin);
+    if (s.decade) p.set("decada", s.decade);
+    if (s.minScore) p.set("nota", s.minScore);
+    if (s.vertical) p.set("vertical", "1");
+    if (s.dubPt) p.set("dublado", "pt-br");
+    if (s.allLangs) p.set("idioma", "todos");
+    if (s.epRange) p.set("episodios", s.epRange);
+    if (s.sort !== "pop") p.set("ordem", s.sort);
     try {
       history.replaceState(null, "", p.toString() ? `?${p}` : location.pathname);
     } catch (e) {}
@@ -117,9 +169,13 @@ class ExplorarLogic extends DCLogic {
     const isRead = ["mangas", "manhwas", "webtoons"].includes(s.kind);
     const decades = { "2020s": [2020, 2099], "2010s": [2010, 2019], "2000s": [2000, 2009], "Antes de 2000": [0, 1999] };
     const eps = { "Até 13": [0, 13], "14 a 26": [14, 26], "Mais de 26": [27, 9999] };
-    const ql = s.q.trim().toLowerCase();
+    const ql = normalizeSearch(s.q);
+    const locale = getLocale();
+    const showcase = s.allLangs || ql ? null : showcaseLanguage(s.langSummary, locale);
+    const langText = languageLabels(locale);
     const base = s.items.filter((x) => {
-      if (ql && !(x.title + " " + x.alt + " " + x.studio).toLowerCase().includes(ql)) return false;
+      if (ql && !normalizeSearch(x.title + " " + x.alt + " " + x.studio).includes(ql)) return false;
+      if (!availableIn(x, showcase)) return false;
       if (s.genres.length && !s.genres.every((g) => x.genres.includes(g))) return false;
       if (s.themes.length && !s.themes.every((t) => x.themes.includes(t))) return false;
       if (s.status && x.status !== s.status) return false;
@@ -130,6 +186,7 @@ class ExplorarLogic extends DCLogic {
       }
       if (s.minScore && !(x.score >= s.minScore * 10)) return false;
       if (isRead && s.vertical && !x.webtoon) return false;
+      if (s.dubPt && !isRead && !(s.dubbed && s.dubbed.has(x.id))) return false;
       if (s.kind === "animes" && s.epRange) {
         const [a, b] = eps[s.epRange];
         if (!x.eps || x.eps < a || x.eps > b) return false;
@@ -137,6 +194,15 @@ class ExplorarLogic extends DCLogic {
       return true;
     });
     const list = base.filter((x) => this.matchKind(x, s.kind));
+    // Busca para o painel (buscas sem resultado viram pendência): registra 1,5 s após parar de digitar.
+    if (ql && s.items.length && ql !== this.trackedQ) {
+      clearTimeout(this.qTimer);
+      const results = list.length;
+      this.qTimer = setTimeout(() => {
+        this.trackedQ = ql;
+        track("search", { q: s.q.trim().slice(0, 120), results });
+      }, 1500);
+    }
     const sorters = {
       pop: (a, b) => b.pop - a.pop,
       score: (a, b) => (b.score || 0) - (a.score || 0),
@@ -175,11 +241,11 @@ class ExplorarLogic extends DCLogic {
       toggleList: (e) =>
         inLib.has(x.id)
           ? (e.preventDefault(), e.stopPropagation(), (location.href = "/conta?aba=lista"))
-          : this.quick(e, api.put(`/api/me/library/${x.id}`, { status: "planejado" })),
-      toggleFav: (e) => this.quick(e, api.put(`/api/me/favorites/${x.id}`, { on: !favSet.has(x.id) })),
-      href: x.id === 151807 ? "/obra" : x.id === 105398 ? "/obra-leitura" : "#",
+          : this.quick(e, () => libraryApi.setStatus(x.id, "planejado")),
+      toggleFav: (e) => this.quick(e, () => libraryApi.favorite(x.id, !favSet.has(x.id))),
+      href: getWorkUrl(x),
       typeLabel: label(x),
-      meta: meta(x),
+      meta: [meta(x), availabilityNote(x, locale, { onlyMissing: true })].filter(Boolean).join(" · "),
       hasScore: !!x.score,
       scoreLabel: x.score ? (x.score / 10).toFixed(1).replace(".", ",") : "",
     }));
@@ -266,6 +332,19 @@ class ExplorarLogic extends DCLogic {
           pick: () => this.toggleOne("epRange", v),
         })),
       });
+    if (!isRead)
+      groups.push({
+        label: "Dublagem",
+        opts: [{ label: "Dublado em PT-BR", ...chip(s.dubPt), pick: () => this.set({ dubPt: !s.dubPt }) }],
+      });
+    if (s.langSummary && showcaseLanguage(s.langSummary, locale))
+      groups.push({
+        label: "Idioma",
+        opts: [
+          { label: langText.only, ...chip(!s.allLangs), pick: () => this.set({ allLangs: false }) },
+          { label: langText.all, ...chip(s.allLangs), pick: () => this.set({ allLangs: true }) },
+        ],
+      });
     if (isRead)
       groups.push({
         label: "Formato de leitura",
@@ -284,8 +363,10 @@ class ExplorarLogic extends DCLogic {
         .map(([k, v]) => ({ label: v, remove: () => this.set({ [k]: null }) })),
       ...(s.minScore ? [{ label: `★ ${s.minScore}+`, remove: () => this.set({ minScore: null }) }] : []),
       ...(isRead && s.vertical ? [{ label: "Rolagem vertical", remove: () => this.set({ vertical: false }) }] : []),
+      ...(!isRead && s.dubPt ? [{ label: "Dublado em PT-BR", remove: () => this.set({ dubPt: false }) }] : []),
+      ...(showcase ? [{ label: langText.only, remove: () => this.set({ allLangs: true }) }] : []),
     ];
-    const K = [
+    const allKinds = [
       ["todos", "Todos"],
       ["animes", "Animes"],
       ["filmes", "Filmes"],
@@ -293,9 +374,14 @@ class ExplorarLogic extends DCLogic {
       ["manhwas", "Manhwas"],
       ["webtoons", "Webtoons"],
     ];
+    const K = this.props.initialKind ? allKinds.filter(([k]) => k === "animes" || k === "filmes") : allKinds;
     const loaded = s.items.length > 0;
     return {
       loggedIn,
+      pageTitle: this.props.pageTitle || "Explorar",
+      pageSubtitle:
+        this.props.pageSubtitle || "Todo o catálogo da Nekoflow: animes, filmes, mangás, manhwas e webtoons.",
+      activeSection: this.props.activeSection || "explorar",
       q: s.q,
       hasQ: !!s.q,
       sort: s.sort,
@@ -326,13 +412,18 @@ class ExplorarLogic extends DCLogic {
           decade: null,
           minScore: null,
           vertical: false,
+          dubPt: false,
           epRange: null,
         }),
-      countLabel: loaded ? `${list.length} ${list.length === 1 ? "obra" : "obras"}` : "Carregando…",
+      countLabel: loaded
+        ? `${list.length} ${list.length === 1 ? "obra" : "obras"}${
+            s.langSummary && !showcaseLanguage(s.langSummary, locale) && !ql ? ` · ${langText.few}` : ""
+          }`
+        : "Carregando…",
       results,
       hasResults: list.length > 0,
       empty: loaded && list.length === 0,
-      requestHref: `/conta?aba=solicitacoes&titulo=${encodeURIComponent(s.q || "")}`,
+      requestHref: `/solicitacoes?titulo=${encodeURIComponent(s.q || "")}`,
       hasMore: list.length > s.limit,
       remaining: Math.max(0, list.length - s.limit),
       more: () => this.setState({ limit: s.limit + 24 }),
@@ -366,7 +457,7 @@ function render(v) {
     <>
       <div style={{ minHeight: "100vh", background: "#171411", display: "flex", flexDirection: "column" }}>
         <Header
-          active="explorar"
+          active={v.activeSection}
           loggedIn={v.loggedIn}
           solid={true}
           __hostStyle={{ position: "absolute", top: "0", left: "0", right: "0", height: "0", zIndex: "50" }}
@@ -385,10 +476,10 @@ function render(v) {
                 lineHeight: "1",
               }}
             >
-              Explorar
+              {txt(v.pageTitle)}
             </h1>
             <p style={{ margin: "0", fontSize: "15px", color: "#B7B1A4" }}>
-              Todo o catálogo da Nekoflow: animes, filmes, mangás, manhwas e webtoons.
+              {txt(v.pageSubtitle)}
             </p>
           </div>
           <div

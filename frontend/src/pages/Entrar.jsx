@@ -3,6 +3,7 @@
 import React from "react";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { libraryApi } from "../features/library/libraryApi";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import Header from "../components/Header";
 
@@ -23,6 +24,8 @@ class EntrarLogic extends DCLogic {
     step: 1,
     genres: [],
     follow: [],
+    authNotice: "",
+    token: "",
   };
   MODES = ["entrar", "criar", "verificar", "recuperar", "enviado", "redefinir", "pronto", "boas"];
   onResize = () => {
@@ -30,12 +33,19 @@ class EntrarLogic extends DCLogic {
     if (w !== this.state.wide) this.setState({ wide: w });
   };
   componentDidMount() {
-    const p = new URLSearchParams(location.search).get("modo");
+    const params = new URLSearchParams(location.search);
+    const p = params.get("modo");
+    const token = params.get("token") || "";
     this.setState({ mode: p === "boas-vindas" ? "boas" : this.MODES.includes(p) ? p : "entrar" });
+    this.setState({ token });
+    if (p === "verificar" && token) {
+      api.post("/api/auth/verify-email", { token }).then(() => {
+        this.setMode("entrar"); this.setState({ authNotice: "E-mail confirmado. Agora você já pode entrar." });
+      }).catch((e) => this.setState({ authNotice: e.message || "O link é inválido ou expirou." }));
+    }
     this.onResize();
     window.addEventListener("resize", this.onResize);
-    fetch("/api/content/entrar")
-      .then((r) => r.json())
+    api.get("/api/content/entrar")
       .then((covers) => this.setState({ covers }));
   }
   componentWillUnmount() {
@@ -64,8 +74,8 @@ class EntrarLogic extends DCLogic {
     const jobs = [];
     if (s.genres.length) jobs.push(api.put("/api/me/preferences", { genres: s.genres }));
     s.follow.forEach((id) => {
-      jobs.push(api.put(`/api/me/library/${id}`, { status: "planejado" }));
-      jobs.push(api.put(`/api/me/follows/${id}`, { on: true }));
+      jobs.push(libraryApi.setStatus(id, "planejado"));
+      jobs.push(libraryApi.follow(id, true));
     });
     Promise.allSettled(jobs).then(() => this.done("/"));
   }
@@ -83,7 +93,8 @@ class EntrarLogic extends DCLogic {
     const m = {};
     this.MODES.forEach((k) => (m[k] = k === s.mode));
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.email.trim());
-    const emailErr = s.emailTouched && !!s.email && !emailOk;
+    const loginOk = emailOk || /^[a-z0-9_.]{3,20}$/i.test(s.email.trim());
+    const emailErr = s.emailTouched && !!s.email && !(s.mode === "entrar" ? loginOk : emailOk);
     const u = s.user.trim().toLowerCase();
     const reserved = ["admin", "nekoflow", "suporte", "moderador", "marina"];
     let userMsg = "De 3 a 20 caracteres: letras, números, ponto ou _. Aparece no seu perfil.",
@@ -103,18 +114,18 @@ class EntrarLogic extends DCLogic {
       }
     }
     const L = s.pw.length;
-    const lvl = L === 0 ? 0 : L < 8 ? 1 : L < 15 ? 2 : 3;
+    const lvl = L === 0 ? 0 : L < 15 ? 1 : L < 24 ? 2 : 3;
     const lvlColor = ["rgba(240,238,233,.12)", "#E08A7A", "#D9B98A", "#9FC79A"][lvl];
     const pwBars = [1, 2, 3].map((i) => (i <= lvl ? lvlColor : "rgba(240,238,233,.12)"));
     const pwMsg =
       L === 0
-        ? "Pelo menos 8 caracteres. Com 15 ou mais, a senha fica forte."
+        ? "Use pelo menos 15 caracteres; frases-senha e espaços são aceitos."
         : lvl === 1
-          ? `Muito curta · ${L} de 8 caracteres`
+          ? `Muito curta · ${L} de 15 caracteres`
           : lvl === 2
             ? `Aceitável · ${L} caracteres, 15 ou mais é recomendado`
             : "Senha forte";
-    const pwOk = L >= 8;
+    const pwOk = L >= 15;
     const canSignup = userOk && emailOk && pwOk && s.terms && !s.loading;
     const G = [
       "Ação",
@@ -189,7 +200,7 @@ class EntrarLogic extends DCLogic {
       submitLogin: (e) => {
         e.preventDefault();
         if (s.loading) return;
-        if (!emailOk) {
+        if (!loginOk) {
           this.setState({ emailTouched: true });
           return;
         }
@@ -199,7 +210,8 @@ class EntrarLogic extends DCLogic {
           .then(() => this.done())
           .catch(() => this.setState({ loading: false, loginError: true }));
       },
-      google: () => this.setState({ loginError: true }),
+      google: () => {},
+      authNotice: s.authNotice,
       user: s.user,
       onUser: (e) => this.setState({ user: e.target.value.replace(/^@/, ""), signupError: null }),
       userMsg: s.signupError || userMsg,
@@ -226,7 +238,7 @@ class EntrarLogic extends DCLogic {
           .register(u, s.email.trim(), s.pw)
           .then(() => {
             this.setState({ loading: false, step: 1 });
-            this.setMode("boas");
+            this.setMode("verificar");
           })
           .catch((err) =>
             this.setState({
@@ -241,7 +253,8 @@ class EntrarLogic extends DCLogic {
           );
       },
       resend: () => {
-        if (s.cooldown === 0) this.startCooldown();
+        if (s.cooldown === 0) api.post("/api/auth/resend-verification", { email: s.email.trim() })
+          .then(() => this.startCooldown()).catch((e) => this.setState({ authNotice: e.message }));
       },
       resendLabel: s.cooldown ? `Reenviar em ${s.cooldown}s` : "Reenviar e-mail",
       resendColor: s.cooldown ? "#8F897D" : "#DBAF57",
@@ -252,13 +265,17 @@ class EntrarLogic extends DCLogic {
           this.setState({ emailTouched: true });
           return;
         }
-        this.setMode("enviado");
+        api.post("/api/auth/forgot-password", { email: s.email.trim() })
+          .then(() => this.setMode("enviado"))
+          .catch((e) => this.setState({ authNotice: e.message }));
       },
       resetBg: pwOk ? "#DBAF57" : "#4A443D",
       resetCursor: pwOk ? "pointer" : "not-allowed",
       submitReset: (e) => {
         e.preventDefault();
-        if (pwOk) this.setMode("pronto");
+        if (pwOk && s.token) api.post("/api/auth/reset-password", { token: s.token, password: s.pw })
+          .then(() => this.setMode("pronto"))
+          .catch((e) => this.setState({ authNotice: e.message }));
       },
       stepN: s.step,
       step1: s.step === 1,
@@ -465,6 +482,9 @@ function render(v) {
                     </div>
                   </>
                 ) : null}
+                {v.authNotice ? (
+                  <div role="status" style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(219,175,87,.1)", border: "1px solid rgba(219,175,87,.35)", color: "#F0EEE9", fontSize: "13px" }}>{txt(v.authNotice)}</div>
+                ) : null}
                 {v.m?.entrar ? (
                   <>
                     <form
@@ -504,14 +524,14 @@ function render(v) {
                         </>
                       ) : null}
                       <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: "500" }}>E-mail</span>
+                        <span style={{ fontSize: "13px", fontWeight: "500" }}>E-mail ou usuário</span>
                         <input
-                          type="email"
-                          autoComplete="email"
+                          type="text"
+                          autoComplete="username"
                           value={val(v.email)}
                           onChange={v.onEmail}
                           onBlur={v.blurEmail}
-                          placeholder="seu@email.com"
+                          placeholder="nekoflow"
                           style={{
                             height: "48px",
                             borderRadius: "10px",
@@ -527,7 +547,7 @@ function render(v) {
                         {v.emailErr ? (
                           <>
                             <span style={{ fontSize: "12px", color: "#E08A7A" }}>
-                              Digite um e-mail válido, como nome@exemplo.com
+                              Digite um e-mail válido ou seu nome de usuário
                             </span>
                           </>
                         ) : null}
@@ -634,10 +654,12 @@ function render(v) {
                       <button
                         className="nk-hover-ucdklh"
                         type="button"
-                        onClick={v.google}
+                        disabled
+                        title="Login com Google ainda não configurado"
                         style={{
                           all: "unset",
-                          cursor: "pointer",
+                          cursor: "not-allowed",
+                          opacity: ".55",
                           height: "50px",
                           display: "flex",
                           alignItems: "center",
@@ -668,7 +690,7 @@ function render(v) {
                             d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"
                           />
                         </svg>
-                        {" Continuar com Google "}
+                        {" Google — indisponível "}
                       </button>
                     </form>
                   </>
@@ -856,13 +878,13 @@ function render(v) {
                         </span>
                         <span>
                           {"Li e aceito os "}
-                          <a href="#" style={{ color: "#DBAF57" }}>
+                          <span title="Documento em preparação" style={{ color: "#DBAF57", textDecoration: "underline dotted" }}>
                             Termos de Uso
-                          </a>
+                          </span>
                           {" e a "}
-                          <a href="#" style={{ color: "#DBAF57" }}>
+                          <span title="Documento em preparação" style={{ color: "#DBAF57", textDecoration: "underline dotted" }}>
                             Política de Privacidade
-                          </a>
+                          </span>
                           .
                         </span>
                       </button>
@@ -900,10 +922,12 @@ function render(v) {
                       <button
                         className="nk-hover-ucdklh"
                         type="button"
-                        onClick={v.google}
+                        disabled
+                        title="Cadastro com Google ainda não configurado"
                         style={{
                           all: "unset",
-                          cursor: "pointer",
+                          cursor: "not-allowed",
+                          opacity: ".55",
                           height: "50px",
                           display: "flex",
                           alignItems: "center",
@@ -934,7 +958,7 @@ function render(v) {
                             d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"
                           />
                         </svg>
-                        {" Criar com Google "}
+                        {" Google — indisponível "}
                       </button>
                     </form>
                   </>
@@ -977,7 +1001,7 @@ function render(v) {
                       </p>
                       <button
                         className="nk-hover-1c8eb9m"
-                        onClick={v.toBoas}
+                        onClick={v.toEntrar}
                         style={{
                           all: "unset",
                           cursor: "pointer",
@@ -994,7 +1018,7 @@ function render(v) {
                           fontWeight: "600",
                         }}
                       >
-                        Simular: abri o link de confirmação
+                        Voltar para Entrar
                       </button>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", fontSize: "13px" }}>
                         <button
@@ -1157,7 +1181,7 @@ function render(v) {
                       </p>
                       <button
                         className="nk-hover-1eosf2m"
-                        onClick={v.toRedefinir}
+                        onClick={v.toEntrar}
                         style={{
                           all: "unset",
                           cursor: "pointer",
@@ -1174,7 +1198,7 @@ function render(v) {
                           color: "#DBAF57",
                         }}
                       >
-                        Simular: abri o link recebido
+                        Voltar para Entrar
                       </button>
                       <button
                         className="nk-hover-1e3fwvz"
@@ -1560,15 +1584,15 @@ function render(v) {
                 color: "#8F897D",
               }}
             >
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              <span title="Documento em preparação" style={{ color: "#8F897D" }}>
                 Termos de Uso
-              </a>
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              </span>
+              <span title="Documento em preparação" style={{ color: "#8F897D" }}>
                 Política de Privacidade
-              </a>
-              <a className="nk-hover-1d5grei" href="#" style={{ color: "#8F897D" }}>
+              </span>
+              <span title="Central de ajuda em preparação" style={{ color: "#8F897D" }}>
                 Ajuda
-              </a>
+              </span>
             </div>
           </div>
         </div>

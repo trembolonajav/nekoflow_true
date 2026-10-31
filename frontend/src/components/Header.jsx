@@ -4,6 +4,11 @@ import React from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import { api } from "../lib/api";
 import { session } from "../lib/session";
+import { getWorkUrl } from "../features/catalog/workNavigation";
+import { libraryApi } from "../features/library/libraryApi";
+import LanguageSelector from "./LanguageSelector";
+import { getLocale, subscribeLocale } from "../i18n/locale";
+import { availabilityNote, availableIn, languageSummary, showcaseLanguage } from "../features/catalog/contentLanguage";
 
 class HeaderLogic extends DCLogic {
   state = {
@@ -15,6 +20,7 @@ class HeaderLogic extends DCLogic {
     notifs: [],
     read: [],
     guest: false,
+    sel: -1,
   };
   saveRead(read) {
     const prev = new Set(this.state.read);
@@ -30,8 +36,8 @@ class HeaderLogic extends DCLogic {
       .get("/api/me/notifications")
       .then((notifs) => this.setState({ notifs }))
       .catch(() => {});
-    api
-      .get("/api/me/summary")
+    libraryApi
+      .summary()
       .then((libCounts) => this.setState({ libCounts }))
       .catch(() => {});
   }
@@ -62,10 +68,12 @@ class HeaderLogic extends DCLogic {
   loadCatalog() {
     if (this.catalogLoading) return;
     this.catalogLoading = true;
-    fetch("/api/catalog/all")
-      .then((r) => r.json())
+    api.get("/api/catalog/all")
       .then((items) => {
         this.catalog = items.map((x) => ({ ...x, _t: this.norm(x.title), _a: this.norm(x.alt) }));
+        return languageSummary().then((summary) => (this.langSummary = summary));
+      })
+      .then(() => {
         this.forceUpdate();
       });
   }
@@ -111,9 +119,15 @@ class HeaderLogic extends DCLogic {
   componentDidMount() {
     this.setState({ read: [], guest: !session.loggedIn });
     this.loadPersonal();
+    // A sessão pode terminar de carregar depois do Header montar (páginas públicas não esperam).
+    this.unsubscribe = session.subscribe((me) => {
+      this.setState({ guest: !me.authenticated });
+      this.loadPersonal();
+    });
     // Outras telas avisam quando algo pessoal muda (biblioteca, avisos lidos).
     this.onPersonal = () => this.loadPersonal();
     window.addEventListener("nk:personal", this.onPersonal);
+    this.unsubscribeLocale = subscribeLocale(() => this.forceUpdate());
     document.addEventListener("mousedown", this.onDocDown);
     document.addEventListener("keydown", this.onDocKey);
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
@@ -126,6 +140,8 @@ class HeaderLogic extends DCLogic {
     document.removeEventListener("keydown", this.onDocKey);
     clearInterval(this.poll);
     window.removeEventListener("nk:personal", this.onPersonal);
+    if (this.unsubscribeLocale) this.unsubscribeLocale();
+    if (this.unsubscribe) this.unsubscribe();
   }
   renderVals() {
     const active = this.props.active ?? "inicio";
@@ -176,17 +192,17 @@ class HeaderLogic extends DCLogic {
       {
         label: "Minha biblioteca",
         items: [
-          { label: "Minha lista", icon: I.list, href: "/conta?aba=lista", count: lc.lista },
-          { label: "Continuar assistindo", icon: I.play, href: "/conta?aba=assistindo", count: lc.assistindo },
-          { label: "Continuar lendo", icon: I.book, href: "/conta?aba=lendo", count: lc.lendo },
-          { label: "Histórico", icon: I.clock, href: "/conta?aba=historico" },
+          { label: "Minha lista", icon: I.list, href: "/biblioteca", count: lc.lista },
+          { label: "Continuar assistindo", icon: I.play, href: "/continuar-assistindo", count: lc.assistindo },
+          { label: "Continuar lendo", icon: I.book, href: "/continuar-lendo", count: lc.lendo },
+          { label: "Histórico", icon: I.clock, href: "/historico" },
         ],
       },
       {
         label: "Conta e plataforma",
         items: [
-          { label: "Solicitar obra", icon: I.req, href: "/conta?aba=solicitacoes" },
-          { label: "Configurações", icon: I.gear, href: "/conta?aba=configuracoes" },
+          { label: "Solicitar obra", icon: I.req, href: "/solicitacoes" },
+          { label: "Configurações", icon: I.gear, href: "/configuracoes" },
           ...(session.user.staff
             ? [{ label: "Painel administrativo", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", href: "/admin" }]
             : []),
@@ -196,7 +212,7 @@ class HeaderLogic extends DCLogic {
     const sc = this.state.scrolled || (this.props.solid ?? false);
     const defs = [
       ["inicio", "Início", "/"],
-      ["animes", "Animes", "#"],
+      ["animes", "Animes", "/animes"],
       ["leituras", "Leituras", "/leituras"],
       ["explorar", "Explorar", "/explorar"],
       ["calendario", "Calendário", "/calendario"],
@@ -214,18 +230,19 @@ class HeaderLogic extends DCLogic {
       ]
         .filter(Boolean)
         .join(" · ");
-    const hrefOf = (x) =>
-      x.id === 151807 ? "/obra" : x.id === 105398 ? "/obra-leitura" : `/explorar?q=${encodeURIComponent(x.title)}`;
+    const hrefOf = (x) => getWorkUrl(x) || `/explorar?q=${encodeURIComponent(x.title)}`;
     let found = [],
       trending = false;
     if (open && this.catalog) {
       if (hasQ) found = this.search(q);
       else {
-        found = [...this.catalog].sort((a, b) => b.pop - a.pop).slice(0, 5);
+        // "Em alta" segue o idioma do site; a busca por texto mostra tudo, com o idioma no texto.
+        const showcase = showcaseLanguage(this.langSummary, getLocale());
+        found = this.catalog.filter((x) => availableIn(x, showcase)).sort((a, b) => b.pop - a.pop).slice(0, 5);
         trending = true;
       }
     }
-    const sel = this.state.sel || 0;
+    const sel = this.state.sel ?? -1;
     const topX = hasQ && found[0] ? found[0] : null;
     const restX = hasQ ? found.slice(1) : found;
     const anim = restX.filter((x) => x.kind === "anime" || x.kind === "filme").slice(0, 4);
@@ -237,7 +254,7 @@ class HeaderLogic extends DCLogic {
       return {
         ...x,
         ...this.hl(x.title, hasQ ? q : ""),
-        meta: metaOf(x),
+        meta: [metaOf(x), availabilityNote(x, getLocale())].filter(Boolean).join(" · "),
         typeLabel: kindLabel(x),
         href: hrefOf(x),
         bg: idx === sel ? "#221F1B" : "transparent",
@@ -265,9 +282,9 @@ class HeaderLogic extends DCLogic {
         this.loadCatalog();
         this.setState({ open: true, userOpen: false });
       },
-      onQ: (e) => this.setState({ q: e.target.value, open: true, sel: 0 }),
+      onQ: (e) => this.setState({ q: e.target.value, open: true, sel: -1 }),
       clearQ: () => {
-        this.setState({ q: "", sel: 0 });
+        this.setState({ q: "", sel: -1 });
         this.inputRef.current && this.inputRef.current.focus();
       },
       onKey: (e) => {
@@ -282,8 +299,8 @@ class HeaderLogic extends DCLogic {
           e.preventDefault();
           this.setState({ sel: Math.max(0, sel - 1) });
         } else if (e.key === "Enter") {
-          const x = (this.flat || [])[sel];
-          location.href = hasQ && sel === 0 && !x ? allHref : x ? hrefOf(x) : allHref;
+          const x = sel >= 0 ? (this.flat || [])[sel] : null;
+          location.href = x ? hrefOf(x) : allHref;
         }
       },
       hasTop: !!topX,
@@ -337,7 +354,7 @@ class HeaderLogic extends DCLogic {
       },
       userInitial: session.user.initial || "M",
       userName: session.user.name || "",
-      requestHref: `/conta?aba=solicitacoes&titulo=${encodeURIComponent(q.trim())}`,
+      requestHref: `/solicitacoes?titulo=${encodeURIComponent(q.trim())}`,
     };
   }
 }
@@ -824,6 +841,7 @@ function render(v) {
             </>
           ) : null}{" "}
         </div>
+        <LanguageSelector />
         {v.loggedIn ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1071,7 +1089,7 @@ function render(v) {
                       </div>
                       <a
                         className="nk-hover-zuhwcw"
-                        href="/conta?aba=notificacoes"
+                        href="/notificacoes"
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -1134,7 +1152,7 @@ function render(v) {
                     >
                       <a
                         className="nk-hover-kqh291"
-                        href="/conta?aba=perfil"
+                        href="/conta"
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -1303,7 +1321,7 @@ function render(v) {
               </a>
               <a
                 className="nk-hover-1uijps0"
-                href="/entrar?modo=criar"
+                href="/criar-conta"
                 style={{
                   height: "40px",
                   display: "flex",

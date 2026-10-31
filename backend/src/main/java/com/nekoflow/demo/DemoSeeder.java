@@ -10,9 +10,7 @@ import com.nekoflow.common.Times;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -55,7 +53,7 @@ public class DemoSeeder implements ApplicationRunner {
 
     public DemoSeeder(JdbcClient jdbc, UserRepository users, WorkRepository works, PasswordEncoder encoder,
                       ObjectMapper mapper, @Value("${nekoflow.demo.enabled:true}") boolean enabled,
-                      @Value("${nekoflow.demo.password:nekoflow2026}") String password) {
+                      @Value("${nekoflow.demo.password:123456}") String password) {
         this.jdbc = jdbc;
         this.users = users;
         this.works = works;
@@ -68,69 +66,23 @@ public class DemoSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws IOException {
-        if (!enabled || users.findByLogin("marina").isPresent()) {
-            return;
-        }
+        if (!enabled) return;
         String hash = encoder.encode(password);
+        ensureDemoAdmin(hash);
+        if (users.findByLogin("marina").isPresent()) return;
         long marina = users.create("marina", "marina@nekoflow.local", "Marina", hash, Role.USER);
-        users.create("admin", "admin@nekoflow.local", "Equipe Nekoflow", hash, Role.ADMIN);
         long kenji = users.create("kenji", "kenji@nekoflow.local", "Kenji", hash, Role.USER);
 
         JsonNode conta = read("conta");
         OffsetDateTime now = OffsetDateTime.now();
 
-        // Biblioteca + progresso
+        // Biblioteca: só a situação de cada obra. A conta de demonstração não recebe progresso
+        // nem histórico inventados — esses registros só nascem de episódios/capítulos reais.
         int i = 0;
         for (JsonNode x : conta.get("library")) {
-            long id = x.get("id").asLong();
-            String status = x.get("status").asText();
             OffsetDateTime at = parseLast(x.path("last").asText(""), now).minusMinutes(i++);
-            entry(marina, id, status, at);
-            Work w = works.require(id);
-            if ("planejado".equals(status)) {
-                continue;
-            }
-            boolean anim = w.isAnimation();
-            int unit = anim ? x.path("ep").asInt(1) : x.path("ch").asInt(1);
-            boolean done = x.path("done").asBoolean(false) || "concluido".equals(status);
-            Integer pos = anim ? secs(x.path("t").asText(null)) : null;
-            Integer dur = anim ? secs(x.path("d").asText("24:00")) : null;
-            double pct = x.path("pct").isMissingNode() || x.path("pct").isNull() ? (done ? 100 : 50) : x.get("pct").asDouble();
-            progress(marina, id, unit, pos, dur, pct, done, at);
-            if (x.path("done").asBoolean(false)) {
-                jdbc.sql("UPDATE work SET available_units = ? WHERE id = ?").params(unit, id).update();
-            }
+            entry(marina, x.get("id").asLong(), x.get("status").asText(), at);
         }
-
-        // "Continuar assistindo" da Home: os mais recentes
-        JsonNode cont = read("home").get("cont");
-        for (int k = 0; k < cont.size(); k++) {
-            JsonNode x = cont.get(k);
-            long id = x.get("id").asLong();
-            OffsetDateTime at = now.minusMinutes(5L + k);
-            entry(marina, id, "andamento", at);
-            int ep = Integer.parseInt(x.get("ep").asText().replaceAll("\\D", ""));
-            int left = Integer.parseInt(x.get("left").asText().replaceAll("\\D", ""));
-            double pct = Double.parseDouble(x.get("pct").asText().replace("%", ""));
-            progress(marina, id, ep, 1440 - left * 60, 1440, pct, false, at);
-        }
-
-        // Player do protótipo: episódios 1–15 vistos e o 16 em 15:00
-        OffsetDateTime sl = now.minusDays(5);
-        entry(marina, 151807, "andamento", sl);
-        for (int ep = 1; ep <= 15; ep++) {
-            progress(marina, 151807, ep, 1440, 1440, 100, true, sl.minusHours(16 - ep));
-        }
-        progress(marina, 151807, 16, 900, 1440, 62.5, false, sl);
-
-        // Leitor do protótipo (Solo Leveling, manhwa): capítulos 0–110 lidos e o 111 em 40%
-        jdbc.sql("UPDATE library_entry SET status = 'andamento' WHERE user_id = ? AND work_id = 105398").param(marina).update();
-        jdbc.sql("DELETE FROM progress WHERE user_id = ? AND work_id = 105398").param(marina).update();
-        OffsetDateTime rd = now.minusDays(1);
-        for (int c = 0; c <= 110; c++) {
-            progress(marina, 105398, c, null, null, 100, true, rd.minusHours(112 - c));
-        }
-        progress(marina, 105398, 111, 9300, null, 40, false, rd);
 
         // Favoritos (o perfil do design mostra os 6 primeiros em andamento/concluídos) e alertas
         int fav = 0;
@@ -155,23 +107,6 @@ public class DemoSeeder implements ApplicationRunner {
             items.stream().map(x -> x.get("id").asLong()).distinct().limit(6).forEach(id ->
                     jdbc.sql("INSERT INTO work_follow (user_id, work_id) VALUES (?, ?) ON CONFLICT DO NOTHING")
                             .params(marina, id).update());
-        }
-
-        // Histórico
-        for (JsonNode g : conta.get("history")) {
-            LocalDate day = parseDay(g.get("day").asText());
-            for (JsonNode h : g.get("items")) {
-                Work w = works.findExactTitle(h.get("title").asText()).orElse(null);
-                if (w == null) {
-                    continue;
-                }
-                int unit = Integer.parseInt(h.get("unit").asText().replaceAll("\\D", ""));
-                String time = h.get("time").asText().replaceAll(".*(\\d\\d:\\d\\d).*", "$1");
-                ZonedDateTime at = day.atTime(LocalTime.parse(time)).atZone(Times.ZONE);
-                String action = h.get("time").asText().startsWith("Lido") ? "READ" : "WATCHED";
-                jdbc.sql("INSERT INTO activity (user_id, work_id, unit, action, occurred_at) VALUES (?, ?, ?, ?, ?)")
-                        .params(marina, w.id(), unit, action, at.toOffsetDateTime()).update();
-            }
         }
 
         // Avisos
@@ -214,7 +149,29 @@ public class DemoSeeder implements ApplicationRunner {
         jdbc.sql("INSERT INTO request_supporter (request_id, user_id) VALUES (1042, ?) ON CONFLICT DO NOTHING")
                 .param(kenji).update();
 
-        log.info("Demonstração: contas marina, admin e kenji criadas (senha em NEKOFLOW_DEMO_PASSWORD)");
+        log.info("Demonstração: contas marina, nekoflow e kenji preparadas (senha em NEKOFLOW_DEMO_PASSWORD)");
+    }
+
+    /** Mantém uma credencial simples e previsível somente no ambiente de demonstração. */
+    private void ensureDemoAdmin(String hash) {
+        var oldAdmin = users.findByLogin("admin@nekoflow.local");
+        var preferred = users.findByLogin("nekoflow");
+        var account = oldAdmin.or(() -> preferred);
+        if (account.isEmpty()) {
+            users.create("nekoflow", "nekoflow@nekoflow.local", "Equipe Nekoflow", hash, Role.ADMIN);
+            return;
+        }
+        if (oldAdmin.isPresent() && preferred.isPresent() && oldAdmin.get().id() != preferred.get().id()) {
+            throw new IllegalStateException("O usuário de demonstração 'nekoflow' já pertence a outra conta");
+        }
+        long id = account.get().id();
+        jdbc.sql("""
+                UPDATE app_user SET username='nekoflow',email='nekoflow@nekoflow.local',
+                  display_name='Equipe Nekoflow',password_hash=?,role='ADMIN',status='ACTIVE',
+                  email_verified_at=COALESCE(email_verified_at,now()),failed_login_attempts=0,
+                  locked_until=NULL,updated_at=now() WHERE id=?""").params(hash, id).update();
+        jdbc.sql("DELETE FROM user_role WHERE user_id=?").param(id).update();
+        jdbc.sql("INSERT INTO user_role(user_id,role) VALUES (?,'ADMIN')").param(id).update();
     }
 
     private void entry(long user, long work, String status, OffsetDateTime at) {
@@ -224,24 +181,8 @@ public class DemoSeeder implements ApplicationRunner {
                 .params(user, work, status, at.minusDays(10), at).update();
     }
 
-    private void progress(long user, long work, int unit, Integer pos, Integer dur, double pct, boolean done,
-                          OffsetDateTime at) {
-        jdbc.sql("""
-                INSERT INTO progress (user_id, work_id, unit, position_sec, duration_sec, pct, completed, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_id, unit) DO NOTHING""")
-                .params(user, work, unit, pos, dur, pct, done, at).update();
-    }
-
     private static String fixHref(String h) {
         return h.startsWith("/conta?aba=solicitacoes") ? "/conta?aba=solicitacoes" : h;
-    }
-
-    private static Integer secs(String mmss) {
-        if (mmss == null || !mmss.contains(":")) {
-            return null;
-        }
-        String[] p = mmss.split(":");
-        return Integer.parseInt(p[0]) * 60 + Integer.parseInt(p[1]);
     }
 
     private static OffsetDateTime parseLast(String s, OffsetDateTime now) {
@@ -277,27 +218,6 @@ public class DemoSeeder implements ApplicationRunner {
             };
         }
         return s.equals("ontem") ? now.minusDays(1) : now;
-    }
-
-    private static LocalDate parseDay(String s) {
-        LocalDate today = LocalDate.now(Times.ZONE);
-        if (s.equals("Hoje")) {
-            return today;
-        }
-        if (s.equals("Ontem")) {
-            return today.minusDays(1);
-        }
-        Matcher m = Pattern.compile("(\\d+) de (\\w+)").matcher(s);
-        if (m.find()) {
-            String mon = m.group(2).substring(0, 3);
-            for (int k = 0; k < 12; k++) {
-                if (MONTHS[k].equals(mon)) {
-                    LocalDate d = LocalDate.of(today.getYear(), k + 1, Integer.parseInt(m.group(1)));
-                    return d.isAfter(today) ? today.minusDays(3) : d;
-                }
-            }
-        }
-        return today.minusDays(3);
     }
 
     private static OffsetDateTime parseDate(String s) {

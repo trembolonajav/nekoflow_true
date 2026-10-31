@@ -1,7 +1,9 @@
 package com.nekoflow.request;
 
+import com.nekoflow.api.ApiErrors;
 import com.nekoflow.auth.CurrentUser;
 import com.nekoflow.auth.Role;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +80,14 @@ public class RequestController {
     }
 
     @ExceptionHandler(RequestService.DuplicateRequestException.class)
-    public ResponseEntity<Map<String, Object>> duplicate(RequestService.DuplicateRequestException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.body);
+    public ResponseEntity<Map<String, Object>> duplicate(RequestService.DuplicateRequestException e,
+                                                          HttpServletRequest request) {
+        Map<String, Object> body = ApiErrors.body(
+                HttpStatus.CONFLICT,
+                "DUPLICATE_REQUEST",
+                "Já existe uma solicitação aberta para este conteúdo.",
+                request);
+        body.putAll(e.body);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 }

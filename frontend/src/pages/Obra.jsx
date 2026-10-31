@@ -6,6 +6,11 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { api } from "../lib/api";
 import { session, goLogin } from "../lib/session";
+import { libraryApi } from "../features/library/libraryApi";
+import { progressApi } from "../features/progress/progressApi";
+import { canonicalWorks, getUnitUrl, getWorkUrl } from "../features/catalog/workNavigation";
+import { languageBadge, languageName } from "../features/media/playbackRules";
+import { getLocale } from "../i18n/locale";
 
 const WORK_ID = 151807;
 const STATUS_CODE = {
@@ -97,8 +102,7 @@ class ObraLogic extends DCLogic {
   componentDidMount() {
     const a = new URLSearchParams(location.search).get("aba");
     if (["eps", "sobre", "uni", "chars"].includes(a)) this.setState({ active: a });
-    fetch("/api/content/obra")
-      .then((r) => r.json())
+    api.get("/api/content/obra")
       .then((w) => this.setState({ w }));
     this.loadMe();
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
@@ -176,7 +180,7 @@ class ObraLogic extends DCLogic {
         done,
         available,
         unavailable: !available,
-        href: `/player?ep=${e.n}`,
+        href: getUnitUrl({ id: WORK_ID, kind: "anime" }, e.n),
         hasPct: cur && available,
         pctW: `${progress.pct}%`,
         meta: available
@@ -215,15 +219,33 @@ class ObraLogic extends DCLogic {
         ? "Rever T1 · Ep. 1"
         : "Assistir T1 · Ep. 1";
     return {
+      // Textos da ficha original do design; a ficha dinâmica (DynamicObraLogic) substitui.
+      workTitle: "Solo Leveling",
+      legacyId: WORK_ID,
+      heroEyebrow: "Anime · Série de TV · 2024–2025",
+      ageRating: "16",
+      statusText: "Concluído · 2 temporadas",
+      hasTrailer: true,
+      heroProgress: loggedIn && cur > 0,
+      heroProgressText: `T${curSeason} · Episódio ${cur}${left ? ` · faltam ${left} min` : ""}`,
+      heroProgressW: `${progress.pct}%`,
+      endHintText: "A história continua no manhwa original. Veja onde a animação parou.",
+      hasOrig: true,
+      hasOrigMap: true,
+      origHref: canonicalWorks.soloLevelingReading,
+      origFirstHref: getUnitUrl({ id: 105398, kind: "manhwa" }, 1),
+      origNextHref: getUnitUrl({ id: 105398, kind: "manhwa" }, 111),
+      origFirstCta: "Ler do capítulo 1",
+      origPageCta: "Ver página do manhwa →",
       loggedIn,
       ready,
       narrow: s.narrow,
       w: w || { native: "", score: "", synopsisShort: "" },
       bannerBg: bg(w && w.banner),
       coverBg: bg(w && w.cover),
-      origBg: bg(w && w.original.cover),
+      origBg: bg(w && w.original && w.original.cover),
       genresText: w ? w.genres.join(" · ") : "",
-      ctaHref: cur ? `/player?ep=${cur}` : "/player?ep=1",
+      ctaHref: getUnitUrl({ id: WORK_ID, kind: "anime" }, cur || 1),
       ctaLabel,
       ctaShort: cur ? `Continuar ep. ${cur}` : "Assistir ep. 1",
       listLabel: inList ? s.status : "Minha lista",
@@ -243,19 +265,19 @@ class ObraLogic extends DCLogic {
         color: s.status === l ? "#DBAF57" : "#F0EEE9",
         pick: () => {
           this.setState({ status: l, listOpen: false });
-          this.save(api.put(`/api/me/library/${WORK_ID}`, { status: STATUS_CODE[l] }), `Salvo como ${l}`);
+          this.save(libraryApi.setStatus(WORK_ID, STATUS_CODE[l]), `Salvo como ${l}`);
         },
       })),
       inList,
       removeList: () => {
         this.setState({ status: null, listOpen: false });
-        this.save(api.del(`/api/me/library/${WORK_ID}`), "Removido da sua lista · progresso mantido");
+        this.save(libraryApi.remove(WORK_ID), "Removido da sua lista · progresso mantido");
       },
       toggleFollow: () => {
         if (!loggedIn) return goLogin();
         this.setState({ follow: !s.follow });
         this.save(
-          api.put(`/api/me/follows/${WORK_ID}`, { on: !s.follow }),
+          libraryApi.follow(WORK_ID, !s.follow),
           s.follow ? "Avisos desativados" : "Você será avisado sobre novidades",
         );
       },
@@ -317,7 +339,7 @@ class ObraLogic extends DCLogic {
       themeTags: w ? w.themes : [],
       altText: w ? w.alt.join(" · ") : "",
       ficha: w ? w.ficha.map(([k, v]) => ({ k, v })) : [],
-      orig: w ? w.original : { map: [], title: "", meta: "", info: "", credits: "", nextCh: "" },
+      orig: (w && w.original) || { map: [], title: "", meta: "", info: "", credits: "", nextCh: "" },
       continueAsk: s.contAsk,
       askContinue: () => this.setState({ contAsk: true }),
       cancelContinue: () => this.setState({ contAsk: false }),
@@ -334,6 +356,12 @@ class ObraLogic extends DCLogic {
       chars: w
         ? w.chars.map((c) => ({
             ...c,
+            hasVa: !!c.va,
+            // Elenco japonês e, quando o AniList registra, dublagens em outros idiomas.
+            vaName: c.va
+              ? [c.va.name, ...(c.voices || []).map((v) => `${languageBadge(v.language)} ${v.name}`)].join(" · ")
+              : (c.voices || []).map((v) => `${languageBadge(v.language)} ${v.name}`).join(" · "),
+            vaImg: c.va ? c.va.img : "",
             border: c.role === "Protagonista" ? "rgba(219,175,87,.5)" : "rgba(240,238,233,.06)",
             roleColor: c.role === "Protagonista" ? "#DBAF57" : "#B7B1A4",
             open: () => this.setState({ char: c.id, spoiler: false }),
@@ -347,7 +375,7 @@ class ObraLogic extends DCLogic {
       spoilerOpen: s.spoiler,
       toggleSpoiler: () => this.setState({ spoiler: !s.spoiler }),
       spoilerLabel: s.spoiler ? "Ocultar" : "Mostrar mesmo assim",
-      recs: w ? w.recs : [],
+      recs: w ? w.recs.map((r) => ({ ...r, href: getWorkUrl({ ...r, kind: "anime" }) })) : [],
       toast: !!s.toast,
       toastText: s.toast || "",
       toastBottom: s.narrow ? "92px" : "28px",
@@ -434,7 +462,7 @@ function render(v) {
           >
             <span
               role="img"
-              aria-label="Capa de Solo Leveling"
+              aria-label={`Capa de ${v.workTitle ?? ""}`}
               style={{
                 width: "clamp(150px,15vw,220px)",
                 aspectRatio: "2/3",
@@ -463,7 +491,7 @@ function render(v) {
                 }}
               >
                 <span style={{ width: "32px", height: "1px", background: "rgba(219,175,87,.6)" }} />
-                Anime · Série de TV · 2024–2025
+                {txt(v.heroEyebrow)}
               </span>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <h1
@@ -476,7 +504,7 @@ function render(v) {
                     letterSpacing: "-.01em",
                   }}
                 >
-                  Solo Leveling
+                  {txt(v.workTitle)}
                 </h1>
                 <span style={{ fontSize: "15px", color: "rgba(240,238,233,.7)" }}>{txt(v.w?.native)}</span>
               </div>
@@ -496,20 +524,24 @@ function render(v) {
                 </span>
                 <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
                 <span>{txt(v.genresText)}</span>
+                {v.ageRating ? (
+                  <>
+                    <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        border: "1px solid rgba(240,238,233,.4)",
+                      }}
+                    >
+                      {txt(v.ageRating)}
+                    </span>
+                  </>
+                ) : null}
                 <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    border: "1px solid rgba(240,238,233,.4)",
-                  }}
-                >
-                  16
-                </span>
-                <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B7B1A4" }} />
-                <span>Concluído · 2 temporadas</span>
+                <span>{txt(v.statusText)}</span>
               </div>
               <p
                 style={{
@@ -523,6 +555,21 @@ function render(v) {
               >
                 {txt(v.w?.synopsisShort)}
               </p>
+              {v.synopsisFallback ? (
+                <span
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "5px 9px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(219,175,87,.32)",
+                    background: "rgba(219,175,87,.08)",
+                    color: "#D6BE8A",
+                    fontSize: "12px",
+                  }}
+                >
+                  Sinopse exibida no idioma original; tradução ainda não disponível.
+                </span>
+              ) : null}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginTop: "4px" }}>
                 <a
                   className="nk-hover-1uijps0"
@@ -719,6 +766,7 @@ function render(v) {
                     </>
                   ) : null}{" "}
                 </div>
+                {v.hasTrailer ? (
                 <button
                   className="nk-hover-ucdklh"
                   onClick={v.openTrailer}
@@ -743,6 +791,7 @@ function render(v) {
                   </svg>
                   {"Trailer "}
                 </button>
+                ) : null}
                 <button
                   className="nk-hover-tdhed"
                   onClick={v.share}
@@ -775,7 +824,7 @@ function render(v) {
                   </svg>
                 </button>
               </div>
-              {v.loggedIn ? (
+              {v.loggedIn && v.heroProgress ? (
                 <>
                   <div
                     style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", color: "#B7B1A4" }}
@@ -790,9 +839,9 @@ function render(v) {
                         display: "block",
                       }}
                     >
-                      <span style={{ display: "block", width: "62%", height: "100%", background: "#DBAF57" }} />
+                      <span style={{ display: "block", width: `${v.heroProgressW ?? "0%"}`, height: "100%", background: "#DBAF57" }} />
                     </span>
-                    T2 · Episódio 16 · faltam 9 min · 15 de 25 assistidos
+                    {txt(v.heroProgressText)}
                   </div>
                 </>
               ) : null}
@@ -862,7 +911,7 @@ function render(v) {
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", flexShrink: "0" }}>
                   <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "20px", fontWeight: "500" }}>
-                    Solo Leveling
+                    {txt(v.workTitle)}
                   </span>
                   <a
                     className="nk-hover-1uijps0"
@@ -969,7 +1018,7 @@ function render(v) {
                       </div>
                       <div
                         style={{
-                          display: "flex",
+                          display: asList(v.audioTabs).length ? "flex" : "none",
                           gap: "4px",
                           padding: "4px",
                           borderRadius: "999px",
@@ -1058,12 +1107,43 @@ function render(v) {
                         />
                         <span>
                           {txt(v.dubNoteText)}{" "}
-                          <a href="/conta?aba=solicitacoes&obra=151807&pedido=traducao" style={{ fontWeight: "600" }}>
+                          <a href={`/conta?aba=solicitacoes&obra=${v.legacyId}&pedido=traducao`} style={{ fontWeight: "600" }}>
                             Pedir prioridade na dublagem →
                           </a>
                         </span>
                       </div>
                     </>
+                  ) : null}
+                  {v.langBand ? (
+                    <div
+                      style={{
+                        padding: "16px 18px",
+                        borderRadius: "14px",
+                        border: "1px solid rgba(219,175,87,.25)",
+                        background: "rgba(219,175,87,.04)",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px 22px",
+                        fontSize: "14px",
+                        marginBottom: "14px",
+                      }}
+                    >
+                      {asList(v.langBand).map((item, $index) => (
+                        <span key={$index} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              letterSpacing: ".18em",
+                              textTransform: "uppercase",
+                              color: "#B7B1A4",
+                            }}
+                          >
+                            {txt(item?.label)}
+                          </span>
+                          <span>{txt(item?.value)}</span>
+                        </span>
+                      ))}
+                    </div>
                   ) : null}
                   <div
                     style={{
@@ -1156,6 +1236,7 @@ function render(v) {
                                 </span>
                               </>
                             ) : null}{" "}
+
                             {e?.hasPct ? (
                               <>
                                 <span
@@ -1197,6 +1278,22 @@ function render(v) {
                               {txt(e?.title)}
                             </span>
                             <span style={{ fontSize: "12px", color: "#B7B1A4" }}>{txt(e?.meta)}</span>
+                            {e?.badge ? (
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: e.badge.gold ? "600" : "500",
+                                    padding: "3px 8px",
+                                    borderRadius: "999px",
+                                    border: `1px solid ${e.badge.gold ? "rgba(219,175,87,.45)" : "rgba(240,238,233,.15)"}`,
+                                    color: e.badge.gold ? "#DBAF57" : "#B7B1A4",
+                                  }}
+                                >
+                                  {txt(e.badge.label)}
+                                </span>
+                              </div>
+                            ) : null}
                             {e?.available ? (
                               <>
                                 <a
@@ -1240,7 +1337,7 @@ function render(v) {
                                     color: "#B7B1A4",
                                   }}
                                 >
-                                  Dublagem em breve · disponível legendado
+                                  {txt(e?.unavailableText ?? "Dublagem em breve · disponível legendado")}
                                 </span>
                               </>
                             ) : null}
@@ -1266,7 +1363,7 @@ function render(v) {
                         <span style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                           <span style={{ fontSize: "15px", fontWeight: "500" }}>Fim dos episódios lançados</span>
                           <span style={{ fontSize: "13px", color: "#B7B1A4" }}>
-                            A história continua no manhwa original. Veja onde a animação parou.
+                            {txt(v.endHintText)}
                           </span>
                         </span>
                         <button
@@ -1486,6 +1583,7 @@ function render(v) {
                       De onde veio a história, o que já foi adaptado e a ordem para acompanhar.
                     </span>
                   </div>
+                  {v.hasOrig ? (
                   <div
                     style={{
                       position: "relative",
@@ -1507,7 +1605,7 @@ function render(v) {
                     >
                       <span
                         role="img"
-                        aria-label="Capa do manhwa Solo Leveling"
+                        aria-label={`Capa de ${v.orig?.title ?? ""}`}
                         style={{
                           width: "clamp(130px,13vw,180px)",
                           aspectRatio: "2/3",
@@ -1560,7 +1658,7 @@ function render(v) {
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                           <a
                             className="nk-hover-1uijps0"
-                            href="/leitor?cap=1"
+                            href={v.origFirstHref}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1573,8 +1671,9 @@ function render(v) {
                               fontWeight: "600",
                             }}
                           >
-                            Ler do capítulo 1
+                            {txt(v.origFirstCta)}
                           </a>
+                          {v.orig?.nextCh ? (
                           <button
                             className="nk-hover-1eosf2m"
                             onClick={v.askContinue}
@@ -1594,9 +1693,10 @@ function render(v) {
                           >
                             Continuar após o anime
                           </button>
+                          ) : null}
                           <a
                             className="nk-hover-1e3fwvz"
-                            href="/obra-leitura"
+                            href={v.origHref}
                             style={{
                               height: "44px",
                               display: "flex",
@@ -1606,7 +1706,7 @@ function render(v) {
                               color: "#B7B1A4",
                             }}
                           >
-                            Ver página do manhwa →
+                            {txt(v.origPageCta)}
                           </a>
                         </div>
                         {v.continueAsk ? (
@@ -1632,7 +1732,7 @@ function render(v) {
                               </span>
                               <div style={{ display: "flex", gap: "10px" }}>
                                 <a
-                                  href="/leitor?cap=111"
+                                  href={v.origNextHref}
                                   style={{
                                     height: "38px",
                                     display: "flex",
@@ -1668,6 +1768,7 @@ function render(v) {
                           </>
                         ) : null}
                       </div>
+                      {v.hasOrigMap ? (
                       <div
                         style={{
                           flex: "1 1 280px",
@@ -1728,8 +1829,10 @@ function render(v) {
                           Verificado pela equipe · a correspondência é aproximada
                         </span>
                       </div>
+                      ) : null}
                     </div>{" "}
                   </div>
+                  ) : null}
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div
                       style={{
@@ -1756,9 +1859,8 @@ function render(v) {
                     >
                       {asList(v.order).map((o, $index) => (
                         <React.Fragment key={$index}>
-                          <a
-                            className="nk-hover-1ifysxm"
-                            href="#"
+                          <div
+                            title="Item informativo da ordem da franquia"
                             style={{
                               display: "flex",
                               gap: "14px",
@@ -1824,7 +1926,7 @@ function render(v) {
                                 </>
                               ) : null}
                             </span>
-                          </a>
+                          </div>
                         </React.Fragment>
                       ))}
                     </div>
@@ -1891,7 +1993,7 @@ function render(v) {
                                     color: "#DBAF57",
                                   }}
                                 >
-                                  SL
+                                  {txt(r?.initials)}
                                 </span>
                               </>
                             ) : null}
@@ -1943,9 +2045,9 @@ function render(v) {
                         Toque em um personagem para ver o dublador original.
                       </span>
                     </div>
-                    <a href="#" style={{ fontSize: "14px" }}>
-                      Ver todos →
-                    </a>
+                    <span title="Todos os personagens cadastrados já estão exibidos" style={{ fontSize: "14px", color: "#8F897D" }}>
+                      Lista disponível nesta ficha
+                    </span>
                   </div>
                   <div
                     style={{
@@ -1998,6 +2100,12 @@ function render(v) {
                               {txt(c?.name)}
                             </span>
                             <span style={{ fontSize: "12px", color: `${c?.roleColor ?? ""}` }}>{txt(c?.role)}</span>
+                            {c?.hasVa ? (
+                              <span style={{display:"flex",alignItems:"center",gap:"7px",marginTop:"4px",color:"#B7B1A4",fontSize:"11px",minWidth:0}}>
+                                {c?.vaImg ? <img src={c.vaImg} alt="" loading="lazy" style={{width:"24px",height:"24px",borderRadius:"50%",objectFit:"cover",flexShrink:0}} /> : null}
+                                <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🎙 {txt(c?.vaName)}</span>
+                              </span>
+                            ) : null}
                           </span>
                         </button>
                       </React.Fragment>
@@ -2007,6 +2115,7 @@ function render(v) {
               </>
             ) : null}
           </div>
+          {v.hasRecs !== false ? (
           <section
             ref={v.refRecs}
             style={{ display: "flex", flexDirection: "column", gap: "20px", scrollMarginTop: "140px" }}
@@ -2034,7 +2143,7 @@ function render(v) {
                 <React.Fragment key={$index}>
                   <a
                     className="nk-hover-1d5grei"
-                    href="#"
+                    href={r?.href}
                     style={{ display: "flex", flexDirection: "column", gap: "10px", color: "#F0EEE9", minWidth: "0" }}
                   >
                     <span
@@ -2087,6 +2196,7 @@ function render(v) {
               ))}
             </div>
           </section>
+          ) : null}
         </main>
         {v.charOpen ? (
           <>
@@ -2258,7 +2368,7 @@ function render(v) {
               <div style={{ width: "min(1100px,100%)", display: "flex", flexDirection: "column", gap: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "26px" }}>
-                    Trailer · Solo Leveling
+                    {`Trailer · ${v.workTitle ?? ""}`}
                   </span>
                   <button
                     className="nk-hover-1e3fwvz"
@@ -2271,7 +2381,7 @@ function render(v) {
                 </div>
                 <iframe
                   src={v.trailerSrc}
-                  title="Trailer de Solo Leveling"
+                  title={`Trailer de ${v.workTitle ?? ""}`}
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                   style={{ width: "100%", aspectRatio: "16/9", border: "0", borderRadius: "12px", background: "#000" }}
@@ -2381,4 +2491,302 @@ function render(v) {
 
 export const defaults = { loggedIn: true };
 
-export default defineDC("Obra", ObraLogic, render, { helmet });
+/**
+ * Ficha do design para qualquer anime do catálogo: o mesmo layout, com o documento de
+ * apresentação do Java (catálogo + AniList) e o estado pessoal da API v1.
+ */
+class DynamicObraLogic extends ObraLogic {
+  state = { ...this.state, season: 1, unitProg: {}, lib: null };
+
+  componentDidMount() {
+    const a = new URLSearchParams(location.search).get("aba");
+    if (["eps", "sobre", "uni", "chars"].includes(a)) this.setState({ active: a });
+    (this.props.presentation
+      ? Promise.resolve(this.props.presentation)
+      : api.get(`/api/v1/works/${this.props.presentationId}/presentation`)
+    )
+      .then((w) => {
+        this.setState({ w });
+        document.title = `${w.title} — NekoFlow`;
+      })
+      .catch(() => this.setState({ failed: true }));
+    this.loadMe();
+    document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", this.onResize);
+    document.addEventListener("keydown", this.onKey);
+    document.addEventListener("mousedown", this.onDown);
+    window.addEventListener("nk:personal", this.onPersonal);
+    this.unsub = session.subscribe(() => this.loadMe());
+    this.onResize();
+  }
+  componentWillUnmount() {
+    super.componentWillUnmount();
+    window.removeEventListener("nk:personal", this.onPersonal);
+    if (this.unsub) this.unsub();
+  }
+  onPersonal = () => {
+    clearTimeout(this.pt);
+    this.pt = setTimeout(() => this.loadMe(), 150);
+  };
+  /** Situação na lista e progresso de cada episódio, pela API v1. */
+  loadMe() {
+    if (!session.loggedIn) return;
+    const id = this.props.presentationId;
+    Promise.all([libraryApi.state(id).catch(() => null), progressApi.workUnits(id).catch(() => null)]).then(
+      ([lib, p]) => {
+        const unitProg = {};
+        for (const u of (p && p.episodes) || []) unitProg[u.episodeId] = u;
+        this.setState({
+          lib,
+          unitProg,
+          status: lib && lib.status ? STATUS_LABEL[lib.status] : null,
+          follow: !!(lib && lib.follow),
+        });
+      },
+    );
+  }
+  save(req, msg) {
+    return req.then(() => this.flash(msg)).catch(() => this.flash("Não foi possível salvar. Tente novamente."));
+  }
+  renderVals() {
+    const base = super.renderVals();
+    const s = this.state;
+    const w = s.w;
+    if (!w) return { ...base, workTitle: "", heroEyebrow: "", statusText: "", hasOrig: false, heroProgress: false };
+    const loggedIn = session.loggedIn;
+    const id = w.id;
+    const bg = (u) => (u ? `url("${u}")` : "none");
+    const prog = s.unitProg;
+    const resume = s.lib && s.lib.resume;
+    const allEps = w.seasons.flatMap((x) => x.eps.map((e) => ({ ...e, season: x })));
+    const firstAvailable = allEps.find((e) => e.available);
+    const resumeEp = resume && resume.state !== "UP_TO_DATE" ? allEps.find((e) => e.id === resume.unitId) : null;
+    const season = w.seasons.find((x) => x.n === s.season) || w.seasons[0] || { eps: [], label: "", n: 1 };
+    const lastSeason = w.seasons.length ? w.seasons[w.seasons.length - 1].n : 1;
+    // Guia "Idiomas e Servidores": idioma é informação da temporada, dita uma vez numa
+    // faixa; o card só mostra a exceção (no máximo um selo).
+    const LANG_PT = { ja: "Japonês", "pt-BR": "Português (BR)", en: "Inglês", es: "Espanhol", multi: "Áudio duplo" };
+    const langPt = (c) => LANG_PT[c] || LANG_PT[String(c).split("-")[0]] || c;
+    const shortLang = (c) => (c === "pt-BR" ? "PT-BR" : String(c).toUpperCase());
+    const availEps = season.eps.filter((e) => e.available);
+    const isDub = (a) => a && a !== "ja" && a !== "multi";
+    const countBy = (fn) => {
+      const m = new Map();
+      for (const e of availEps) for (const x of new Set(fn(e))) m.set(x, (m.get(x) || 0) + 1);
+      return m;
+    };
+    const audioCount = countBy((e) => (e.audioLanguages || []).filter((a) => !isDub(a)));
+    const subCount = countBy((e) => e.subtitleLanguages || []);
+    const dubCount = countBy((e) => (e.audioLanguages || []).filter(isDub));
+    const half = Math.max(1, Math.ceil(availEps.length / 2));
+    const commonSubs = [...subCount].filter(([, n]) => n >= half).map(([c]) => c);
+    const subOrder = (a, b) => ["pt-BR", "en", "es"].indexOf(a) - ["pt-BR", "en", "es"].indexOf(b);
+    const hasDub = dubCount.size > 0;
+    const langBand = availEps.length
+      ? [
+          audioCount.size ? { label: "Áudio", value: [...audioCount.keys()].map(langPt).join(", ") } : null,
+          subCount.size
+            ? { label: "Legendas", value: [...subCount.keys()].sort(subOrder).map(langPt).join(", ") }
+            : null,
+          hasDub
+            ? {
+                label: "Dublagem",
+                value: [...dubCount]
+                  .map(([c, n]) => (n === availEps.length ? langPt(c) : `${langPt(c)} · ${n} de ${availEps.length} eps.`))
+                  .join(" · "),
+              }
+            : null,
+        ].filter(Boolean)
+      : null;
+    const dubMode = hasDub && s.audio === "dub";
+    const dateFmt = (iso) => {
+      if (!iso) return null;
+      try {
+        return new Intl.DateTimeFormat(getLocale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+          .format(new Date(`${iso}T00:00:00Z`))
+          .replace(/\./g, "")
+          .replace(/ de /g, " ");
+      } catch {
+        return null;
+      }
+    };
+    let eps = season.eps.map((e) => {
+      const p = prog[e.id];
+      const done = !!(p && p.completed);
+      const isCur = !!resumeEp && resumeEp.id === e.id;
+      const pct = p && p.durationMs ? Math.round((p.positionMs / p.durationMs) * 100) : 0;
+      const left = p && p.durationMs && !done ? Math.max(1, Math.ceil((p.durationMs - p.positionMs) / 60000)) : null;
+      // Selo só quando o episódio foge da regra: tem dublagem que nem todos têm, ou falta
+      // uma legenda que a maioria da temporada tem.
+      const dubs = (e.audioLanguages || []).filter(isDub);
+      const missingSub = commonSubs.sort(subOrder).find((c) => !(e.subtitleLanguages || []).includes(c));
+      let badge = null;
+      if (e.available && dubs.length && [...dubCount.values()].some((n) => n < availEps.length))
+        badge = { label: `Dublado ${shortLang(dubs[0])}`, gold: true };
+      else if (e.available && missingSub) badge = { label: `Legenda ${shortLang(missingSub)} em breve`, gold: false };
+      const dubAvailable = !dubMode || dubs.length > 0;
+      return {
+        ...e,
+        badge,
+        done,
+        available: e.available && dubAvailable,
+        unavailable: !e.available || !dubAvailable,
+        unavailableText: e.available ? "Sem dublagem neste episódio" : "Ainda sem fonte disponível no NekoFlow",
+        href: `/player?episode=${e.id}`,
+        hasPct: isCur && pct > 0,
+        pctW: `${pct}%`,
+        meta: [
+          e.durationMin ? `${e.durationMin} min` : null,
+          dateFmt(e.airDate),
+          isCur && left ? `faltam ${left} min` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        cta: isCur ? "Continuar episódio" : done ? "Assistir de novo" : "Assistir episódio",
+        ctaColor: isCur ? "#DBAF57" : done ? "#B7B1A4" : "#F0EEE9",
+        bg: isCur ? "rgba(219,175,87,.07)" : "#1A1714",
+        border: isCur ? "rgba(219,175,87,.45)" : "rgba(240,238,233,.06)",
+        opacity: e.available && dubAvailable ? 1 : 0.55,
+        filter: e.available && dubAvailable ? "none" : "grayscale(.7)",
+      };
+    });
+    if (!s.asc) eps = [...eps].reverse();
+    const doneCount = allEps.filter((e) => prog[e.id] && prog[e.id].completed).length;
+    const curP = resumeEp ? prog[resumeEp.id] : null;
+    const curPct = curP && curP.durationMs ? Math.round((curP.positionMs / curP.durationMs) * 100) : 0;
+    const curLeft = curP && curP.durationMs ? Math.max(1, Math.ceil((curP.durationMs - curP.positionMs) / 60000)) : null;
+    const target = resumeEp || firstAvailable;
+    const sLabel = (e) => (w.seasons.length > 1 ? `T${e.season.n} · ` : "");
+    const orig = w.original;
+    const origWord = orig ? (orig.typeLabel === "Mangá" ? "mangá" : orig.typeLabel === "Manhwa" ? "manhwa" : "original") : "";
+    const STATUS = ["Assistindo", "Planejado", "Concluído", "Pausado", "Abandonado"];
+    return {
+      ...base,
+      w: { ...w, score: w.score || "—", native: w.native || "" },
+      workTitle: w.title,
+      legacyId: id,
+      heroEyebrow: w.heroEyebrow,
+      ageRating: null,
+      statusText: w.statusText,
+      synopsisFallback: !!w.synopsisFallback,
+      hasTrailer: !!w.trailer,
+      heroProgress: loggedIn && !!resumeEp,
+      heroProgressText: resumeEp
+        ? `${sLabel(resumeEp)}Episódio ${resumeEp.n}${curLeft ? ` · faltam ${curLeft} min` : ""} · ${doneCount} de ${w.episodeCount} assistidos`
+        : "",
+      heroProgressW: `${curPct}%`,
+      bannerBg: bg(w.banner || w.cover),
+      coverBg: bg(w.cover),
+      origBg: bg(orig && orig.cover),
+      genresText: w.genres.join(" · "),
+      ctaHref: target ? `/player?episode=${target.id}` : "#",
+      ctaLabel: resumeEp
+        ? `Continuar ${sLabel(resumeEp)}Ep. ${resumeEp.n}`
+        : target
+          ? `Assistir ${sLabel(target)}Ep. ${target.n}`
+          : "Episódios em breve",
+      ctaShort: resumeEp ? `Continuar ep. ${resumeEp.n}` : target ? `Assistir ep. ${target.n}` : "Em breve",
+      statusOpts: STATUS.map((l) => ({
+        label: l,
+        on: s.status === l,
+        color: s.status === l ? "#DBAF57" : "#F0EEE9",
+        pick: () => {
+          this.setState({ status: l, listOpen: false });
+          this.save(libraryApi.setStatus(id, STATUS_CODE[l]), `Salvo como ${l}`);
+        },
+      })),
+      removeList: () => {
+        this.setState({ status: null, listOpen: false });
+        this.save(libraryApi.remove(id), "Removido da sua lista · progresso mantido");
+      },
+      toggleFollow: () => {
+        if (!loggedIn) return goLogin();
+        this.setState({ follow: !s.follow });
+        this.save(libraryApi.follow(id, !s.follow), s.follow ? "Avisos desativados" : "Você será avisado sobre novidades");
+      },
+      tabs: [
+        ["eps", "Episódios", w.episodeCount],
+        ["sobre", "Sobre", null],
+        ["uni", "Universo", w.order.length + w.reads.length],
+        ["chars", "Personagens", w.chars.length || null],
+      ].map(([k, label, count]) => ({
+        label,
+        count,
+        hasCount: count != null,
+        sel: String(s.active === k),
+        color: s.active === k ? "#DBAF57" : "#B7B1A4",
+        line: s.active === k ? "#DBAF57" : "transparent",
+        go: () => this.setTab(k),
+      })),
+      seasonInfo: [
+        season.n === 1 ? w.title : season.label,
+        season.years,
+        `${season.eps.length} ${season.eps.length === 1 ? "episódio" : "episódios"}`,
+        w.plannedEpisodes && w.plannedEpisodes > w.episodeCount ? `${w.plannedEpisodes} previstos` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      seasonTabs: w.seasons.map((x) => ({
+        label: x.short || x.label,
+        count: x.eps.length,
+        bg: x.n === season.n ? "#DBAF57" : "transparent",
+        color: x.n === season.n ? "#1A1714" : "#F0EEE9",
+        pick: () => this.setState({ season: x.n }),
+      })),
+      // Só o áudio que as fontes realmente têm: sem dublagem cadastrada, sem a opção.
+      // Legendado / Dublado só existe quando a temporada tem dublagem.
+      audioTabs: hasDub
+        ? [
+            ["leg", "Legendado"],
+            ["dub", "Dublado"],
+          ].map(([k, l]) => ({
+            label: l,
+            bg: (k === "dub") === dubMode ? "#DBAF57" : "transparent",
+            color: (k === "dub") === dubMode ? "#1A1714" : "#F0EEE9",
+            pick: () => this.setState({ audio: k }),
+          }))
+        : [],
+      langBand,
+      dubNote: false,
+      episodes: eps,
+      showEndHint: !!orig && season.n === lastSeason,
+      endHintText: orig ? `A história continua no ${origWord}. Veja a obra original.` : "",
+      synopsis: s.synOpen ? w.synopsis : w.synopsis.slice(0, 1),
+      genreTags: w.genres,
+      themeTags: w.themes,
+      altText: w.alt.join(" · "),
+      ficha: [
+        ...w.ficha.map(([k, v]) => ({ k, v })),
+        // Sinopse exibida em outro idioma porque ainda não há tradução no idioma do site.
+        ...(w.synopsisFallback ? [{ k: "Idioma da sinopse", v: `${languageName(w.synopsisLanguage)} · tradução ainda não cadastrada` }] : []),
+      ],
+      hasOrig: !!orig,
+      hasOrigMap: !!(orig && orig.map && orig.map.length),
+      orig: orig
+        ? { ...orig, meta: orig.meta || "", info: orig.info || "", credits: orig.credits || "", map: orig.map || [] }
+        : { map: [], title: "", meta: "", info: "", credits: "", nextCh: "" },
+      origHref: orig ? orig.href : "#",
+      origFirstHref: orig ? orig.firstHref : "#",
+      origNextHref: "#",
+      origFirstCta: orig && orig.firstHref !== orig.href ? "Ler do capítulo 1" : "Ver capítulos",
+      origPageCta: orig ? `Ver página do ${origWord} →` : "",
+      order: w.order.map((o) => ({
+        ...o,
+        hasBadge: !!o.badge,
+        hasNote: !!o.note,
+        border: o.badge === "Anunciado" ? "rgba(240,238,233,.06)" : "rgba(219,175,87,.18)",
+        imgOpacity: o.badge === "Anunciado" ? 0.6 : 1,
+      })),
+      reads: w.reads.map((r) => ({ ...r, href: r.href || "#", hasCover: !!r.cover, noCover: !r.cover })),
+      hasRecs: w.recs.length > 0,
+      recs: w.recs.map((r) => ({ ...r, href: r.href || "#" })),
+    };
+  }
+}
+
+const LegacyObra = defineDC("Obra", ObraLogic, render, { helmet });
+const DynamicObra = defineDC("Obra", DynamicObraLogic, render, { helmet });
+
+export default function Obra(props) {
+  return props.presentationId ? <DynamicObra key={props.presentationId} {...props} /> : <LegacyObra {...props} />;
+}

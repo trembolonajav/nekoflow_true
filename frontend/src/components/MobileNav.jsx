@@ -5,16 +5,16 @@ import React, { useEffect } from "react";
 const ITEMS = [
   ["/", "Início", "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z", (p) => p === "/"],
   [
-    "/explorar?tipo=animes",
+    "/animes",
     "Animes",
     "M7 4l13 8-13 8z",
-    (p, q) => (p === "/explorar" && q.includes("tipo=anime")) || p === "/obra" || p === "/player",
+    (p) => p === "/animes" || p.startsWith("/animes/") || p === "/player",
   ],
   [
     "/leituras",
     "Leituras",
     "M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z",
-    (p) => p === "/leituras" || p === "/obra-leitura",
+    (p) => p === "/leituras" || p.startsWith("/leituras/") || p === "/leitor",
   ],
   [
     "/explorar",

@@ -2,66 +2,118 @@
 
 Plataforma de animes e leituras construída a partir do protótipo do Claude Design.
 
+O projeto já funciona como uma aplicação integrada: catálogo normalizado, contas, biblioteca,
+progresso sincronizado, player/leitor, painel editorial, importação de fontes externas e interface
+multilíngue. O PostgreSQL é a fonte de verdade; os arquivos em `resources/seed` são snapshots
+idempotentes usados para reconstruir e enriquecer o ambiente.
+
 | Camada   | Tecnologia                                         | Pasta       |
 |----------|----------------------------------------------------|-------------|
 | Frontend | React 18 + Vite + React Router                     | `frontend/` |
 | Backend  | Java 17 + Spring Boot 3 (Web, Security, JDBC, Flyway) | `backend/` |
 | Banco    | PostgreSQL 16                                      | (Docker)    |
-| Infra    | Docker Compose (Postgres, API, nginx)              | raiz        |
+| Infra    | Docker Compose (Postgres, API, nginx e Mailpit local) | raiz        |
 | Design   | Arquivos originais exportados do Claude Design     | `design/`   |
 
+## Estado atual
+
+- **Catálogo real:** obras, títulos alternativos, temporadas, episódios, edições, capítulos,
+  relações e identificadores externos normalizados no PostgreSQL.
+- **Home dinâmica:** destaques curados, novidades da temporada, continuações e episódios recentes
+  vêm do backend, com paginação e atualização ao trocar o idioma.
+- **Importação de anime:** catálogo FIB Anime e snapshot sazonal HiAnime integrados de forma
+  idempotente, com validação de identidade, quarentena de associações divergentes e auditoria.
+- **Sincronização contínua:** um worker consulta obras atualizadas no HiAnime a cada 15 minutos,
+  publica deltas de vínculos confirmados e envia exceções para revisão no painel administrativo.
+- **API MangaLivre:** adaptador não oficial e somente leitura para catálogo, obras, capítulos e
+  páginas do leitor; contrato e exemplos em [`docs/mangalivre-unofficial-api.md`](docs/mangalivre-unofficial-api.md).
+- **API WeebCentral English:** adaptador não oficial separado para obras e capítulos em inglês;
+  contrato e exemplos em [`docs/weebcentral-english-unofficial-api.md`](docs/weebcentral-english-unofficial-api.md).
+- **APIs de leitura adicionais:** TiaManhwa PT-BR, Comix EN e ManhwaBuddy EN compartilham um
+  contrato normalizado; o painel administrativo testa a saúde de todas as integrações.
+- **Metadados editoriais:** AniList fornece identidade, títulos, sinopse, banner, personagens,
+  elenco, relações e recomendações; Jikan/MAL e TVMaze complementam episódios quando há vínculo.
+- **Player real:** HLS, MP4, links e embeds externos, múltiplas versões/servidores, preferência
+  lembrada por dispositivo, troca de fonte, idiomas e reporte de falha.
+- **Leitor real:** capítulos publicados com páginas importadas ou fornecidas por provedor,
+  navegação contínua e progresso persistente.
+- **Conta e biblioteca:** cadastro, sessão segura, favoritos, acompanhamento, listas, histórico,
+  continuar assistindo/lendo e sincronização entre dispositivos.
+- **Administração:** solicitações, publicações, catálogo, importação editorial, usuários e auditoria,
+  com permissões de moderador, editor e administrador validadas no servidor.
+- **Idiomas:** interface, fichas e episódios em português do Brasil, inglês e espanhol, mantendo
+  idioma do site separado das preferências de áudio e legenda.
+- **Responsividade:** navegação e fluxos principais adaptados para desktop, tablet e celular.
+
 ## Subir tudo com Docker
+
+No primeiro preparo de uma máquina Windows, registre uma única vez o adaptador autorizado do TiaManhwa:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\install_tia_fetcher_startup.ps1
+```
+
+Essa instalação é permanente para o usuário: o adaptador inicia no login, reinicia em caso de falha e não precisa ser acionado novamente após reiniciar o Windows. Os containers também usam `restart: unless-stopped`.
 
 ```bash
 docker compose up -d --build
 ```
 
-- App: http://localhost:3000
-- API: http://localhost:8080
-- Postgres: localhost:5432 (usuário/senha `nekoflow`, veja `.env.example`)
+- App: http://localhost:9080
+- API: http://localhost:9090
+- Postgres: localhost:9432 (usuário/senha `nekoflow`, veja `.env.example`)
+- E-mails locais: http://localhost:9025 (Mailpit; não envia mensagens para a internet)
 
 Contas de demonstração (criadas na primeira subida; senha em `NEKOFLOW_DEMO_PASSWORD`,
-padrão `nekoflow2026`):
+padrão `123456`):
 
 | Conta                  | Papel          | Para que serve                                         |
 |------------------------|----------------|--------------------------------------------------------|
 | `marina@nekoflow.local` | usuário        | biblioteca, histórico, avisos e pedidos do protótipo   |
 | `kenji@nekoflow.local`  | usuário        | segundo usuário (apoia o pedido #1042)                 |
-| `admin@nekoflow.local`  | administrador  | painel em `/admin`                                     |
+| `nekoflow`               | administrador  | painel em `/admin`                                     |
 
 Desligue as contas de demonstração com `NEKOFLOW_DEMO=false`.
 
 ## Desenvolvimento local
 
 ```bash
-docker compose up -d postgres               # só o banco
-cd backend && mvn spring-boot:run           # API em :8080
-cd frontend && npm install && npm run dev   # app em :5173 (proxy de /api para :8080)
+docker compose up -d postgres               # só o banco (host :9432)
+cd backend && mvn spring-boot:run           # API em :9090
+cd frontend && npm install && npm run dev   # app em :9073 (proxy de /api para :9090)
 ```
 
-Testes do backend: `cd backend && mvn test`.
+Verificações locais:
+
+```bash
+cd frontend && npm test && npm run build
+cd backend && mvn test
+```
 
 ## Telas e rotas
 
 | Tela                       | Rota                        | Arquivo                               |
 |----------------------------|-----------------------------|---------------------------------------|
 | Home                       | `/`                         | `frontend/src/pages/Home.jsx`         |
+| Animes                     | `/animes`                   | `pages/Explorar.jsx` (catálogo filtrado) |
 | Calendário                 | `/calendario`               | `pages/Calendario.jsx`                |
 | Explorar                   | `/explorar`                 | `pages/Explorar.jsx`                  |
 | Leituras                   | `/leituras`                 | `pages/Leituras.jsx`                  |
-| Obra (anime)               | `/obra`                     | `pages/Obra.jsx`                      |
-| Obra (leitura)             | `/obra-leitura`             | `pages/ObraLeitura.jsx`               |
-| Leitor                     | `/leitor?cap=N`             | `pages/Leitor.jsx`                    |
-| Player                     | `/player?ep=N`              | `pages/Player.jsx`                    |
+| Obra (anime)               | `/animes/:slug`             | `pages/WorkRoute.jsx`                 |
+| Obra (leitura)             | `/leituras/:slug`           | `pages/WorkRoute.jsx`                 |
+| Leitor                     | `/leitor?chapter=UUID&edition=UUID` | `pages/Leitor.jsx`             |
+| Player                     | `/player?episode=UUID`       | `pages/Player.jsx`                    |
 | Conta / Minha biblioteca   | `/conta?aba=...` (privada)  | `pages/Conta.jsx`                     |
-| Entrar / Criar conta       | `/entrar` (`?next=` volta à origem) | `pages/Entrar.jsx`            |
+| Entrar / Criar conta       | `/entrar` e `/criar-conta` (`?next=` volta à origem) | `pages/Entrar.jsx` |
 | Detalhe da solicitação     | `/solicitacoes/:id` (privada) | `pages/SolicitacaoDetalhe.jsx`      |
 | Painel administrativo      | `/admin` (equipe)           | `pages/Admin.jsx`                     |
 | Estudo das 3 direções da Home | `/estudos/home-direcoes` | `pages/HomeDirecoes.jsx`              |
+| Página inexistente            | qualquer rota desconhecida | `pages/NotFound.jsx`                |
 
 Atalhos: `/biblioteca`, `/continuar-assistindo`, `/continuar-lendo`, `/historico`,
 `/solicitacoes`, `/notificacoes`, `/configuracoes` (levam às abas da Conta).
 A Conta aceita filtros por link: `/conta?aba=lista&midia=anime&situacao=pausado`.
+As rotas antigas `/obra` e `/obra-leitura` redirecionam para as fichas canônicas de Solo Leveling.
 
 ## Como as partes se integram
 
@@ -85,6 +137,73 @@ Uma única fonte para cada informação (detalhes em `docs/matriz-integracao.md`
   preferências de notificação da conta.
 - **Permissões** (validadas no servidor): moderador = solicitações; editor = + publicações e
   catálogo; administrador = + usuários e auditoria (`admin_audit`).
+- **Autenticação**: Spring Security + Spring Session JDBC, cookie `HttpOnly`, CSRF, Argon2id,
+  confirmação de e-mail e recuperação com tokens temporários de uso único. O React nunca guarda
+  JWT ou senha no `localStorage`.
+
+## Catálogo, fontes e integridade
+
+O NekoFlow não usa o título como identidade definitiva. Cada obra possui um ID interno e pode ter
+identificadores AniList, MAL, FIB Anime e HiAnime. Títulos em romaji permanecem canônicos; nomes em
+inglês, japonês e sinônimos são aliases pesquisáveis.
+
+Os seeders podem ser executados repetidamente sem duplicar obras, episódios ou fontes. Antes de
+publicar mídia, eles verificam vínculos externos e compatibilidade entre obra e temporada. Dados
+ambíguos são ignorados ou colocados em quarentena, em vez de anexar episódios ao anime errado.
+
+Fontes de mídia preservam tipo, provedor, prioridade, idioma de áudio, idioma de legenda,
+proveniência e estado. O NekoFlow não copia vídeos de provedores externos: HLS/MP4 autorizados são
+reproduzidos no player e embeds continuam hospedados pelo respectivo provedor.
+
+### Importação HiAnime
+
+`tools/import_hianime_season_csv.py` combina uma lista sazonal, AniList e a API não oficial HiAnime.
+O resultado versionado é `backend/src/main/resources/seed/hianime-catalog.json`, aplicado no boot
+pelo `HiAnimeCatalogSeeder`. Depois da carga inicial, o `HiAnimeSyncService` consulta a listagem de
+obras recentemente atualizadas a cada 15 minutos, compara episódios pelo identificador externo e
+grava somente o delta. A trava no PostgreSQL impede duas execuções concorrentes.
+
+Obras que já passaram pela validação do snapshot começam monitoradas e podem publicar
+automaticamente. Host desconhecido, fonte ausente ou falha de importação entra na caixa de revisão
+do `/admin?aba=sync`. O painel também permite executar uma busca manual, pausar uma obra, alternar
+entre publicação automática e revisão, aprovar/ignorar candidatos e consultar o histórico.
+
+O worker usa os endpoints HTML/AJAX públicos consumidos pelo próprio site HiAnime. A origem é
+configurável por `HIANIME_ORIGIN` e nenhuma credencial é enviada ao navegador. O NekoFlow guarda
+somente referências de embeds em hosts autorizados; não baixa nem retransmite os vídeos.
+
+Consulte `docs/hianime-season-import.md` para parâmetros, limites e política de idiomas.
+
+## Localização e traduções
+
+Há três dimensões independentes:
+
+1. **Idioma do site:** `pt-BR`, `en` ou `es`, escolhido no globo do cabeçalho/rodapé e persistido no
+   navegador.
+2. **Áudio preferido:** usado para ordenar versões disponíveis no player.
+3. **Legenda preferida:** usada para escolher legendas sem alterar o idioma da interface.
+
+O frontend traduz navegação, filtros, conta, fichas, player, leitor e mensagens de erro. No backend,
+`work_translation` e `episode_translation` guardam textos localizados com fonte e estado de revisão.
+Quando não existe tradução, a aplicação mostra o texto original e informa isso ao usuário.
+
+O pipeline `tools/catalog_localization_pipeline.py`:
+
+- associa obras com AniList/MAL sem confiar apenas no primeiro resultado textual;
+- obtém títulos, sinopses, datas e imagens reais de episódios quando a fonte existe;
+- traduz sinopses localmente para PT-BR e espanhol;
+- protege títulos próprios e nomes durante a tradução;
+- nunca reutiliza capa ou banner da obra como miniatura falsa de episódio;
+- produz um relatório de cobertura antes de gerar o snapshot;
+- grava o resultado em `backend/src/main/resources/seed/catalog-localizations.json`.
+
+O `CatalogLocalizationSeeder` aplica o snapshot sem sobrescrever traduções editoriais revisadas.
+Casos revisados manualmente ficam em migrações Flyway, como Boku no Hero e Black Clover 2. O
+`CatalogIntegritySeeder` normaliza nomes genéricos de temporada e remove previews falsos de forma
+reversível.
+
+Caches, modelos locais de tradução, planilhas e saídas de auditoria vivem em `.artifact-work/` e
+`audit/` e não são enviados ao Git. Eles podem ser reconstruídos pelas ferramentas em `tools/`.
 
 ## Mobile
 
@@ -93,16 +212,39 @@ cheia), header compacto com busca em largura total, menus do sininho, da conta e
 como painel inferior, abas da Conta roláveis e filtros do Explorar recolhidos. O desktop continua
 igual ao design. As regras ficam em `frontend/src/styles/mobile.css`.
 
-## Origem do código
+## Organização e origem do código
 
 As telas foram convertidas dos `.dc.html` do Claude Design (`design/claude-design/`) e agora são
-mantidas direto no código. O conversor usado na importação ficou em
-`frontend/scripts/dc-to-react.legacy.mjs` só como referência — rodá-lo de novo sobrescreveria
-as telas.
+mantidas diretamente no código. O conversor legado gera somente uma prévia isolada em
+`frontend/design-generated/`; ele recusa gravar em `src`, `public`, `backend` ou `design`.
+
+```bash
+cd frontend
+npm run design:preview
+```
+
+Não copie uma tela gerada inteira sobre uma tela de produção. Consulte:
+
+- `docs/architecture.md` — responsabilidades e dependências;
+- `docs/design-workflow.md` — atualização segura do design;
+- `docs/api-conventions.md` — cliente HTTP e contrato de erros;
+- `docs/navigation-audit.md` — auditoria anterior às correções do Protocolo 02;
+- `docs/protocol-02-integration.md` — rotas, limites e integração da navegação real;
+- `docs/protocol-03-auth-audit.md` — linha de base anterior à autenticação completa;
+- `docs/protocol-03-authentication.md` — contrato, segurança, configuração e resultados;
+- `docs/protocol-04-completion.md` — catálogo dinâmico e fluxo editorial;
+- `docs/protocol-05-library-progress.md` — biblioteca, histórico e progresso sincronizado;
+- `docs/protocol-06-real-media.md` — reprodução, leitura e importação editorial;
+- `docs/fibanime-cobertura.md` — cobertura e critérios da integração FIB Anime;
+- `docs/visual-baseline.md` — rotas e viewports usados na verificação visual;
+- `docs/hianime-season-import.md` — importação sazonal por CSV, AniList e HiAnime.
+- `docs/hianime-continuous-sync.md` — worker de 15 minutos e operação da aba Sincronização.
+- `docs/weebcentral-english-unofficial-api.md` — API somente leitura de mangás e quadrinhos em inglês.
+- `docs/reading-provider-apis.md` — APIs de leitura do TiaManhwa, Comix e ManhwaBuddy e monitoramento de saúde.
 
 ## O que ainda não existe
 
-- Envio de e-mail (confirmação de conta, recuperação de senha) e login com Google: as telas
-  existem, mas não há serviço de e-mail/OAuth configurado.
+- Login com Google/OIDC, alteração de e-mail e MFA ainda não estão configurados; a interface os
+  apresenta como indisponíveis, sem simular sucesso.
 - Comentários do player e avaliações continuam simulados no navegador, como no protótipo.
 - Acessibilidade (WCAG) ficou fora deste escopo.

@@ -1,0 +1,12 @@
+{
+  "_fonte": "Votação Anime Corner Fall 2026 (7.601 votos, 9–24/set) e rankings semanais de outubro; ordem ajustada por força de franquia e impacto visual.",
+  "season": "FALL",
+  "seasonYear": 2026,
+  "seasonLabel": "Outono 2026",
+  "hero": [195539, 195604, 195516, 210482, 206814],
+  "seasonPriority": [
+    195539, 195604, 195516, 210482, 206814, 189123,
+    178083, 205909, 191656, 159042, 209872, 213805, 191788
+  ],
+  "seasonLimit": 30
+}

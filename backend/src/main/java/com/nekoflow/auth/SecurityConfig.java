@@ -1,5 +1,7 @@
 package com.nekoflow.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nekoflow.api.ApiErrors;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +10,7 @@ import java.io.IOException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -15,10 +18,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -35,25 +38,56 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, UserRepository users) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, UserRepository users, ObjectMapper objectMapper) throws Exception {
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
         csrfHandler.setCsrfRequestAttributeName(null);
         http
                 .csrf(c -> c.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(csrfHandler))
+                        .csrfTokenRequestHandler(csrfHandler)
+                        // Telemetria sai também por navigator.sendBeacon ao fechar a aba, que não envia
+                        // cabeçalho CSRF; o endpoint só grava eventos de audiência.
+                        .ignoringRequestMatchers("/api/v1/telemetry"))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 .addFilterBefore(new RoleRefreshFilter(users, securityContextRepository()),
                         org.springframework.security.web.access.intercept.AuthorizationFilter.class)
                 .securityContext(c -> c.securityContextRepository(securityContextRepository()))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/calendar",
+                        .requestMatchers("/api/auth/**", "/api/content/**", "/api/catalog/**", "/api/v1/works/**",
+                                "/api/v1/genres", "/api/v1/franchises/**", "/api/v1/seasons/**",
+                                "/api/v1/episodes/**", "/api/v1/chapters/**", "/api/v1/providers/mangalivre/**",
+                                "/api/v1/providers/weebcentral-en/**", "/api/v1/providers/reading",
+                                "/api/v1/providers/tiamanhwa-ptbr/**", "/api/v1/providers/comix-en/**",
+                                "/api/v1/providers/manhwabuddy-en/**",
+                                "/api/v1/home", "/api/v1/home/**", "/api/v1/telemetry",
+                                "/api/calendar",
                                 "/actuator/health").permitAll()
+                        .requestMatchers("/api/v1/me/**").authenticated()
                         .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**").hasRole("EDITOR")
+                        .requestMatchers("/api/admin/releases/**", "/api/admin/works/**", "/api/admin/catalog/**",
+                                "/api/admin/sync/**")
+                        .hasRole("EDITOR")
                         .requestMatchers("/api/admin/**").hasRole("MODERATOR")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
-                .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            objectMapper.writeValue(response.getOutputStream(), ApiErrors.body(
+                                    HttpStatus.UNAUTHORIZED,
+                                    "AUTHENTICATION_REQUIRED",
+                                    "Entre na sua conta para continuar.",
+                                    request));
+                        })
+                        .accessDeniedHandler((request, response, exception) -> {
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            objectMapper.writeValue(response.getOutputStream(), ApiErrors.body(
+                                    HttpStatus.FORBIDDEN,
+                                    "ACCESS_DENIED",
+                                    "Você não tem permissão para realizar esta operação.",
+                                    request));
+                        }))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -68,7 +102,12 @@ public class SecurityConfig {
 
     @Bean
     PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+        java.util.Map<String, PasswordEncoder> encoders = new java.util.HashMap<>();
+        encoders.put("argon2", Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8());
+        encoders.put("bcrypt", new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder());
+        DelegatingPasswordEncoder encoder = new DelegatingPasswordEncoder("argon2", encoders);
+        encoder.setDefaultPasswordEncoderForMatches(encoders.get("bcrypt"));
+        return encoder;
     }
 
     @Bean

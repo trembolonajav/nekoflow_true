@@ -3,9 +3,20 @@
 import React from "react";
 import { DCLogic, defineDC, txt, asList, css, val } from "../dc/runtime";
 import { api } from "../lib/api";
+import { getLocale, setLocale } from "../i18n/locale";
+import {
+  AUDIO_OPTIONS,
+  SUBTITLE_OPTIONS,
+  SUBTITLE_FALLBACK_OPTIONS,
+  LOCALE_OPTIONS,
+  labelFromLocale,
+  localeFromLabel,
+} from "../features/preferences/mediaPreferences";
 import { session } from "../lib/session";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { libraryApi } from "../features/library/libraryApi";
+import { historyApi } from "../features/history/historyApi";
 
 class ContaLogic extends DCLogic {
   state = {
@@ -31,6 +42,28 @@ class ContaLogic extends DCLogic {
   };
   TABS = ["perfil", "lista", "assistindo", "lendo", "historico", "notificacoes", "solicitacoes", "configuracoes"];
   ALIASES = { biblioteca: "lista", "continuar-assistindo": "assistindo", "continuar-lendo": "lendo" };
+  accountAction = async (kind) => {
+    try {
+      if (kind === "name") {
+        const displayName = window.prompt("Novo nome de exibição", session.user.name || "");
+        if (!displayName) return;
+        const me = await api.patch("/api/me", { displayName }); session.set(me);
+        this.setState({ toast: "Nome de exibição atualizado." });
+      } else if (kind === "password") {
+        const currentPassword = window.prompt("Senha atual"); if (!currentPassword) return;
+        const newPassword = window.prompt("Nova frase-senha (mínimo de 15 caracteres)"); if (!newPassword) return;
+        await api.post("/api/me/change-password", { currentPassword, newPassword });
+        this.setState({ toast: "Senha alterada; as outras sessões foram encerradas." });
+      } else if (kind === "sessions") {
+        const sessions = await api.get("/api/me/sessions");
+        const others = sessions.filter((x) => !x.current);
+        if (!others.length) return this.setState({ toast: "Somente esta sessão está conectada." });
+        const answer = window.prompt(`Outras sessões: ${others.map((x, i) => `${i + 1}: ${new Date(x.lastAccess).toLocaleString("pt-BR")}`).join(" · ")}\nDigite o número para encerrar.`);
+        const chosen = others[Number(answer) - 1]; if (!chosen) return;
+        await api.del(`/api/me/sessions/${chosen.id}`); this.setState({ toast: "Sessão encerrada." });
+      }
+    } catch (e) { this.setState({ toast: e.message || "Não foi possível concluir." }); }
+  };
   componentDidMount() {
     const p = new URLSearchParams(location.search);
     const a = this.ALIASES[p.get("aba")] || p.get("aba");
@@ -61,13 +94,14 @@ class ContaLogic extends DCLogic {
   /** Recarrega tudo que é pessoal; o Header é avisado pelo evento nk:personal. */
   reload() {
     return Promise.all([
-      api.get("/api/me/library"),
+      libraryApi.list({ size: 100 }).then((page) => page.items),
       api.get("/api/me/notifications"),
-      api.get("/api/me/history"),
+      historyApi.list(),
       api.get("/api/requests/mine"),
+      libraryApi.favorites({ size: 12 }).then((page) => page.items),
     ])
-      .then(([library, notifs, history, requests]) => {
-        this.setState({ d: { library, notifs, history, requests }, lib: library });
+      .then(([library, notifs, history, requests, favs]) => {
+        this.setState({ d: { library, notifs, history, requests }, lib: library, favs });
         window.dispatchEvent(new Event("nk:personal"));
       })
       .catch(() => this.flash("Não foi possível carregar seus dados. Tente novamente."));
@@ -154,6 +188,8 @@ class ContaLogic extends DCLogic {
     const prev = this.state.cfg;
     const cfg = { ...prev, [k]: v };
     this.setState({ cfg });
+    // Idioma do site muda a interface na hora; áudio e legenda continuam independentes.
+    if (k === "locale" && localeFromLabel(v)) setLocale(localeFromLabel(v));
     api
       .put("/api/me/preferences", cfg)
       .then(() => this.flash("Preferência salva"))
@@ -242,7 +278,7 @@ class ContaLogic extends DCLogic {
       { n: lib.filter((x) => x.status === "concluido").length, label: "Concluídos" },
       { n: 28, label: "Avaliações" },
     ];
-    const favorites = lib.filter((x) => x.favorite).slice(0, 6);
+    const favorites = (s.favs || lib.filter((x) => x.favorite)).slice(0, 6);
     const recentActivity = hist
       .flatMap((g) => g.items.map((i) => ({ ...i, day: g.day, verb: isAnim(i) ? "Assistiu" : "Leu" })))
       .slice(0, 4);
@@ -261,26 +297,29 @@ class ContaLogic extends DCLogic {
       .filter((x) => s.status === "todos" || x.status === s.status)
       .map((x) => {
         const anim = isAnim(x);
-        const progress =
-          x.status === "planejado"
-            ? anim
-              ? "Ainda não começou"
-              : "Ainda não começou"
-            : x.done && x.status === "andamento"
-              ? `Em dia · ${anim ? `Ep. ${x.ep}` : `Cap. ${x.ch}`}`
+        // Textos derivados do progresso real: sem registro, a obra "ainda não começou".
+        const unitText = anim ? `Ep. ${x.ep}` : `Cap. ${x.ch}`;
+        const started = x.hasProgress;
+        const progress = !started
+          ? "Ainda não começou"
+          : x.done
+            ? `Em dia · ${unitText}`
+            : x.resume && x.resume.state === "NEXT"
+              ? `Próximo: ${unitText}`
               : anim
-                ? `Ep. ${x.ep}${x.of ? ` de ${x.of}` : ""}`
-                : `Cap. ${x.ch}`;
-        const cta =
-          x.status === "planejado"
+                ? `${unitText}${x.of ? ` de ${x.of}` : ""}`
+                : unitText;
+        const cta = !started
+          ? x.status === "planejado" || x.status === "andamento"
             ? anim
-              ? "Assistir ep. 1"
-              : "Ler cap. 1"
-            : x.status === "concluido"
-              ? "Ver obra"
-              : anim
-                ? "Continuar assistindo"
-                : "Continuar lendo";
+              ? "Começar a assistir"
+              : "Começar a ler"
+            : "Ver obra"
+          : x.status === "concluido" || x.done
+            ? "Ver obra"
+            : anim
+              ? "Continuar assistindo"
+              : "Continuar lendo";
         return {
           ...x,
           statusLabel: stMap[x.status].l,
@@ -291,18 +330,18 @@ class ContaLogic extends DCLogic {
           pctW: `${x.pct || 0}%`,
           menuOpen: s.menuFor === x.id + x.kind,
           menu: () => this.setState({ menuFor: s.menuFor === x.id + x.kind ? null : x.id + x.kind }),
-          ctaHref: x.status === "concluido" ? x.href : x.unitHref,
+          ctaHref: !started || x.status === "concluido" || x.done ? x.href : x.unitHref,
           moves: ST.filter(([k]) => k !== x.status).map(([k, l]) => ({
             label: l,
             color: "#F0EEE9",
-            pick: () => this.act(api.put(`/api/me/library/${x.id}`, { status: k }), `Movido para ${l}`),
+            pick: () => this.act(libraryApi.setStatus(x.publicId, k), `Movido para ${l}`),
           })),
           actions: [
             {
               label: x.favorite ? "Remover dos favoritos" : "Marcar como favorito",
               pick: () =>
                 this.act(
-                  api.put(`/api/me/favorites/${x.id}`, { on: !x.favorite }),
+                  libraryApi.favorite(x.publicId, !x.favorite),
                   x.favorite ? "Removido dos favoritos" : "Adicionado aos favoritos",
                 ),
             },
@@ -310,28 +349,21 @@ class ContaLogic extends DCLogic {
               label: x.follow ? "Desativar alertas de lançamento" : "Ativar alertas de lançamento",
               pick: () =>
                 this.act(
-                  api.put(`/api/me/follows/${x.id}`, { on: !x.follow }),
+                  libraryApi.follow(x.publicId, !x.follow),
                   x.follow ? "Alertas desativados" : "Você será avisado de novos lançamentos",
                 ),
             },
             {
-              label: "Atualizar progresso",
-              pick: () => {
-                const unitName = anim ? "episódio" : "capítulo";
-                const cur = anim ? x.ep : x.ch;
-                const ans = window.prompt(`Até qual ${unitName} você ${anim ? "assistiu" : "leu"}?`, String(cur || 1));
-                const n = parseInt(ans, 10);
-                if (!n || n < 1) return this.setState({ menuFor: null });
-                this.act(
-                  api.put(`/api/me/progress/${x.id}/${n}`, { pct: 100, completed: true, at: Date.now() }),
-                  `Progresso atualizado: ${unitName} ${n}`,
-                );
-              },
+              label: "Atualizar progresso na ficha",
+              pick: () => (location.href = x.href),
             },
             { label: "Ver obra", pick: () => (location.href = x.href) },
           ],
-          remove: () =>
-            this.act(api.del(`/api/me/library/${x.id}`), "Removido da lista · histórico e progresso mantidos"),
+          remove: () => {
+            if (!window.confirm(`Remover "${x.title}" da sua lista? O progresso e o histórico continuam salvos.`))
+              return this.setState({ menuFor: null });
+            this.act(libraryApi.remove(x.publicId), "Removido da lista · histórico e progresso mantidos");
+          },
         };
       });
     const chip = (on) => ({
@@ -375,7 +407,7 @@ class ContaLogic extends DCLogic {
                 ...i,
                 remove: () => {
                   this.setState({ removedH: [...s.removedH, i.hid] });
-                  this.act(api.del(`/api/me/history/${i.hid}`), "Removido do histórico");
+                  this.act(historyApi.remove(i.hid), "Removido do histórico");
                 },
               })),
           }))
@@ -464,19 +496,21 @@ class ContaLogic extends DCLogic {
           label: "Nome de exibição",
           desc: `${session.user.name || ""} · aparece no perfil e nos comentários`,
           action: "Alterar",
+          act: () => this.accountAction("name"),
         },
         {
           label: "E-mail",
           desc: `${(session.user.email || "").replace(/^(.)[^@]*/, "$1•••••")} · exige confirmação por e-mail`,
-          action: "Alterar",
+          action: "Em preparação",
+          disabled: true,
         },
-        { label: "Senha", desc: "Alterada há 3 meses", action: "Alterar senha" },
-        { label: "Sessões conectadas", desc: "Chrome no Windows (esta) · Nekoflow no Android", action: "Gerenciar" },
+        { label: "Senha", desc: "Use uma frase-senha com pelo menos 15 caracteres", action: "Alterar senha", act: () => this.accountAction("password") },
+        { label: "Sessões conectadas", desc: "Consulte e encerre outras sessões reais", action: "Gerenciar", act: () => this.accountAction("sessions") },
         {
-          key: "twofa",
           label: "Verificação em duas etapas",
           desc: "Pede um código ao entrar em um novo dispositivo",
-          d: false,
+          action: "Ainda indisponível",
+          disabled: true,
         },
       ],
       play: [
@@ -488,18 +522,32 @@ class ContaLogic extends DCLogic {
         },
         { key: "skip", label: "Pular abertura e encerramento", desc: "Quando o episódio tiver marcações", d: false },
         {
+          key: "locale",
+          label: "Idioma do site",
+          desc: "Menus e textos do NekoFlow. Não muda o áudio nem a legenda dos episódios",
+          opts: LOCALE_OPTIONS,
+          d: labelFromLocale(getLocale()) || "Português (Brasil)",
+        },
+        {
           key: "audio",
           label: "Áudio preferido",
           desc: "Usado quando houver mais de uma opção",
-          opts: ["Japonês", "Português"],
+          opts: AUDIO_OPTIONS,
           d: "Japonês",
         },
         {
           key: "subs",
-          label: "Legendas",
-          desc: "Idioma padrão das legendas",
-          opts: ["PT-BR", "Inglês", "Desligadas"],
+          label: "Legenda preferida",
+          desc: "Escolhida primeiro quando o episódio oferecer",
+          opts: SUBTITLE_OPTIONS,
           d: "PT-BR",
+        },
+        {
+          key: "subsAlt",
+          label: "Legenda alternativa",
+          desc: "Usada, com aviso, quando a preferida não existir no episódio",
+          opts: SUBTITLE_FALLBACK_OPTIONS,
+          d: "Inglês",
         },
         {
           key: "reader",
@@ -602,7 +650,7 @@ class ContaLogic extends DCLogic {
       cancelClear: () => this.setState({ confirmClear: false }),
       doClear: () => {
         this.setState({ confirmClear: false });
-        this.act(api.del("/api/me/history"), "Histórico apagado · lista e progresso mantidos");
+        this.act(historyApi.clear(), "Histórico apagado · lista e progresso mantidos");
       },
       notifs,
       notifChips,
@@ -2638,9 +2686,12 @@ function render(v) {
                             <>
                               <button
                                 className="nk-hover-ucdklh"
+                                onClick={r?.act}
+                                disabled={r?.disabled}
                                 style={{
                                   all: "unset",
-                                  cursor: "pointer",
+                                  cursor: r?.disabled ? "not-allowed" : "pointer",
+                                  opacity: r?.disabled ? ".55" : "1",
                                   height: "36px",
                                   display: "flex",
                                   alignItems: "center",

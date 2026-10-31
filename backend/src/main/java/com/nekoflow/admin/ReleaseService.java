@@ -38,6 +38,15 @@ public class ReleaseService {
 
     @Transactional
     public Map<String, Object> publish(long actorId, long workId, int unit, String unitTitle) {
+        return publish(actorId, workId, unit, unitTitle, false);
+    }
+
+    @Transactional
+    public Map<String, Object> publishSystem(long workId, int unit, String unitTitle) {
+        return publish(null, workId, unit, unitTitle, true);
+    }
+
+    private Map<String, Object> publish(Long actorId, long workId, int unit, String unitTitle, boolean system) {
         Work w = works.require(workId);
         boolean created = jdbc.sql("""
                 INSERT INTO release_event (work_id, unit, unit_title, published_by) VALUES (?, ?, ?, ?)
@@ -54,8 +63,13 @@ public class ReleaseService {
         Notice n = new Notice("lanc", null, w.isAnimation() ? "Novo episódio disponível" : "Novo capítulo disponível",
                 w.title() + " · " + unitLabel, w.unitHref(unit), w.cover(), "release:" + workId + ":" + unit);
         int notified = notifications.sendToFollowers(workId, n, w.isAnimation() ? "nEp" : "nCh");
-        int resolved = requests.resolveMissingFor(workId, actorId, unitLabel + " publicado");
-        audit.record(actorId, "PUBLICAR", w.title() + " · " + unitLabel, unitTitle);
+        int resolved = actorId == null ? 0 : requests.resolveMissingFor(workId, actorId, unitLabel + " publicado");
+        if (system) {
+            jdbc.sql("INSERT INTO admin_audit(actor_id,action,target,detail) VALUES (NULL,'PUBLICAR_AUTO',?,?)")
+                    .params(w.title() + " · " + unitLabel, unitTitle).update();
+        } else {
+            audit.record(actorId, "PUBLICAR", w.title() + " · " + unitLabel, unitTitle);
+        }
         m.put("notified", notified);
         m.put("requestsResolved", resolved);
         return m;

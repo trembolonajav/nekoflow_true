@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: { assetsDir: "static" },
   server: {
-    port: 5173,
-    proxy: { "/api": process.env.VITE_API_PROXY || "http://localhost:8080" },
+    port: 9073,
+    proxy: { "/api": process.env.VITE_API_PROXY || "http://localhost:9090" },
   },
 });
